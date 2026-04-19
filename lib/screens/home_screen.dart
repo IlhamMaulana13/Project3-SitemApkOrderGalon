@@ -10,7 +10,7 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
-          'GalonKu',
+          'Galon Fibonacci',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
@@ -70,18 +70,21 @@ class HomeScreen extends StatelessWidget {
                 // GANTI URL DI BAWAH DENGAN DIRECT LINK IMGBB ANDA
                 ProductItem(
                   name: 'Isi Ulang Galon Aqua',
-                  price: 18000,
-                  imageUrl: 'https://i.ibb.co/vzVvK7F/galon-isi-ulang.png', 
+                  price: 7000,
+                  imageUrl:
+                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
                 ),
                 ProductItem(
                   name: 'Galon Baru + Isi',
-                  price: 55000,
-                  imageUrl: 'https://i.ibb.co/v3mN27h/galon-baru.png',
+                  price: 45000,
+                  imageUrl:
+                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
                 ),
                 ProductItem(
                   name: 'Sewa Galon (Kosong)',
-                  price: 10000,
-                  imageUrl: 'https://i.ibb.co/9vP17W8/sewa-galon.png',
+                  price: 2000,
+                  imageUrl:
+                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
                 ),
               ],
             ),
@@ -136,7 +139,9 @@ class _ProductItemState extends State<ProductItem> {
                     width: 80,
                     height: 80,
                     color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   );
                 },
                 // Jika URL error/mati
@@ -145,7 +150,10 @@ class _ProductItemState extends State<ProductItem> {
                     width: 80,
                     height: 80,
                     color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey,
+                    ),
                   );
                 },
               ),
@@ -159,7 +167,10 @@ class _ProductItemState extends State<ProductItem> {
                 children: [
                   Text(
                     widget.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   Text(
@@ -205,7 +216,9 @@ class _ProductItemState extends State<ProductItem> {
                     backgroundColor: Colors.blue[700],
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: const Text('Tambah'),
                 ),

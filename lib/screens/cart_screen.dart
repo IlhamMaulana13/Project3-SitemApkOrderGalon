@@ -13,7 +13,9 @@ class CartScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: Colors.blue[700],
-        iconTheme: const IconThemeData(color: Colors.white), // Tombol kembali putih
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // Tombol kembali putih
         centerTitle: true,
       ),
       body: Column(
@@ -29,7 +31,8 @@ class CartScreen extends StatelessWidget {
                   name: 'Isi Ulang Galon Aqua',
                   price: 18000,
                   qty: 2,
-                  imageUrl: 'https://i.ibb.co/vzVvK7F/galon-isi-ulang.png',
+                  imageUrl:
+                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
                 ),
                 // Contoh Item 2
                 _buildCartItem(
@@ -37,7 +40,7 @@ class CartScreen extends StatelessWidget {
                   name: 'Sewa Galon (Kosong)',
                   price: 10000,
                   qty: 1,
-                  imageUrl: 'https://i.ibb.co/9vP17W8/sewa-galon.png',
+                  imageUrl: 'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
                 ),
               ],
             ),
@@ -99,7 +102,10 @@ class CartScreen extends StatelessWidget {
                     ),
                     child: const Text(
                       'Lanjut ke Checkout',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -147,7 +153,7 @@ class CartScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 15),
-            
+
             // Info Produk
             Expanded(
               child: Column(
@@ -155,12 +161,18 @@ class CartScreen extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   Text(
                     'Rp $price',
-                    style: TextStyle(color: Colors.blue[700], fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.blue[700],
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -172,10 +184,17 @@ class CartScreen extends StatelessWidget {
               children: [
                 Text(
                   'x$qty',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                    size: 20,
+                  ),
                   onPressed: () {
                     // Logika hapus item
                   },
@@ -194,7 +213,9 @@ class CartScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Konfirmasi'),
-        content: const Text('Apakah Anda ingin melanjutkan ke proses pembayaran?'),
+        content: const Text(
+          'Apakah Anda ingin melanjutkan ke proses pembayaran?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
