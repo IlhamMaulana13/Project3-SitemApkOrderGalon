@@ -1,37 +1,73 @@
 import 'package:flutter/material.dart';
-import 'package:galonfibonacci/screens/cart_screen.dart';
+import 'package:galonfibonacci/provider/cart_provider.dart';
+import 'package:provider/provider.dart';
+import '../models/product_model.dart';
+import '../services/api_service.dart';
+import 'cart_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+
+  List<ProductModel> products = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProducts();
+  }
+
+  void fetchProducts() async {
+
+    final result = await ApiService.getProducts();
+
+    setState(() {
+      products = result;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
+
       appBar: AppBar(
         title: const Text(
           'Galon Fibonacci',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-        centerTitle: true,
         backgroundColor: Colors.blue[700],
-        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.shopping_cart, color: Colors.white),
+            icon: const Icon(
+              Icons.shopping_cart,
+              color: Colors.white,
+            ),
             onPressed: () {
-              // Navigasi ke Halaman Keranjang
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const CartScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const CartScreen(),
+                ),
               );
             },
           ),
         ],
       ),
+
       body: Column(
         children: [
-          // Banner / Ucapan Selamat Datang
+
           Container(
             padding: const EdgeInsets.all(20),
             width: double.infinity,
@@ -47,7 +83,9 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Text(
                   'Halo Pelanggan!',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white70,
+                  ),
                 ),
                 SizedBox(height: 5),
                 Text(
@@ -62,31 +100,16 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          // Daftar Produk
           Expanded(
-            child: ListView(
+            child: ListView.builder(
               padding: const EdgeInsets.all(15),
-              children: const [
-                // GANTI URL DI BAWAH DENGAN DIRECT LINK IMGBB ANDA
-                ProductItem(
-                  name: 'Isi Ulang Galon Aqua',
-                  price: 7000,
-                  imageUrl:
-                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
-                ),
-                ProductItem(
-                  name: 'Galon Baru + Isi',
-                  price: 45000,
-                  imageUrl:
-                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
-                ),
-                ProductItem(
-                  name: 'Sewa Galon (Kosong)',
-                  price: 2000,
-                  imageUrl:
-                      'https://i.ibb.co.com/rRzSxNZ3/Galon-Aqua-Kosong-Tempat-Air-Kapasitar-19-L.jpg',
-                ),
-              ],
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+
+                final product = products[index];
+
+                return ProductItem(product: product);
+              },
             ),
           ),
         ],
@@ -96,15 +119,12 @@ class HomeScreen extends StatelessWidget {
 }
 
 class ProductItem extends StatefulWidget {
-  final String name;
-  final int price;
-  final String imageUrl;
+
+  final ProductModel product;
 
   const ProductItem({
     super.key,
-    required this.name,
-    required this.price,
-    required this.imageUrl,
+    required this.product,
   });
 
   @override
@@ -112,136 +132,110 @@ class ProductItem extends StatefulWidget {
 }
 
 class _ProductItemState extends State<ProductItem> {
+
   int quantity = 1;
 
   @override
   Widget build(BuildContext context) {
+
+    final cartProvider = Provider.of<CartProvider>(
+      context,
+      listen: false,
+    );
+
     return Card(
-      elevation: 2,
       margin: const EdgeInsets.only(bottom: 15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            // Gambar Produk dari URL
+
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
-                widget.imageUrl,
+                widget.product.image,
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
-                // Loading saat gambar diunduh
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  );
-                },
-                // Jika URL error/mati
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[300],
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
-                    ),
-                  );
-                },
               ),
             ),
+
             const SizedBox(width: 15),
 
-            // Info Produk
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   Text(
-                    widget.name,
+                    widget.product.merk,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
+
                   const SizedBox(height: 5),
+
                   Text(
-                    'Rp ${widget.price}',
-                    style: TextStyle(
-                      color: Colors.blue[800],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    "Rp ${widget.product.price}",
                   ),
                 ],
               ),
             ),
 
-            // Kontrol Qty & Tombol Tambah
             Column(
               children: [
+
                 Row(
                   children: [
-                    _qtyButton(Icons.remove, () {
-                      if (quantity > 1) setState(() => quantity--);
-                    }),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        '$quantity',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+
+                    IconButton(
+                      onPressed: () {
+                        if (quantity > 1) {
+                          setState(() {
+                            quantity--;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.remove),
                     ),
-                    _qtyButton(Icons.add, () {
-                      setState(() => quantity++);
-                    }),
+
+                    Text("$quantity"),
+
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          quantity++;
+                        });
+                      },
+                      icon: const Icon(Icons.add),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 10),
+
                 ElevatedButton(
                   onPressed: () {
+
+                    cartProvider.addToCart(
+                      widget.product,
+                      quantity,
+                    );
+
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${widget.name} ditambahkan!')),
+                      SnackBar(
+                        content: Text(
+                          "${widget.product.merk} ditambahkan",
+                        ),
+                      ),
                     );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Tambah'),
+                  child: const Text("Tambah"),
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // Widget kecil untuk tombol + dan -
-  Widget _qtyButton(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.grey[400]!),
-        ),
-        child: Icon(icon, size: 16, color: Colors.blue[700]),
       ),
     );
   }

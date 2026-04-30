@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-// Pastikan import ini sesuai dengan lokasi file home_screen.dart yang kamu buat
-import 'screens/home_screen.dart'; 
+import 'package:galonfibonacci/provider/cart_provider.dart';
+import 'package:provider/provider.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,14 +12,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Aplikasi GalonFibonacci',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), 
-        useMaterial3: true,
+
+    return ChangeNotifierProvider(
+      create: (_) => CartProvider(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: const HomeScreen(),
       ),
-      home: HomeScreen(), 
     );
   }
 }
