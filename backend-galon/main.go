@@ -36,6 +36,19 @@ type OrderResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
+type OrderDetailItem struct {
+	Merk     string `json:"merk"`
+	Qty      int    `json:"qty"`
+	Subtotal int    `json:"subtotal"`
+}
+
+type OrderDetailResponse struct {
+	ID     int               `json:"id"`
+	Status string            `json:"status"`
+	Total  int               `json:"total"`
+	Items  []OrderDetailItem `json:"items"`
+}
+
 func main() {
 
 	database.ConnectDB()
