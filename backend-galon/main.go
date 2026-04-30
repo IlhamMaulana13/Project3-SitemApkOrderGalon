@@ -16,6 +16,19 @@ type Product struct {
 	Image      string `json:"image"`
 }
 
+type OrderItem struct {
+	ProductID int `json:"product_id"`
+	Qty       int `json:"qty"`
+	Subtotal  int `json:"subtotal"`
+}
+
+type Order struct {
+	UserID          string      `json:"user_id"`
+	PaymentMethodID int         `json:"payment_method_id"`
+	Total           int         `json:"total"`
+	Items           []OrderItem `json:"items"`
+}
+
 func main() {
 
 	// CONNECT DB
