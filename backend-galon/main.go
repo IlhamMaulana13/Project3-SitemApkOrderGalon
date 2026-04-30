@@ -29,9 +29,15 @@ type Order struct {
 	Items           []OrderItem `json:"items"`
 }
 
+type OrderResponse struct {
+	ID        int    `json:"id"`
+	Total     int    `json:"total"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+}
+
 func main() {
 
-	// CONNECT DB
 	database.ConnectDB()
 
 	r := gin.Default()
@@ -84,12 +90,11 @@ func main() {
 			return
 		}
 
-		// INSERT ORDER
 		result, err := database.DB.Exec(`
-		INSERT INTO orders
-		(user_id, payment_method_id, total, status)
-		VALUES (?, ?, ?, ?)
-	`,
+			INSERT INTO orders
+			(user_id, payment_method_id, total, status)
+			VALUES (?, ?, ?, ?)
+		`,
 			order.UserID,
 			order.PaymentMethodID,
 			order.Total,
@@ -105,14 +110,13 @@ func main() {
 
 		orderID, _ := result.LastInsertId()
 
-		// INSERT ORDER ITEMS
 		for _, item := range order.Items {
 
 			_, err := database.DB.Exec(`
-			INSERT INTO order_items
-			(order_id, product_id, qty, subtotal)
-			VALUES (?, ?, ?, ?)
-		`,
+				INSERT INTO order_items
+				(order_id, product_id, qty, subtotal)
+				VALUES (?, ?, ?, ?)
+			`,
 				orderID,
 				item.ProductID,
 				item.Qty,
