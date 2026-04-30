@@ -1,20 +1,28 @@
-class Product {
-  final String id;
-  final String name;
+class ProductModel {
+  final int id;
+  final int categoryId;
+  final String merk;
   final int price;
-  final String category;
+  final int stock;
+  final String image;
 
-  Product({
+  ProductModel({
     required this.id,
-    required this.name,
+    required this.categoryId,
+    required this.merk,
     required this.price,
-    required this.category,
+    required this.stock,
+    required this.image,
   });
-}
 
-// Data sementara untuk tes UI
-List<Product> dummyProducts = [
-  Product(id: 'p1', name: 'Isi Ulang Galon Aqua', price: 20000, category: 'Isi Ulang'),
-  Product(id: 'p2', name: 'Galon Baru Aqua', price: 50000, category: 'Beli Baru'),
-  Product(id: 'p3', name: 'Sewa Galon Kosong', price: 15000, category: 'Sewa'),
-];
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    return ProductModel(
+      id: json['id'],
+      categoryId: json['category_id'],
+      merk: json['merk'],
+      price: json['price'],
+      stock: json['stock'],
+      image: json['image'],
+    );
+  }
+}
