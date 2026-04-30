@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
+import 'package:galonfibonacci/services/api_service.dart';
 import 'package:provider/provider.dart';
 
 class CartScreen extends StatelessWidget {
@@ -99,7 +100,26 @@ class CartScreen extends StatelessWidget {
                   height: 50,
 
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () async {
+                      final success = await ApiService.checkout(
+                        cartProvider.items,
+                        cartProvider.total,
+                      );
+
+                      if (success) {
+                        cartProvider.clearCart();
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Checkout berhasil")),
+                        );
+
+                        Navigator.pop(context);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Checkout gagal")),
+                        );
+                      }
+                    },
                     child: const Text("Checkout"),
                   ),
                 ),

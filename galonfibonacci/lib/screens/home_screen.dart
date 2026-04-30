@@ -13,7 +13,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   List<ProductModel> products = [];
 
   @override
@@ -23,7 +22,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void fetchProducts() async {
-
     final result = await ApiService.getProducts();
 
     setState(() {
@@ -33,32 +31,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
         title: const Text(
-          'Galon Fibonacci',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          'Galon Rajeg Bahagia',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: Colors.blue[700],
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.shopping_cart,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.shopping_cart, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const CartScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const CartScreen()),
               );
             },
           ),
@@ -67,7 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       body: Column(
         children: [
-
           Container(
             padding: const EdgeInsets.all(20),
             width: double.infinity,
@@ -83,9 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text(
                   'Halo Pelanggan!',
-                  style: TextStyle(
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(color: Colors.white70),
                 ),
                 SizedBox(height: 5),
                 Text(
@@ -105,7 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(15),
               itemCount: products.length,
               itemBuilder: (context, index) {
-
                 final product = products[index];
 
                 return ProductItem(product: product);
@@ -119,29 +104,20 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class ProductItem extends StatefulWidget {
-
   final ProductModel product;
 
-  const ProductItem({
-    super.key,
-    required this.product,
-  });
+  const ProductItem({super.key, required this.product});
 
   @override
   State<ProductItem> createState() => _ProductItemState();
 }
 
 class _ProductItemState extends State<ProductItem> {
-
   int quantity = 1;
 
   @override
   Widget build(BuildContext context) {
-
-    final cartProvider = Provider.of<CartProvider>(
-      context,
-      listen: false,
-    );
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 15),
@@ -149,7 +125,6 @@ class _ProductItemState extends State<ProductItem> {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
@@ -166,7 +141,6 @@ class _ProductItemState extends State<ProductItem> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   Text(
                     widget.product.merk,
                     style: const TextStyle(
@@ -177,19 +151,15 @@ class _ProductItemState extends State<ProductItem> {
 
                   const SizedBox(height: 5),
 
-                  Text(
-                    "Rp ${widget.product.price}",
-                  ),
+                  Text("Rp ${widget.product.price}"),
                 ],
               ),
             ),
 
             Column(
               children: [
-
                 Row(
                   children: [
-
                     IconButton(
                       onPressed: () {
                         if (quantity > 1) {
@@ -216,17 +186,11 @@ class _ProductItemState extends State<ProductItem> {
 
                 ElevatedButton(
                   onPressed: () {
-
-                    cartProvider.addToCart(
-                      widget.product,
-                      quantity,
-                    );
+                    cartProvider.addToCart(widget.product, quantity);
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          "${widget.product.merk} ditambahkan",
-                        ),
+                        content: Text("${widget.product.merk} ditambahkan"),
                       ),
                     );
                   },

@@ -3,35 +3,29 @@ import '../models/cart_model.dart';
 import '../models/product_model.dart';
 
 class CartProvider extends ChangeNotifier {
-
   final List<CartModel> _items = [];
 
   List<CartModel> get items => _items;
 
-  void addToCart(ProductModel product, int quantity) {
+  void clearCart() {
+    _items.clear();
+    notifyListeners();
+  }
 
-    final index = _items.indexWhere(
-      (item) => item.product.id == product.id,
-    );
+  void addToCart(ProductModel product, int quantity) {
+    final index = _items.indexWhere((item) => item.product.id == product.id);
 
     if (index != -1) {
       _items[index].quantity += quantity;
     } else {
-      _items.add(
-        CartModel(
-          product: product,
-          quantity: quantity,
-        ),
-      );
+      _items.add(CartModel(product: product, quantity: quantity));
     }
 
     notifyListeners();
   }
 
   void removeItem(int productId) {
-    _items.removeWhere(
-      (item) => item.product.id == productId,
-    );
+    _items.removeWhere((item) => item.product.id == productId);
 
     notifyListeners();
   }
