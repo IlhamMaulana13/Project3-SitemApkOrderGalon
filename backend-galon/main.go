@@ -75,7 +75,7 @@ func main() {
 	// POST ORDER
 	r.POST("/orders", func(c *gin.Context) {
 
-		var order map[string]interface{}
+		var order Order
 
 		if err := c.ShouldBindJSON(&order); err != nil {
 			c.JSON(400, gin.H{
@@ -84,11 +84,52 @@ func main() {
 			return
 		}
 
-		order["status"] = "Diproses"
+		// INSERT ORDER
+		result, err := database.DB.Exec(`
+		INSERT INTO orders
+		(user_id, payment_method_id, total, status)
+		VALUES (?, ?, ?, ?)
+	`,
+			order.UserID,
+			order.PaymentMethodID,
+			order.Total,
+			"Diproses",
+		)
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		orderID, _ := result.LastInsertId()
+
+		// INSERT ORDER ITEMS
+		for _, item := range order.Items {
+
+			_, err := database.DB.Exec(`
+			INSERT INTO order_items
+			(order_id, product_id, qty, subtotal)
+			VALUES (?, ?, ?, ?)
+		`,
+				orderID,
+				item.ProductID,
+				item.Qty,
+				item.Subtotal,
+			)
+
+			if err != nil {
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+				return
+			}
+		}
 
 		c.JSON(200, gin.H{
-			"message": "Order berhasil",
-			"data":    order,
+			"message":  "Order berhasil dibuat",
+			"order_id": orderID,
 		})
 	})
 
