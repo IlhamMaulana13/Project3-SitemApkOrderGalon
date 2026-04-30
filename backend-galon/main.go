@@ -188,5 +188,65 @@ func main() {
 		c.JSON(200, orders)
 	})
 
+	// GET DETAIL ORDER
+	r.GET("/orders/detail/:id", func(c *gin.Context) {
+
+		orderID := c.Param("id")
+
+		// GET ORDER
+		var order OrderDetailResponse
+
+		err := database.DB.QueryRow(`
+		SELECT id, status, total
+		FROM orders
+		WHERE id = ?
+	`, orderID).Scan(
+			&order.ID,
+			&order.Status,
+			&order.Total,
+		)
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// GET ITEMS
+		rows, err := database.DB.Query(`
+		SELECT p.merk, oi.qty, oi.subtotal
+		FROM order_items oi
+		JOIN products p ON p.id = oi.product_id
+		WHERE oi.order_id = ?
+	`, orderID)
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		var items []OrderDetailItem
+
+		for rows.Next() {
+
+			var item OrderDetailItem
+
+			rows.Scan(
+				&item.Merk,
+				&item.Qty,
+				&item.Subtotal,
+			)
+
+			items = append(items, item)
+		}
+
+		order.Items = items
+
+		c.JSON(200, order)
+	})
+
 	r.Run(":8080")
 }
