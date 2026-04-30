@@ -39,18 +39,31 @@ class CartScreen extends StatelessWidget {
 
                     subtitle: Text("Qty: ${item.quantity}"),
 
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text("Rp ${item.subtotal}"),
+                    trailing: SizedBox(
+                      width: 80,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            "Rp ${item.subtotal}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
 
-                        IconButton(
-                          onPressed: () {
-                            cartProvider.removeItem(item.product.id);
-                          },
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+
+                          GestureDetector(
+                            onTap: () {
+                              cartProvider.removeItem(item.product.id);
+                            },
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
