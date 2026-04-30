@@ -137,5 +137,43 @@ func main() {
 		})
 	})
 
+	// GET ORDERS BY USER
+	r.GET("/orders/:user_id", func(c *gin.Context) {
+
+		userID := c.Param("user_id")
+
+		rows, err := database.DB.Query(`
+		SELECT id, total, status, created_at
+		FROM orders
+		WHERE user_id = ?
+		ORDER BY id DESC
+	`, userID)
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		var orders []OrderResponse
+
+		for rows.Next() {
+
+			var order OrderResponse
+
+			rows.Scan(
+				&order.ID,
+				&order.Total,
+				&order.Status,
+				&order.CreatedAt,
+			)
+
+			orders = append(orders, order)
+		}
+
+		c.JSON(200, orders)
+	})
+
 	r.Run(":8080")
 }
