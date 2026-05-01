@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "553611032865",
+    "project_id": "galonfirebase",
+    "storage_bucket": "galonfirebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:553611032865:android:4d6d50da15a067dbd12660",
+        "android_client_info": {
+          "package_name": "com.example.galonfibonacci"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbUvPIH-yTGHA5t62KEqwfMyAI0s48vxE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
