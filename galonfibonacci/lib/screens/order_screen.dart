@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/screens/invoice_screen.dart';
 
 import '../models/order_model.dart';
 import '../services/api_service.dart';
@@ -11,7 +12,6 @@ class OrderScreen extends StatefulWidget {
 }
 
 class _OrderScreenState extends State<OrderScreen> {
-
   List<OrderModel> orders = [];
 
   @override
@@ -21,7 +21,6 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   void fetchOrders() async {
-
     final result = await ApiService.getOrders();
 
     setState(() {
@@ -31,21 +30,16 @@ class _OrderScreenState extends State<OrderScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
         title: const Text(
           "Riwayat Pesanan",
-          style: TextStyle(
-            color: Colors.white,
-          ),
+          style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.blue[700],
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
 
       body: ListView.builder(
@@ -53,63 +47,58 @@ class _OrderScreenState extends State<OrderScreen> {
         itemCount: orders.length,
 
         itemBuilder: (context, index) {
-
           final order = orders[index];
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 15),
-
-            child: ListTile(
-
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue[100],
-                child: Text(
-                  "#${order.id}",
+          return InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => InvoiceScreen(orderId: order.id),
                 ),
-              ),
+              );
+            },
 
-              title: Text(
-                "Rp ${order.total}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+            child: Card(
+              margin: const EdgeInsets.only(bottom: 15),
+
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue[100],
+                  child: Text("#${order.id}"),
                 ),
-              ),
 
-              subtitle: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
+                title: Text(
+                  "Rp ${order.total}",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
 
-                  Text(
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(order.status),
+
+                    Text(order.createdAt, style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+
+                  child: Text(
                     order.status,
-                  ),
-
-                  Text(
-                    order.createdAt,
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      color: Colors.orange[800],
+                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                ],
-              ),
-
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-
-                decoration: BoxDecoration(
-                  color: Colors.orange[100],
-                  borderRadius:
-                      BorderRadius.circular(20),
-                ),
-
-                child: Text(
-                  order.status,
-                  style: TextStyle(
-                    color: Colors.orange[800],
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
