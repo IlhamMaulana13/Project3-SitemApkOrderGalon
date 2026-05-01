@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:galonfibonacci/models/order_model.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/cart_model.dart';
@@ -46,4 +47,23 @@ class ApiService {
 
     return response.statusCode == 200;
   }
+
+  static Future<List<OrderModel>> getOrders() async {
+
+  final response = await http.get(
+    Uri.parse("$baseUrl/orders"),
+  );
+
+  if (response.statusCode == 200) {
+
+    List data = jsonDecode(response.body);
+
+    return data
+        .map((item) => OrderModel.fromJson(item))
+        .toList();
+
+  } else {
+    throw Exception("Failed to load orders");
+  }
+}
 }

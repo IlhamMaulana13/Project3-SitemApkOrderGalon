@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+
+import '../models/order_model.dart';
+import '../services/api_service.dart';
+
+class OrderScreen extends StatefulWidget {
+  const OrderScreen({super.key});
+
+  @override
+  State<OrderScreen> createState() => _OrderScreenState();
+}
+
+class _OrderScreenState extends State<OrderScreen> {
+
+  List<OrderModel> orders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchOrders();
+  }
+
+  void fetchOrders() async {
+
+    final result = await ApiService.getOrders();
+
+    setState(() {
+      orders = result;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+
+      appBar: AppBar(
+        title: const Text(
+          "Riwayat Pesanan",
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Colors.blue[700],
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
+      ),
+
+      body: ListView.builder(
+        padding: const EdgeInsets.all(15),
+        itemCount: orders.length,
+
+        itemBuilder: (context, index) {
+
+          final order = orders[index];
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 15),
+
+            child: ListTile(
+
+              leading: CircleAvatar(
+                backgroundColor: Colors.blue[100],
+                child: Text(
+                  "#${order.id}",
+                ),
+              ),
+
+              title: Text(
+                "Rp ${order.total}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              subtitle: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+
+                  Text(
+                    order.status,
+                  ),
+
+                  Text(
+                    order.createdAt,
+                    style: const TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+
+                decoration: BoxDecoration(
+                  color: Colors.orange[100],
+                  borderRadius:
+                      BorderRadius.circular(20),
+                ),
+
+                child: Text(
+                  order.status,
+                  style: TextStyle(
+                    color: Colors.orange[800],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

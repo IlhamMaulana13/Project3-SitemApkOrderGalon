@@ -248,5 +248,49 @@ func main() {
 		c.JSON(200, order)
 	})
 
+	r.GET("/orders", func(c *gin.Context) {
+
+		rows, err := database.DB.Query(`
+		SELECT id, total, status, created_at
+		FROM orders
+		ORDER BY id DESC
+	`)
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		defer rows.Close()
+
+		var orders []gin.H
+
+		for rows.Next() {
+
+			var id int
+			var total int
+			var status string
+			var createdAt string
+
+			rows.Scan(
+				&id,
+				&total,
+				&status,
+				&createdAt,
+			)
+
+			orders = append(orders, gin.H{
+				"id":         id,
+				"total":      total,
+				"status":     status,
+				"created_at": createdAt,
+			})
+		}
+
+		c.JSON(200, orders)
+	})
+
 	r.Run(":8080")
 }

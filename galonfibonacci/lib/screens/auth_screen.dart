@@ -22,7 +22,7 @@ class AuthScreen extends StatelessWidget {
               const SizedBox(height: 20),
 
               Text(
-                'Galon Fibonacci',
+                'Galon Rajeg Bahagia',
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontSize: 28,

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:galonfibonacci/screens/auth_screen.dart';
+import 'package:galonfibonacci/screens/order_screen.dart';
 import 'package:provider/provider.dart';
 import '../models/product_model.dart';
 import '../services/api_service.dart';
@@ -56,6 +57,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const AuthScreen()),
                 (route) => false,
+              );
+            },
+          ),
+
+          // ORDER HISTORY
+          IconButton(
+            icon: const Icon(Icons.receipt_long, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const OrderScreen()),
               );
             },
           ),

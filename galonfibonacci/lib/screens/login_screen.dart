@@ -61,123 +61,129 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.grey[100],
 
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(25),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(25),
 
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // ICON
-              Icon(Icons.water_drop, size: 90, color: Colors.blue[700]),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.9,
 
-              const SizedBox(height: 15),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ICON
+                  Icon(Icons.water_drop, size: 90, color: Colors.blue[700]),
 
-              // TITLE
-              Text(
-                "Galon Rajeg Bahagia",
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
-                ),
-              ),
+                  const SizedBox(height: 15),
 
-              const SizedBox(height: 10),
-
-              Text(
-                "Pemesanan air galon digital",
-                style: TextStyle(color: Colors.grey[700]),
-              ),
-
-              const SizedBox(height: 40),
-
-              // EMAIL
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // PASSWORD
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              // LOGIN / REGISTER BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-
-                child: ElevatedButton(
-                  onPressed: submit,
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-
-                  child: Text(
-                    isLogin ? "Login" : "Register",
-                    style: const TextStyle(
-                      fontSize: 16,
+                  // TITLE
+                  Text(
+                    "Galon Rajeg Bahagia",
+                    style: TextStyle(
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
+                      color: Colors.blue[700],
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 10),
+
+                  Text(
+                    "Pemesanan air galon digital",
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // EMAIL
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      labelText: "Email",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // PASSWORD
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // LOGIN / REGISTER BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+
+                    child: ElevatedButton(
+                      onPressed: submit,
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[700],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+
+                      child: Text(
+                        isLogin ? "Login" : "Register",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // TOGGLE LOGIN REGISTER
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        isLogin = !isLogin;
+                      });
+                    },
+
+                    child: Text(
+                      isLogin
+                          ? "Belum punya akun? Register"
+                          : "Sudah punya akun? Login",
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // GUEST MODE
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        (route) => false,
+                      );
+                    },
+
+                    icon: const Icon(Icons.person_outline),
+
+                    label: const Text("Masuk Sebagai Tamu"),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 15),
-
-              // TOGGLE LOGIN REGISTER
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    isLogin = !isLogin;
-                  });
-                },
-
-                child: Text(
-                  isLogin
-                      ? "Belum punya akun? Register"
-                      : "Sudah punya akun? Login",
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // GUEST MODE
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                    (route) => false,
-                  );
-                },
-
-                icon: const Icon(Icons.person_outline),
-
-                label: const Text("Masuk Sebagai Tamu"),
-              ),
-            ],
+            ),
           ),
         ),
       ),
