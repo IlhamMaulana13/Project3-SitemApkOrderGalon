@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/screens/main_screen.dart';
 
-import 'home_screen.dart';
+import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool isRegister;
@@ -45,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -168,18 +169,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 10),
 
                   // GUEST MODE
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
+                  TextButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+
+                      Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (_) => const HomeScreen()),
-                        (route) => false,
+                        MaterialPageRoute(builder: (_) => const MainScreen()),
                       );
                     },
 
-                    icon: const Icon(Icons.person_outline),
-
-                    label: const Text("Masuk Sebagai Tamu"),
+                    child: const Text("Masuk Sebagai Tamu"),
                   ),
                 ],
               ),

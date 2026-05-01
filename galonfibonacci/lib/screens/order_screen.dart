@@ -33,15 +33,6 @@ class _OrderScreenState extends State<OrderScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      appBar: AppBar(
-        title: const Text(
-          "Riwayat Pesanan",
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.blue[700],
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-
       body: ListView.builder(
         padding: const EdgeInsets.all(15),
         itemCount: orders.length,
