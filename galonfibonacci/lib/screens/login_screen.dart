@@ -1,8 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'home_screen.dart';
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool isRegister;
+
+  const LoginScreen({super.key, this.isRegister = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -12,78 +16,169 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  bool isLogin = true;
+  late bool isLogin;
+
+  @override
+  void initState() {
+    super.initState();
+    isLogin = !widget.isRegister;
+  }
 
   Future<void> submit() async {
     try {
+      // LOGIN
       if (isLogin) {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text,
-          password: passwordController.text,
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
         );
-      } else {
+      }
+      // REGISTER
+      else {
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: emailController.text,
-          password: passwordController.text,
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
         );
       }
 
-      Navigator.pop(context);
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.message ?? "Error")));
+      ).showSnackBar(SnackBar(content: Text(e.message ?? "Terjadi kesalahan")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(isLogin ? "Login" : "Register")),
+      backgroundColor: Colors.grey[100],
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(25),
 
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: "Email"),
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ICON
+              Icon(Icons.water_drop, size: 90, color: Colors.blue[700]),
 
-            const SizedBox(height: 15),
+              const SizedBox(height: 15),
 
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "Password"),
-            ),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-
-              child: ElevatedButton(
-                onPressed: submit,
-                child: Text(isLogin ? "Login" : "Register"),
+              // TITLE
+              Text(
+                "Galon Rajeg Bahagia",
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
               ),
-            ),
 
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  isLogin = !isLogin;
-                });
-              },
-              child: Text(
-                isLogin
-                    ? "Belum punya akun? Register"
-                    : "Sudah punya akun? Login",
+              const SizedBox(height: 10),
+
+              Text(
+                "Pemesanan air galon digital",
+                style: TextStyle(color: Colors.grey[700]),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 40),
+
+              // EMAIL
+              TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  labelText: "Email",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // PASSWORD
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              // LOGIN / REGISTER BUTTON
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+
+                child: ElevatedButton(
+                  onPressed: submit,
+
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+
+                  child: Text(
+                    isLogin ? "Login" : "Register",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              // TOGGLE LOGIN REGISTER
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    isLogin = !isLogin;
+                  });
+                },
+
+                child: Text(
+                  isLogin
+                      ? "Belum punya akun? Register"
+                      : "Sudah punya akun? Login",
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // GUEST MODE
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    (route) => false,
+                  );
+                },
+
+                icon: const Icon(Icons.person_outline),
+
+                label: const Text("Masuk Sebagai Tamu"),
+              ),
+            ],
+          ),
         ),
       ),
     );
