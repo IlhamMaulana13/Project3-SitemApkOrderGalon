@@ -415,5 +415,88 @@ func main() {
 		})
 	})
 
+	// CREATE USER
+	r.POST("/users", func(c *gin.Context) {
+
+		var body struct {
+			FirebaseUID string `json:"firebase_uid"`
+			Email       string `json:"email"`
+		}
+
+		if err := c.ShouldBindJSON(&body); err != nil {
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		// cek user sudah ada atau belum
+		var count int
+
+		database.DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM users
+		WHERE firebase_uid = ?
+	`, body.FirebaseUID).Scan(&count)
+
+		// kalau belum ada → insert
+		if count == 0 {
+
+			_, err := database.DB.Exec(`
+			INSERT INTO users
+			(firebase_uid, email, role)
+			VALUES (?, ?, ?)
+		`,
+				body.FirebaseUID,
+				body.Email,
+				"customer",
+			)
+
+			if err != nil {
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
+				return
+			}
+		}
+
+		c.JSON(200, gin.H{
+			"message": "User berhasil",
+		})
+	})
+
+	// GET ROLE USER
+	r.GET("/users/:uid", func(c *gin.Context) {
+
+		uid := c.Param("uid")
+
+		var user struct {
+			Role string `json:"role"`
+		}
+
+		err := database.DB.QueryRow(`
+		SELECT role
+		FROM users
+		WHERE firebase_uid = ?
+	`, uid).Scan(
+			&user.Role,
+		)
+
+		if err != nil {
+
+			c.JSON(404, gin.H{
+				"error": "User tidak ditemukan",
+			})
+
+			return
+		}
+
+		c.JSON(200, user)
+	})
+
 	r.Run(":8080")
 }

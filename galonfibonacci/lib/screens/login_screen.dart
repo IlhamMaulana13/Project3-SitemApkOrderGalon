@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/screens/main_screen.dart';
+import 'package:http/http.dart' as http;
 
 import 'main_screen.dart';
 
@@ -29,16 +32,38 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // LOGIN
       if (isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+              email: emailController.text.trim(),
+              password: passwordController.text.trim(),
+            );
+
+        final user = userCredential.user;
+
+        await http.post(
+          Uri.parse("http://192.168.1.5:8080/users"),
+
+          headers: {"Content-Type": "application/json"},
+
+          body: jsonEncode({"firebase_uid": user!.uid, "email": user.email}),
         );
       }
       // REGISTER
       else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: emailController.text.trim(),
+              password: passwordController.text.trim(),
+            );
+
+        final user = userCredential.user;
+
+        await http.post(
+          Uri.parse("http://192.168.1.5:8080/users"),
+
+          headers: {"Content-Type": "application/json"},
+
+          body: jsonEncode({"firebase_uid": user!.uid, "email": user.email}),
         );
       }
 
