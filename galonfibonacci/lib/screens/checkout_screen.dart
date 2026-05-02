@@ -33,7 +33,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (user == null) return;
 
     final response = await http.get(
-      Uri.parse("http://192.168.1.3:8080/profile/${user.uid}"),
+      Uri.parse("http://192.168.1.5:8080/profile/${user.uid}"),
     );
 
     if (response.statusCode == 200) {
@@ -73,7 +73,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     int total = cartProvider.total - discount;
 
     final response = await http.post(
-      Uri.parse("http://192.168.1.3:8080/orders"),
+      Uri.parse("http://192.168.1.5:8080/orders"),
 
       headers: {"Content-Type": "application/json"},
 

@@ -374,5 +374,46 @@ func main() {
 		c.JSON(200, user)
 	})
 
+	// UPDATE STATUS ORDER
+	r.PUT("/orders/status/:id", func(c *gin.Context) {
+
+		id := c.Param("id")
+
+		var body struct {
+			Status string `json:"status"`
+		}
+
+		if err := c.ShouldBindJSON(&body); err != nil {
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		_, err := database.DB.Exec(`
+		UPDATE orders
+		SET status = ?
+		WHERE id = ?
+	`,
+			body.Status,
+			id,
+		)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Status berhasil diupdate",
+		})
+	})
+
 	r.Run(":8080")
 }

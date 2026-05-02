@@ -14,6 +14,22 @@ class OrderScreen extends StatefulWidget {
 class _OrderScreenState extends State<OrderScreen> {
   List<OrderModel> orders = [];
 
+  Color getStatusColor(String status) {
+    switch (status) {
+      case "Diproses":
+        return Colors.orange;
+
+      case "Dikirim":
+        return Colors.blue;
+
+      case "Selesai":
+        return Colors.green;
+
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -67,7 +83,25 @@ class _OrderScreenState extends State<OrderScreen> {
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(order.status),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+
+                      decoration: BoxDecoration(
+                        color: getStatusColor(order.status),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+
+                      child: Text(
+                        order.status,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
 
                     Text(order.createdAt, style: const TextStyle(fontSize: 12)),
                   ],
