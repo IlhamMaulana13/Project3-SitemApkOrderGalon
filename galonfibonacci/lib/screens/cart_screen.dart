@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
+import 'package:galonfibonacci/screens/checkout_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:galonfibonacci/services/api_service.dart';
 import 'package:provider/provider.dart';
@@ -103,38 +104,12 @@ class CartScreen extends StatelessWidget {
 
                   child: ElevatedButton(
                     onPressed: () async {
-                      final user = FirebaseAuth.instance.currentUser;
-
-                      // GUEST MODE
-                      if (user == null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
-                          ),
-                        );
-
-                        return;
-                      }
-
-                      final success = await ApiService.checkout(
-                        cartProvider.items,
-                        cartProvider.total,
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CheckoutScreen(),
+                        ),
                       );
-
-                      if (success) {
-                        cartProvider.clearCart();
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Checkout berhasil")),
-                        );
-
-                        Navigator.pop(context);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Checkout gagal")),
-                        );
-                      }
                     },
                     child: const Text("Checkout"),
                   ),
