@@ -49,6 +49,14 @@ type OrderDetailResponse struct {
 	Items  []OrderDetailItem `json:"items"`
 }
 
+type User struct {
+	FirebaseUID string `json:"firebase_uid"`
+	Email       string `json:"email"`
+	Name        string `json:"name"`
+	Phone       string `json:"phone"`
+	Address     string `json:"address"`
+}
+
 func main() {
 
 	database.ConnectDB()
@@ -290,6 +298,80 @@ func main() {
 		}
 
 		c.JSON(200, orders)
+	})
+
+	r.POST("/profile", func(c *gin.Context) {
+
+		var user User
+
+		if err := c.ShouldBindJSON(&user); err != nil {
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		_, err := database.DB.Exec(`
+		INSERT INTO users
+		(firebase_uid, email, name, phone, address)
+		VALUES (?, ?, ?, ?, ?)
+
+		ON DUPLICATE KEY UPDATE
+		name = VALUES(name),
+		phone = VALUES(phone),
+		address = VALUES(address)
+	`,
+			user.FirebaseUID,
+			user.Email,
+			user.Name,
+			user.Phone,
+			user.Address,
+		)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Profile berhasil disimpan",
+		})
+	})
+
+	r.GET("/profile/:uid", func(c *gin.Context) {
+
+		uid := c.Param("uid")
+
+		var user User
+
+		err := database.DB.QueryRow(`
+		SELECT firebase_uid, email, name, phone, address
+		FROM users
+		WHERE firebase_uid = ?
+	`, uid).Scan(
+			&user.FirebaseUID,
+			&user.Email,
+			&user.Name,
+			&user.Phone,
+			&user.Address,
+		)
+
+		if err != nil {
+
+			c.JSON(404, gin.H{
+				"error": "Profile tidak ditemukan",
+			})
+
+			return
+		}
+
+		c.JSON(200, user)
 	})
 
 	r.Run(":8080")
