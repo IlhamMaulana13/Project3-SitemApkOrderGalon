@@ -498,5 +498,117 @@ func main() {
 		c.JSON(200, user)
 	})
 
+	// CREATE PRODUCT
+	r.POST("/products", func(c *gin.Context) {
+
+		var product Product
+
+		if err := c.ShouldBindJSON(&product); err != nil {
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		_, err := database.DB.Exec(`
+		INSERT INTO products
+		(category_id, merk, price, stock, image)
+		VALUES (?, ?, ?, ?, ?)
+	`,
+			product.CategoryID,
+			product.Merk,
+			product.Price,
+			product.Stock,
+			product.Image,
+		)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Produk berhasil ditambahkan",
+		})
+	})
+
+	// UPDATE PRODUCT
+	r.PUT("/products/:id", func(c *gin.Context) {
+
+		id := c.Param("id")
+
+		var product Product
+
+		if err := c.ShouldBindJSON(&product); err != nil {
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		_, err := database.DB.Exec(`
+		UPDATE products
+		SET
+			category_id = ?,
+			merk = ?,
+			price = ?,
+			stock = ?,
+			image = ?
+		WHERE id = ?
+	`,
+			product.CategoryID,
+			product.Merk,
+			product.Price,
+			product.Stock,
+			product.Image,
+			id,
+		)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Produk berhasil diupdate",
+		})
+	})
+
+	// DELETE PRODUCT
+	r.DELETE("/products/:id", func(c *gin.Context) {
+
+		id := c.Param("id")
+
+		_, err := database.DB.Exec(`
+		DELETE FROM products
+		WHERE id = ?
+	`, id)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Produk berhasil dihapus",
+		})
+	})
+
 	r.Run(":8080")
 }

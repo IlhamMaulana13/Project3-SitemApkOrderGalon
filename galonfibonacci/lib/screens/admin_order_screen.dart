@@ -24,7 +24,7 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
 
   Future<void> fetchOrders() async {
     final response = await http.get(
-      Uri.parse("http://192.168.1.3:8080/orders"),
+      Uri.parse("http://192.168.1.5:8080/orders"),
     );
 
     if (response.statusCode == 200) {
@@ -38,7 +38,7 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
 
   Future<void> updateStatus(int id, String status) async {
     final response = await http.put(
-      Uri.parse("http://192.168.1.3:8080/orders/status/$id"),
+      Uri.parse("http://192.168.1.5:8080/orders/status/$id"),
 
       headers: {"Content-Type": "application/json"},
 

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/screens/admin_screen.dart';
+import 'package:galonfibonacci/screens/kurir_screen.dart';
 import 'package:galonfibonacci/screens/main_screen.dart';
 import 'package:http/http.dart' as http;
 
@@ -26,6 +28,16 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     isLogin = !widget.isRegister;
+  }
+
+  Future<String> getRole(String uid) async {
+    final response = await http.get(
+      Uri.parse("http://192.168.1.5:8080/users/$uid"),
+    );
+
+    final data = jsonDecode(response.body);
+
+    return data["role"];
   }
 
   Future<void> submit() async {
@@ -69,9 +81,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) return;
+
+      String role = await getRole(user.uid);
+
+      Widget nextScreen;
+
+      if (role == "admin") {
+        nextScreen = const AdminScreen();
+      } else if (role == "kurir") {
+        nextScreen = const KurirScreen();
+      } else {
+        nextScreen = const MainScreen();
+      }
+
+      if (!mounted) return;
+
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+
+        MaterialPageRoute(builder: (_) => nextScreen),
+
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -104,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // TITLE
                   Text(
-                    "Galon Rajeg Bahagia",
+                    "Galon Rizki Faras",
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,

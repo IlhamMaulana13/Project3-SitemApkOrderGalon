@@ -31,7 +31,7 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Colors.blue[700],
 
         title: const Text(
-          "Galon Rajeg Bahagia",
+          "Galon Rizki Faras",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
 
