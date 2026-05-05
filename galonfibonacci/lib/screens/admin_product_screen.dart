@@ -1,23 +1,23 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 class AdminProductScreen extends StatefulWidget {
   const AdminProductScreen({super.key});
 
   @override
-  State<AdminProductScreen> createState() =>
-      _AdminProductScreenState();
+  State<AdminProductScreen> createState() => _AdminProductScreenState();
 }
 
-class _AdminProductScreenState
-    extends State<AdminProductScreen> {
-
+class _AdminProductScreenState extends State<AdminProductScreen> {
   List products = [];
 
-  final String baseUrl =
-      "http://192.168.1.5:8080";
+  final String baseUrl = "http://192.168.1.5:8080";
+
+  File? selectedImage;
 
   @override
   void initState() {
@@ -28,218 +28,234 @@ class _AdminProductScreenState
 
   // GET PRODUCTS
   Future<void> fetchProducts() async {
-
-    final response = await http.get(
-      Uri.parse("$baseUrl/products"),
-    );
+    final response = await http.get(Uri.parse("$baseUrl/products"));
 
     if (response.statusCode == 200) {
-
       setState(() {
         products = jsonDecode(response.body);
       });
     }
   }
 
-  // DELETE PRODUCT
-  Future<void> deleteProduct(int id) async {
+  // PICK IMAGE
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
 
-    final response = await http.delete(
-      Uri.parse("$baseUrl/products/$id"),
-    );
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    if (response.statusCode == 200) {
-
-      fetchProducts();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Produk berhasil dihapus"),
-        ),
-      );
+    if (pickedFile != null) {
+      setState(() {
+        selectedImage = File(pickedFile.path);
+      });
     }
   }
 
-  // DIALOG TAMBAH / EDIT
-  void showProductDialog({
-    Map? product,
-  }) {
+  // UPLOAD TO IMGBB
+  Future<String?> uploadImageToImgBB() async {
+    if (selectedImage == null) return null;
 
-    final merkController =
-        TextEditingController(
-      text: product?["merk"] ?? "",
+    const apiKey = "2a90f301933df8f150375997315228ed";
+
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("https://api.imgbb.com/1/upload?key=$apiKey"),
     );
 
-    final priceController =
-        TextEditingController(
+    request.files.add(
+      await http.MultipartFile.fromPath("image", selectedImage!.path),
+    );
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
+
+      final data = jsonDecode(responseData);
+
+      return data["data"]["url"];
+    }
+
+    return null;
+  }
+
+  // DELETE PRODUCT
+  Future<void> deleteProduct(int id) async {
+    final response = await http.delete(Uri.parse("$baseUrl/products/$id"));
+
+    if (response.statusCode == 200) {
+      fetchProducts();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Produk berhasil dihapus")));
+    }
+  }
+
+  // DIALOG ADD / EDIT
+  void showProductDialog({Map? product}) {
+    selectedImage = null;
+
+    final merkController = TextEditingController(text: product?["merk"] ?? "");
+
+    final priceController = TextEditingController(
       text: product?["price"]?.toString() ?? "",
     );
 
-    final stockController =
-        TextEditingController(
+    final stockController = TextEditingController(
       text: product?["stock"]?.toString() ?? "",
-    );
-
-    final imageController =
-        TextEditingController(
-      text: product?["image"] ?? "",
     );
 
     showDialog(
       context: context,
 
       builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: Text(product == null ? "Tambah Produk" : "Edit Produk"),
 
-        return AlertDialog(
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
 
-          title: Text(
-            product == null
-                ? "Tambah Produk"
-                : "Edit Produk",
-          ),
+                  children: [
+                    TextField(
+                      controller: merkController,
 
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+                      decoration: const InputDecoration(labelText: "Merk"),
+                    ),
 
-              children: [
+                    const SizedBox(height: 10),
 
-                TextField(
-                  controller: merkController,
+                    TextField(
+                      controller: priceController,
 
-                  decoration: const InputDecoration(
-                    labelText: "Merk",
-                  ),
+                      keyboardType: TextInputType.number,
+
+                      decoration: const InputDecoration(labelText: "Harga"),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    TextField(
+                      controller: stockController,
+
+                      keyboardType: TextInputType.number,
+
+                      decoration: const InputDecoration(labelText: "Stock"),
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+
+                        final pickedFile = await picker.pickImage(
+                          source: ImageSource.gallery,
+                        );
+
+                        if (pickedFile != null) {
+                          setModalState(() {
+                            selectedImage = File(pickedFile.path);
+                          });
+                        }
+                      },
+
+                      icon: const Icon(Icons.image),
+
+                      label: const Text("Pilih Gambar"),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    selectedImage != null
+                        ? Image.file(selectedImage!, height: 120)
+                        : product != null
+                        ? Image.network(product["image"], height: 120)
+                        : const SizedBox(),
+                  ],
+                ),
+              ),
+
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+
+                  child: const Text("Batal"),
                 ),
 
-                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () async {
+                    String imageUrl = product?["image"] ?? "";
 
-                TextField(
-                  controller: priceController,
+                    if (selectedImage != null) {
+                      final uploadedUrl = await uploadImageToImgBB();
 
-                  keyboardType:
-                      TextInputType.number,
+                      if (uploadedUrl != null) {
+                        imageUrl = uploadedUrl;
+                      }
+                    }
 
-                  decoration: const InputDecoration(
-                    labelText: "Harga",
-                  ),
-                ),
+                    final body = {
+                      "category_id": 1,
 
-                const SizedBox(height: 10),
+                      "merk": merkController.text,
 
-                TextField(
-                  controller: stockController,
+                      "price": int.parse(priceController.text),
 
-                  keyboardType:
-                      TextInputType.number,
+                      "stock": int.parse(stockController.text),
 
-                  decoration: const InputDecoration(
-                    labelText: "Stock",
-                  ),
-                ),
+                      "image": imageUrl,
+                    };
 
-                const SizedBox(height: 10),
+                    http.Response response;
 
-                TextField(
-                  controller: imageController,
+                    // ADD
+                    if (product == null) {
+                      response = await http.post(
+                        Uri.parse("$baseUrl/products"),
 
-                  decoration: const InputDecoration(
-                    labelText: "Image URL",
-                  ),
+                        headers: {"Content-Type": "application/json"},
+
+                        body: jsonEncode(body),
+                      );
+                    }
+                    // EDIT
+                    else {
+                      response = await http.put(
+                        Uri.parse("$baseUrl/products/${product["id"]}"),
+
+                        headers: {"Content-Type": "application/json"},
+
+                        body: jsonEncode(body),
+                      );
+                    }
+
+                    if (response.statusCode == 200) {
+                      Navigator.pop(context);
+
+                      fetchProducts();
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            product == null
+                                ? "Produk berhasil ditambah"
+                                : "Produk berhasil diupdate",
+                          ),
+                        ),
+                      );
+                    }
+                  },
+
+                  child: const Text("Simpan"),
                 ),
               ],
-            ),
-          ),
-
-          actions: [
-
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-
-              child: const Text("Batal"),
-            ),
-
-            ElevatedButton(
-              onPressed: () async {
-
-                final body = {
-
-                  "category_id": 1,
-                  "merk":
-                      merkController.text,
-
-                  "price": int.parse(
-                    priceController.text,
-                  ),
-
-                  "stock": int.parse(
-                    stockController.text,
-                  ),
-
-                  "image":
-                      imageController.text,
-                };
-
-                http.Response response;
-
-                // ADD
-                if (product == null) {
-
-                  response = await http.post(
-                    Uri.parse(
-                      "$baseUrl/products",
-                    ),
-
-                    headers: {
-                      "Content-Type":
-                          "application/json",
-                    },
-
-                    body: jsonEncode(body),
-                  );
-                }
-
-                // EDIT
-                else {
-
-                  response = await http.put(
-                    Uri.parse(
-                      "$baseUrl/products/${product["id"]}",
-                    ),
-
-                    headers: {
-                      "Content-Type":
-                          "application/json",
-                    },
-
-                    body: jsonEncode(body),
-                  );
-                }
-
-                if (response.statusCode == 200) {
-
-                  Navigator.pop(context);
-
-                  fetchProducts();
-
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        product == null
-                            ? "Produk berhasil ditambah"
-                            : "Produk berhasil diupdate",
-                      ),
-                    ),
-                  );
-                }
-              },
-
-              child: const Text("Simpan"),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -247,82 +263,57 @@ class _AdminProductScreenState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
-
         title: const Text(
           "Kelola Produk",
-          style: TextStyle(
-            color: Colors.white,
-          ),
+          style: TextStyle(color: Colors.white),
         ),
 
         backgroundColor: Colors.blue[700],
 
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
 
-      floatingActionButton:
-          FloatingActionButton(
-
+      floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.blue[700],
 
         onPressed: () {
           showProductDialog();
         },
 
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
 
       body: ListView.builder(
-
         padding: const EdgeInsets.all(15),
 
         itemCount: products.length,
 
         itemBuilder: (context, index) {
-
           final product = products[index];
 
           return Card(
-
-            margin:
-                const EdgeInsets.only(bottom: 15),
+            margin: const EdgeInsets.only(bottom: 15),
 
             child: ListTile(
-
               leading: Image.network(
                 product["image"],
                 width: 60,
                 fit: BoxFit.cover,
               ),
 
-              title: Text(
-                product["merk"],
-              ),
+              title: Text(product["merk"]),
 
               subtitle: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
 
                 children: [
+                  Text("Rp ${product["price"]}"),
 
-                  Text(
-                    "Rp ${product["price"]}",
-                  ),
-
-                  Text(
-                    "Stock: ${product["stock"]}",
-                  ),
+                  Text("Stock: ${product["stock"]}"),
                 ],
               ),
 
@@ -330,31 +321,20 @@ class _AdminProductScreenState
                 mainAxisSize: MainAxisSize.min,
 
                 children: [
-
                   IconButton(
                     onPressed: () {
-                      showProductDialog(
-                        product: product,
-                      );
+                      showProductDialog(product: product);
                     },
 
-                    icon: const Icon(
-                      Icons.edit,
-                      color: Colors.orange,
-                    ),
+                    icon: const Icon(Icons.edit, color: Colors.orange),
                   ),
 
                   IconButton(
                     onPressed: () {
-                      deleteProduct(
-                        product["id"],
-                      );
+                      deleteProduct(product["id"]);
                     },
 
-                    icon: const Icon(
-                      Icons.delete,
-                      color: Colors.red,
-                    ),
+                    icon: const Icon(Icons.delete, color: Colors.red),
                   ),
                 ],
               ),

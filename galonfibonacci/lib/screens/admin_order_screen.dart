@@ -7,13 +7,17 @@ class AdminOrderScreen extends StatefulWidget {
   const AdminOrderScreen({super.key});
 
   @override
-  State<AdminOrderScreen> createState() => _AdminOrderScreenState();
+  State<AdminOrderScreen> createState() =>
+      _AdminOrderScreenState();
 }
 
-class _AdminOrderScreenState extends State<AdminOrderScreen> {
+class _AdminOrderScreenState
+    extends State<AdminOrderScreen> {
+
   List orders = [];
 
-  bool isLoading = true;
+  final String baseUrl =
+      "http://192.168.1.5:8080";
 
   @override
   void initState() {
@@ -22,51 +26,71 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
     fetchOrders();
   }
 
+  // GET ALL ORDERS
   Future<void> fetchOrders() async {
+
     final response = await http.get(
-      Uri.parse("http://192.168.1.5:8080/orders"),
+      Uri.parse("$baseUrl/orders"),
     );
 
     if (response.statusCode == 200) {
+
       setState(() {
         orders = jsonDecode(response.body);
-
-        isLoading = false;
       });
     }
   }
 
-  Future<void> updateStatus(int id, String status) async {
+  // UPDATE STATUS
+  Future<void> updateStatus(
+    int orderId,
+    String status,
+  ) async {
+
     final response = await http.put(
-      Uri.parse("http://192.168.1.5:8080/orders/status/$id"),
 
-      headers: {"Content-Type": "application/json"},
+      Uri.parse(
+        "$baseUrl/orders/status/$orderId",
+      ),
 
-      body: jsonEncode({"status": status}),
+      headers: {
+        "Content-Type":
+            "application/json",
+      },
+
+      body: jsonEncode({
+        "status": status,
+      }),
     );
 
     if (response.statusCode == 200) {
+
       fetchOrders();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Status order #$id diubah")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Status berhasil diupdate",
+          ),
+        ),
+      );
     }
   }
 
+  // STATUS COLOR
   Color getStatusColor(String status) {
+
     switch (status) {
+
       case "Diproses":
         return Colors.orange;
 
       case "Dikirim":
         return Colors.blue;
 
-      case "Sampai":
-        return Colors.green;
-
       case "Selesai":
-        return Colors.teal;
+        return Colors.green;
 
       default:
         return Colors.grey;
@@ -75,139 +99,212 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
+
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
+
         title: const Text(
-          "Admin Pesanan",
-          style: TextStyle(color: Colors.white),
+          "Kelola Pesanan",
+          style: TextStyle(
+            color: Colors.white,
+          ),
         ),
 
         backgroundColor: Colors.blue[700],
+
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
       ),
 
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(15),
+      body: ListView.builder(
 
-              itemCount: orders.length,
+        padding: const EdgeInsets.all(15),
 
-              itemBuilder: (context, index) {
-                final order = orders[index];
+        itemCount: orders.length,
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 15),
+        itemBuilder: (context, index) {
 
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+          final order = orders[index];
 
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+          return Card(
 
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            margin:
+                const EdgeInsets.only(
+              bottom: 15,
+            ),
 
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            shape:
+                RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(
+                16,
+              ),
+            ),
 
-                          children: [
-                            Text(
-                              "Order #${order["id"]}",
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+            child: Padding(
 
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
+              padding:
+                  const EdgeInsets.all(16),
 
-                              decoration: BoxDecoration(
-                                color: getStatusColor(order["status"]),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
 
-                              child: Text(
-                                order["status"],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                children: [
+
+                  Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .spaceBetween,
+
+                    children: [
+
+                      Text(
+                        "Order #${order["id"]}",
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+
+                      Container(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
 
-                        const SizedBox(height: 10),
-
-                        Text(
-                          "Total: Rp ${order["total"]}",
-                          style: const TextStyle(fontSize: 16),
-                        ),
-
-                        const SizedBox(height: 5),
-
-                        Text(
-                          order["created_at"],
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        DropdownButtonFormField(
-                          value: order["status"],
-
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[100],
-
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              getStatusColor(
+                            order["status"],
                           ),
 
-                          items: const [
-                            DropdownMenuItem(
-                              value: "Diproses",
-                              child: Text("Diproses"),
-                            ),
-
-                            DropdownMenuItem(
-                              value: "Dikirim",
-                              child: Text("Dikirim"),
-                            ),
-
-                            DropdownMenuItem(
-                              value: "Sampai",
-                              child: Text("Sampai"),
-                            ),
-
-                            DropdownMenuItem(
-                              value: "Selesai",
-                              child: Text("Selesai"),
-                            ),
-                          ],
-
-                          onChanged: (value) {
-                            if (value != null) {
-                              updateStatus(order["id"], value.toString());
-                            }
-                          },
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            20,
+                          ),
                         ),
-                      ],
+
+                        child: Text(
+                          order["status"],
+
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors.white,
+                            fontWeight:
+                                FontWeight
+                                    .bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(
+                      height: 10),
+
+                  Text(
+                    "Total: Rp ${order["total"]}",
+                    style: const TextStyle(
+                      fontSize: 16,
                     ),
                   ),
-                );
-              },
+
+                  const SizedBox(
+                      height: 5),
+
+                  Text(
+                    order["created_at"],
+                    style: TextStyle(
+                      color:
+                          Colors.grey[600],
+                    ),
+                  ),
+
+                  const SizedBox(
+                      height: 15),
+
+                  DropdownButtonFormField<String>(
+
+                    value:
+                        order["status"],
+
+                    decoration:
+                        InputDecoration(
+                      filled: true,
+
+                      fillColor:
+                          Colors.grey[100],
+
+                      border:
+                          OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          12,
+                        ),
+                      ),
+                    ),
+
+                    items: const [
+
+                      DropdownMenuItem(
+                        value:
+                            "Diproses",
+
+                        child: Text(
+                          "Diproses",
+                        ),
+                      ),
+
+                      DropdownMenuItem(
+                        value:
+                            "Dikirim",
+
+                        child: Text(
+                          "Dikirim",
+                        ),
+                      ),
+
+                      DropdownMenuItem(
+                        value:
+                            "Selesai",
+
+                        child: Text(
+                          "Selesai",
+                        ),
+                      ),
+                    ],
+
+                    onChanged: (value) {
+
+                      if (value != null) {
+
+                        updateStatus(
+                          order["id"],
+                          value,
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
+          );
+        },
+      ),
     );
   }
 }
