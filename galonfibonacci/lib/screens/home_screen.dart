@@ -37,8 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      
-
       body: Column(
         children: [
           Container(
@@ -136,7 +134,24 @@ class _ProductItemState extends State<ProductItem> {
 
                   const SizedBox(height: 5),
 
-                  Text("Rp ${widget.product.price}"),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Rp ${widget.product.price}"),
+
+                      const SizedBox(height: 5),
+
+                      Text(
+                        "Stock: ${widget.product.stock}",
+                        style: TextStyle(
+                          color: widget.product.stock <= 0
+                              ? Colors.red
+                              : Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -170,16 +185,21 @@ class _ProductItemState extends State<ProductItem> {
                 ),
 
                 ElevatedButton(
-                  onPressed: () {
-                    cartProvider.addToCart(widget.product, quantity);
+                  onPressed: widget.product.stock <= 0
+                      ? null
+                      : () {
+                          cartProvider.addToCart(widget.product, quantity);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("${widget.product.merk} ditambahkan"),
-                      ),
-                    );
-                  },
-                  child: const Text("Tambah"),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "${widget.product.merk} ditambahkan",
+                              ),
+                            ),
+                          );
+                        },
+
+                  child: Text(widget.product.stock <= 0 ? "Habis" : "Tambah"),
                 ),
               ],
             ),

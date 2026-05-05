@@ -133,11 +133,42 @@ func main() {
 
 		for _, item := range order.Items {
 
-			_, err := database.DB.Exec(`
-				INSERT INTO order_items
-				(order_id, product_id, qty, subtotal)
-				VALUES (?, ?, ?, ?)
-			`,
+			// CEK STOCK
+			var stock int
+
+			err := database.DB.QueryRow(`
+		SELECT stock
+		FROM products
+		WHERE id = ?
+	`,
+				item.ProductID,
+			).Scan(&stock)
+
+			if err != nil {
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
+				return
+			}
+
+			// VALIDASI STOCK
+			if stock < item.Qty {
+
+				c.JSON(400, gin.H{
+					"error": "Stock tidak cukup",
+				})
+
+				return
+			}
+
+			// INSERT ORDER ITEM
+			_, err = database.DB.Exec(`
+		INSERT INTO order_items
+		(order_id, product_id, qty, subtotal)
+		VALUES (?, ?, ?, ?)
+	`,
 				orderID,
 				item.ProductID,
 				item.Qty,
@@ -145,9 +176,30 @@ func main() {
 			)
 
 			if err != nil {
+
 				c.JSON(500, gin.H{
 					"error": err.Error(),
 				})
+
+				return
+			}
+
+			// KURANGI STOCK
+			_, err = database.DB.Exec(`
+					UPDATE products
+					SET stock = stock - ?
+					WHERE id = ?
+				`,
+				item.Qty,
+				item.ProductID,
+			)
+
+			if err != nil {
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
 				return
 			}
 		}

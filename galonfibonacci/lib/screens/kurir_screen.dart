@@ -33,14 +33,24 @@ class _KurirScreenState extends State<KurirScreen> {
     }
   }
 
-  Future<void> openWhatsApp(String phone) async {
-    String cleanPhone = phone.replaceAll("0", "62");
+  Future<void> openWhatsApp(String phone, String name, int orderId) async {
+    String cleanPhone = phone;
 
-    final url = Uri.parse("https://wa.me/$cleanPhone");
-
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62${cleanPhone.substring(1)}";
     }
+
+    final message = Uri.encodeComponent(
+      "Hallo Selamat Siang Bapak/Ibu $name, "
+      "Kurir Galon Rajeg Bahagia sedang dalam perjalanan menuju lokasi "
+      "untuk mengantarkan pesanan anda dengan nomor order #$orderId. "
+      "Mohon ditunggu ya 🙏\n\n"
+      "Terima kasih.",
+    );
+
+    final Uri url = Uri.parse("https://wa.me/$cleanPhone?text=$message");
+
+    await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
   Future<void> updateStatus(int id, String status) async {
@@ -164,7 +174,11 @@ class _KurirScreenState extends State<KurirScreen> {
 
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        openWhatsApp(order["phone"]);
+                        openWhatsApp(
+                          order["phone"],
+                          order["name"],
+                          order["id"],
+                        );
                       },
 
                       style: ElevatedButton.styleFrom(
