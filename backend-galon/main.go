@@ -728,5 +728,87 @@ func main() {
 		c.JSON(200, orders)
 	})
 
+	// DASHBOARD ANALYTICS
+	r.GET("/dashboard", func(c *gin.Context) {
+
+		var totalOrders int
+		var totalRevenue int
+		var totalProducts int
+		var totalCustomers int
+
+		// TOTAL ORDER
+		database.DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM orders
+	`).Scan(&totalOrders)
+
+		// TOTAL REVENUE
+		database.DB.QueryRow(`
+		SELECT IFNULL(SUM(total), 0)
+		FROM orders
+		WHERE status != 'Dibatalkan'
+	`).Scan(&totalRevenue)
+
+		// TOTAL PRODUCT
+		database.DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM products
+	`).Scan(&totalProducts)
+
+		// TOTAL CUSTOMER
+		database.DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM users
+		WHERE role = 'customer'
+	`).Scan(&totalCustomers)
+
+		// PRODUK TERLARIS
+		rows, err := database.DB.Query(`
+		SELECT p.merk, SUM(oi.qty) as total_terjual
+		FROM order_items oi
+		JOIN products p ON p.id = oi.product_id
+		GROUP BY oi.product_id
+		ORDER BY total_terjual DESC
+		LIMIT 5
+	`)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		defer rows.Close()
+
+		var bestProducts []gin.H
+
+		for rows.Next() {
+
+			var merk string
+			var total int
+
+			rows.Scan(
+				&merk,
+				&total,
+			)
+
+			bestProducts = append(bestProducts, gin.H{
+				"merk":  merk,
+				"total": total,
+			})
+		}
+
+		c.JSON(200, gin.H{
+			"total_orders":    totalOrders,
+			"total_revenue":   totalRevenue,
+			"total_products":  totalProducts,
+			"total_customers": totalCustomers,
+			"best_products":   bestProducts,
+		})
+	})
+
 	r.Run(":8080")
 }
