@@ -57,6 +57,13 @@ type User struct {
 	Address     string `json:"address"`
 }
 
+type Voucher struct {
+	ID        int    `json:"id"`
+	Code      string `json:"code"`
+	Discount  int    `json:"discount"`
+	IsActive  bool   `json:"is_active"`
+}
+
 func main() {
 
 	database.ConnectDB()

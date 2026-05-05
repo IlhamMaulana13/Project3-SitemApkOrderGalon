@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/screens/admin_dashboard_screen.dart';
 import 'package:galonfibonacci/screens/admin_screen.dart';
 import 'package:galonfibonacci/screens/kurir_screen.dart';
 import 'package:galonfibonacci/screens/main_screen.dart';
@@ -90,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Widget nextScreen;
 
       if (role == "admin") {
-        nextScreen = const AdminScreen();
+        nextScreen = const AdminDashboardScreen();
       } else if (role == "kurir") {
         nextScreen = const KurirScreen();
       } else {

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/screens/admin_order_screen.dart';
+import 'package:galonfibonacci/screens/admin_product_screen.dart';
 import 'package:http/http.dart' as http;
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -94,7 +96,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     mainAxisSpacing: 15,
                     crossAxisSpacing: 15,
 
-                    childAspectRatio: 1.2,
+                    childAspectRatio: 0.9,
 
                     children: [
                       buildCard(
@@ -119,6 +121,103 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         "Customer",
                         dashboard!["total_customers"].toString(),
                         Icons.people,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  const Text(
+                    "Menu Admin",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+
+                    crossAxisCount: 2,
+
+                    mainAxisSpacing: 15,
+                    crossAxisSpacing: 15,
+
+                    childAspectRatio: 1.1,
+
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminProductScreen(),
+                            ),
+                          );
+                        },
+
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+
+                            children: [
+                              Icon(
+                                Icons.inventory,
+                                size: 40,
+                                color: Colors.blue[700],
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              const Text(
+                                "Kelola Produk",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminOrderScreen(),
+                            ),
+                          );
+                        },
+
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+
+                            children: [
+                              Icon(
+                                Icons.receipt_long,
+                                size: 40,
+                                color: Colors.orange,
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              const Text(
+                                "Kelola Pesanan",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
