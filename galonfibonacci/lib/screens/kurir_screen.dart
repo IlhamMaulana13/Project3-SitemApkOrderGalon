@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class KurirScreen extends StatefulWidget {
   const KurirScreen({super.key});
@@ -11,7 +12,6 @@ class KurirScreen extends StatefulWidget {
 }
 
 class _KurirScreenState extends State<KurirScreen> {
-
   List orders = [];
 
   @override
@@ -22,37 +22,34 @@ class _KurirScreenState extends State<KurirScreen> {
   }
 
   Future<void> fetchOrders() async {
-
     final response = await http.get(
       Uri.parse("http://192.168.1.5:8080/kurir/orders"),
     );
 
     if (response.statusCode == 200) {
-
       setState(() {
         orders = jsonDecode(response.body);
       });
     }
   }
 
-  Future<void> updateStatus(
-    int id,
-    String status,
-  ) async {
+  Future<void> openWhatsApp(String phone) async {
+    String cleanPhone = phone.replaceAll("0", "62");
 
+    final url = Uri.parse("https://wa.me/$cleanPhone");
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> updateStatus(int id, String status) async {
     await http.put(
+      Uri.parse("http://192.168.1.5:8080/orders/status/$id"),
 
-      Uri.parse(
-        "http://192.168.1.5:8080/orders/status/$id",
-      ),
+      headers: {"Content-Type": "application/json"},
 
-      headers: {
-        "Content-Type": "application/json",
-      },
-
-      body: jsonEncode({
-        "status": status,
-      }),
+      body: jsonEncode({"status": status}),
     );
 
     fetchOrders();
@@ -60,9 +57,7 @@ class _KurirScreenState extends State<KurirScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
         title: const Text(
           "Dashboard Kurir",
@@ -73,17 +68,14 @@ class _KurirScreenState extends State<KurirScreen> {
       ),
 
       body: ListView.builder(
-
         padding: const EdgeInsets.all(16),
 
         itemCount: orders.length,
 
         itemBuilder: (context, index) {
-
           final order = orders[index];
 
           return Card(
-
             margin: const EdgeInsets.only(bottom: 16),
 
             shape: RoundedRectangleBorder(
@@ -97,7 +89,6 @@ class _KurirScreenState extends State<KurirScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
 
                 children: [
-
                   Text(
                     "Order #${order["id"]}",
                     style: const TextStyle(
@@ -116,9 +107,7 @@ class _KurirScreenState extends State<KurirScreen> {
 
                   Text(
                     "Total: Rp ${order["total"]}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 10),
@@ -140,13 +129,11 @@ class _KurirScreenState extends State<KurirScreen> {
                   const SizedBox(height: 15),
 
                   DropdownButton<String>(
-
                     value: order["status"],
 
                     isExpanded: true,
 
                     items: const [
-
                       DropdownMenuItem(
                         value: "Siap Dikirim",
                         child: Text("Siap Dikirim"),
@@ -164,15 +151,31 @@ class _KurirScreenState extends State<KurirScreen> {
                     ],
 
                     onChanged: (value) {
-
                       if (value != null) {
-
-                        updateStatus(
-                          order["id"],
-                          value,
-                        );
+                        updateStatus(order["id"], value);
                       }
                     },
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    width: double.infinity,
+
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        openWhatsApp(order["phone"]);
+                      },
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+
+                      icon: const Icon(Icons.chat),
+
+                      label: const Text("Hubungi Customer"),
+                    ),
                   ),
                 ],
               ),
