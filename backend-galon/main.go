@@ -610,5 +610,71 @@ func main() {
 		})
 	})
 
+	// GET ORDER KHUSUS KURIR
+	r.GET("/kurir/orders", func(c *gin.Context) {
+
+		rows, err := database.DB.Query(`
+		SELECT
+			o.id,
+			o.total,
+			o.status,
+			o.created_at,
+			u.name,
+			u.phone,
+			u.address
+		FROM orders o
+		JOIN users u
+		ON u.firebase_uid = o.user_id
+		WHERE o.status IN ('Siap Dikirim', 'Dikirim')
+		ORDER BY o.id DESC
+	`)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		defer rows.Close()
+
+		var orders []gin.H
+
+		for rows.Next() {
+
+			var id int
+			var total int
+			var status string
+			var createdAt string
+			var name string
+			var phone string
+			var address string
+
+			rows.Scan(
+				&id,
+				&total,
+				&status,
+				&createdAt,
+				&name,
+				&phone,
+				&address,
+			)
+
+			orders = append(orders, gin.H{
+				"id":         id,
+				"total":      total,
+				"status":     status,
+				"created_at": createdAt,
+				"name":       name,
+				"phone":      phone,
+				"address":    address,
+			})
+		}
+
+		c.JSON(200, orders)
+	})
+
 	r.Run(":8080")
 }
