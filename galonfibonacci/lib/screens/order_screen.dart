@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/screens/invoice_screen.dart';
-import 'dart:async';
+
 import '../models/order_model.dart';
 import '../services/api_service.dart';
 
@@ -16,7 +18,8 @@ class _OrderScreenState extends State<OrderScreen> {
 
   Timer? timer;
 
-  List oldOrders = [];
+  // simpan status lama
+  Map<int, String> oldStatus = {};
 
   Color getStatusColor(String status) {
     switch (status) {
@@ -40,13 +43,39 @@ class _OrderScreenState extends State<OrderScreen> {
 
     fetchOrders();
 
+    // realtime refresh tiap 5 detik
     timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       fetchOrders();
     });
   }
 
-  void fetchOrders() async {
+  Future<void> fetchOrders() async {
     final result = await ApiService.getOrders();
+
+    // cek perubahan status
+    for (var order in result) {
+      // kalau order sudah pernah ada
+      if (oldStatus.containsKey(order.id)) {
+        // status berubah
+        if (oldStatus[order.id] != order.status) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: Colors.blue[700],
+
+                content: Text(
+                  "Status pesanan #${order.id} berubah menjadi ${order.status}",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            );
+          }
+        }
+      }
+
+      // update status lama
+      oldStatus[order.id] = order.status;
+    }
 
     setState(() {
       orders = result;
@@ -54,92 +83,169 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   @override
+  void dispose() {
+    timer?.cancel();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(15),
-        itemCount: orders.length,
+      body: orders.isEmpty
+          ? const Center(child: Text("Belum ada pesanan"))
+          : ListView.builder(
+              padding: const EdgeInsets.all(15),
 
-        itemBuilder: (context, index) {
-          final order = orders[index];
+              itemCount: orders.length,
 
-          return InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => InvoiceScreen(orderId: order.id),
-                ),
-              );
-            },
+              itemBuilder: (context, index) {
+                final order = orders[index];
 
-            child: Card(
-              margin: const EdgeInsets.only(bottom: 15),
+                return InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
 
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue[100],
-                  child: Text("#${order.id}"),
-                ),
-
-                title: Text(
-                  "Rp ${order.total}",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                      MaterialPageRoute(
+                        builder: (_) => InvoiceScreen(orderId: order.id),
                       ),
+                    );
+                  },
 
-                      decoration: BoxDecoration(
-                        color: getStatusColor(order.status),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                  child: Card(
+                    elevation: 3,
 
-                      child: Text(
-                        order.status,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
 
-                    Text(order.createdAt, style: const TextStyle(fontSize: 12)),
-                  ],
-                ),
+                    margin: const EdgeInsets.only(bottom: 15),
 
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
 
-                  decoration: BoxDecoration(
-                    color: Colors.orange[100],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
-                  child: Text(
-                    order.status,
-                    style: TextStyle(
-                      color: Colors.orange[800],
-                      fontWeight: FontWeight.bold,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                            children: [
+                              Text(
+                                "Pesanan #${order.id}",
+
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+
+                                decoration: BoxDecoration(
+                                  color: getStatusColor(order.status),
+
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+
+                                child: Text(
+                                  order.status,
+
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 15),
+
+                          Row(
+                            children: [
+                              Icon(Icons.payments, color: Colors.green[700]),
+
+                              const SizedBox(width: 8),
+
+                              Text(
+                                "Rp ${order.total}",
+
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 18,
+                                color: Colors.grey[700],
+                              ),
+
+                              const SizedBox(width: 8),
+
+                              Text(
+                                order.createdAt,
+
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 15),
+
+                          SizedBox(
+                            width: double.infinity,
+
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        InvoiceScreen(orderId: order.id),
+                                  ),
+                                );
+                              },
+
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[700],
+
+                                foregroundColor: Colors.white,
+
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+
+                              icon: const Icon(Icons.receipt_long),
+
+                              label: const Text("Lihat Invoice"),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

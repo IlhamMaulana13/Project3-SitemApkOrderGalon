@@ -21,4 +21,6 @@ class OrderModel {
       createdAt: json['created_at'],
     );
   }
+
+  void operator [](String other) {}
 }
