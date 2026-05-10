@@ -29,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
 
     final response = await http.get(
-      Uri.parse("http://192.168.1.5:8080/profile/${user.uid}"),
+      Uri.parse("http://10.110.115.221:8080/profile/${user.uid}"),
     );
 
     if (response.statusCode == 200) {

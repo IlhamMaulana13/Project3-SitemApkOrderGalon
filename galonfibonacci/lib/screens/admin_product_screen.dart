@@ -15,7 +15,7 @@ class AdminProductScreen extends StatefulWidget {
 class _AdminProductScreenState extends State<AdminProductScreen> {
   List products = [];
 
-  final String baseUrl = "http://192.168.1.5:8080";
+  final String baseUrl = "http://10.110.115.221:8080";
 
   File? selectedImage;
 

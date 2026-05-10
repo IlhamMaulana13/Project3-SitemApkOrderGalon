@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/screens/invoice_screen.dart';
-
+import 'dart:async';
 import '../models/order_model.dart';
 import '../services/api_service.dart';
 
@@ -13,6 +13,10 @@ class OrderScreen extends StatefulWidget {
 
 class _OrderScreenState extends State<OrderScreen> {
   List<OrderModel> orders = [];
+
+  Timer? timer;
+
+  List oldOrders = [];
 
   Color getStatusColor(String status) {
     switch (status) {
@@ -33,7 +37,12 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   void initState() {
     super.initState();
+
     fetchOrders();
+
+    timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      fetchOrders();
+    });
   }
 
   void fetchOrders() async {

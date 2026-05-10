@@ -58,10 +58,10 @@ type User struct {
 }
 
 type Voucher struct {
-	ID        int    `json:"id"`
-	Code      string `json:"code"`
-	Discount  int    `json:"discount"`
-	IsActive  bool   `json:"is_active"`
+	ID       int    `json:"id"`
+	Code     string `json:"code"`
+	Discount int    `json:"discount"`
+	IsActive bool   `json:"is_active"`
 }
 
 func main() {
@@ -814,6 +814,148 @@ func main() {
 			"total_products":  totalProducts,
 			"total_customers": totalCustomers,
 			"best_products":   bestProducts,
+		})
+	})
+
+	// GET ALL VOUCHERS
+	r.GET("/vouchers", func(c *gin.Context) {
+
+		rows, err := database.DB.Query(`
+		SELECT id, code, discount, is_active
+		FROM vouchers
+		ORDER BY id DESC
+	`)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		defer rows.Close()
+
+		var vouchers []Voucher
+
+		for rows.Next() {
+
+			var voucher Voucher
+
+			rows.Scan(
+				&voucher.ID,
+				&voucher.Code,
+				&voucher.Discount,
+				&voucher.IsActive,
+			)
+
+			vouchers = append(vouchers, voucher)
+		}
+
+		c.JSON(200, vouchers)
+	})
+
+	// CREATE VOUCHER
+	r.POST("/vouchers", func(c *gin.Context) {
+
+		var voucher Voucher
+
+		if err := c.ShouldBindJSON(&voucher); err != nil {
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		_, err := database.DB.Exec(`
+		INSERT INTO vouchers
+		(code, discount, is_active)
+		VALUES (?, ?, ?)
+	`,
+			voucher.Code,
+			voucher.Discount,
+			true,
+		)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Voucher berhasil dibuat",
+		})
+	})
+
+	// GET VOUCHER BY CODE
+	r.GET("/voucher/:code", func(c *gin.Context) {
+
+		code := c.Param("code")
+
+		var voucher Voucher
+
+		err := database.DB.QueryRow(`
+		SELECT id, code, discount, is_active
+		FROM vouchers
+		WHERE code = ?
+	`,
+			code,
+		).Scan(
+			&voucher.ID,
+			&voucher.Code,
+			&voucher.Discount,
+			&voucher.IsActive,
+		)
+
+		if err != nil {
+
+			c.JSON(404, gin.H{
+				"error": "Voucher tidak ditemukan",
+			})
+
+			return
+		}
+
+		if !voucher.IsActive {
+
+			c.JSON(400, gin.H{
+				"error": "Voucher tidak aktif",
+			})
+
+			return
+		}
+
+		c.JSON(200, voucher)
+	})
+
+	// DELETE VOUCHER
+	r.DELETE("/vouchers/:id", func(c *gin.Context) {
+
+		id := c.Param("id")
+
+		_, err := database.DB.Exec(`
+		DELETE FROM vouchers
+		WHERE id = ?
+	`, id)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "Voucher berhasil dihapus",
 		})
 	})
 

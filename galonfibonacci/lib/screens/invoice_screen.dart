@@ -23,7 +23,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
 
   Future<void> fetchInvoice() async {
     final response = await http.get(
-      Uri.parse("http://192.168.1.5:8080/orders/detail/${widget.orderId}"),
+      Uri.parse("http://10.110.115.221:8080/orders/detail/${widget.orderId}"),
     );
 
     if (response.statusCode == 200) {

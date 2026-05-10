@@ -24,7 +24,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> fetchDashboard() async {
     final response = await http.get(
-      Uri.parse("http://192.168.1.5:8080/dashboard"),
+      Uri.parse("http://10.110.115.221:8080/dashboard"),
     );
 
     if (response.statusCode == 200) {

@@ -7,7 +7,7 @@ import '../models/cart_model.dart';
 import '../models/product_model.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.1.5:8080";
+  static const String baseUrl = "http://10.110.115.221:8080";
 
   // GET PRODUCTS
   static Future<List<ProductModel>> getProducts() async {
@@ -49,21 +49,14 @@ class ApiService {
   }
 
   static Future<List<OrderModel>> getOrders() async {
+    final response = await http.get(Uri.parse("$baseUrl/orders"));
 
-  final response = await http.get(
-    Uri.parse("$baseUrl/orders"),
-  );
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
 
-  if (response.statusCode == 200) {
-
-    List data = jsonDecode(response.body);
-
-    return data
-        .map((item) => OrderModel.fromJson(item))
-        .toList();
-
-  } else {
-    throw Exception("Failed to load orders");
+      return data.map((item) => OrderModel.fromJson(item)).toList();
+    } else {
+      throw Exception("Failed to load orders");
+    }
   }
-}
 }

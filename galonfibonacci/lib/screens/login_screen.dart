@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String> getRole(String uid) async {
     final response = await http.get(
-      Uri.parse("http://192.168.1.5:8080/users/$uid"),
+      Uri.parse("http://10.110.115.221:8080/users/$uid"),
     );
 
     final data = jsonDecode(response.body);
@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final user = userCredential.user;
 
         await http.post(
-          Uri.parse("http://192.168.1.5:8080/users"),
+          Uri.parse("http://10.110.115.221:8080/users"),
 
           headers: {"Content-Type": "application/json"},
 
@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final user = userCredential.user;
 
         await http.post(
-          Uri.parse("http://192.168.1.5:8080/users"),
+          Uri.parse("http://10.110.115.221:8080/users"),
 
           headers: {"Content-Type": "application/json"},
 

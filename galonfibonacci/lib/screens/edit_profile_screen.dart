@@ -22,7 +22,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (user == null) return;
 
     final response = await http.post(
-      Uri.parse("http://192.168.1.5:8080/profile"),
+      Uri.parse("http://10.110.115.221:8080/profile"),
 
       headers: {"Content-Type": "application/json"},
 

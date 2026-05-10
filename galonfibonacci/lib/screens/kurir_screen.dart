@@ -23,7 +23,7 @@ class _KurirScreenState extends State<KurirScreen> {
 
   Future<void> fetchOrders() async {
     final response = await http.get(
-      Uri.parse("http://192.168.1.5:8080/kurir/orders"),
+      Uri.parse("http://10.110.115.221:8080/kurir/orders"),
     );
 
     if (response.statusCode == 200) {
@@ -55,7 +55,7 @@ class _KurirScreenState extends State<KurirScreen> {
 
   Future<void> updateStatus(int id, String status) async {
     await http.put(
-      Uri.parse("http://192.168.1.5:8080/orders/status/$id"),
+      Uri.parse("http://10.110.115.221:8080/orders/status/$id"),
 
       headers: {"Content-Type": "application/json"},
 
