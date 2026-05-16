@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:galonfibonacci/api_config.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -33,7 +34,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (user == null) return;
 
     final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/profile/${user.uid}"),
+      Uri.parse("${ApiConfig.baseUrl}/profile/${user.uid}"),
     );
 
     if (response.statusCode == 200) {
@@ -73,7 +74,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     int total = cartProvider.total - discount;
 
     final response = await http.post(
-      Uri.parse("http://10.110.115.221:8080/orders"),
+      Uri.parse("${ApiConfig.baseUrl}/orders"),
 
       headers: {"Content-Type": "application/json"},
 

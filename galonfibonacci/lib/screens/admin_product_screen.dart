@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:galonfibonacci/api_config.dart';
 
 class AdminProductScreen extends StatefulWidget {
   const AdminProductScreen({super.key});
@@ -15,7 +16,7 @@ class AdminProductScreen extends StatefulWidget {
 class _AdminProductScreenState extends State<AdminProductScreen> {
   List products = [];
 
-  final String baseUrl = "http://10.110.115.221:8080";
+  final String baseUrl = "${ApiConfig.baseUrl}";
 
   File? selectedImage;
 

@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:galonfibonacci/api_config.dart';
 
 class KurirScreen extends StatefulWidget {
   const KurirScreen({super.key});
@@ -22,13 +25,37 @@ class _KurirScreenState extends State<KurirScreen> {
   }
 
   Future<void> fetchOrders() async {
-    final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/kurir/orders"),
-    );
+    try {
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/kurir/orders"),
+      );
 
-    if (response.statusCode == 200) {
+      if (response.statusCode == 200) {
+        print(response.body);
+
+        final data = jsonDecode(response.body);
+
+        if (data is List) {
+          setState(() {
+            orders = data;
+          });
+        } else {
+          setState(() {
+            orders = [];
+          });
+        }
+      } else {
+        setState(() {
+          orders = [];
+        });
+
+        print(response.body);
+      }
+    } catch (e) {
+      print(e);
+
       setState(() {
-        orders = jsonDecode(response.body);
+        orders = [];
       });
     }
   }
@@ -55,7 +82,7 @@ class _KurirScreenState extends State<KurirScreen> {
 
   Future<void> updateStatus(int id, String status) async {
     await http.put(
-      Uri.parse("http://10.110.115.221:8080/orders/status/$id"),
+      Uri.parse("${ApiConfig.baseUrl}/orders/status/$id"),
 
       headers: {"Content-Type": "application/json"},
 
@@ -75,6 +102,26 @@ class _KurirScreenState extends State<KurirScreen> {
         ),
 
         backgroundColor: Colors.orange,
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+
+              if (!context.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+
+                (route) => false,
+              );
+            },
+          ),
+        ],
       ),
 
       body: ListView.builder(
@@ -83,7 +130,7 @@ class _KurirScreenState extends State<KurirScreen> {
         itemCount: orders.length,
 
         itemBuilder: (context, index) {
-          final order = orders[index];
+          final order = orders[index] as Map<String, dynamic>;
 
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
@@ -109,9 +156,9 @@ class _KurirScreenState extends State<KurirScreen> {
 
                   const SizedBox(height: 10),
 
-                  Text("Nama: ${order["name"]}"),
-                  Text("No HP: ${order["phone"]}"),
-                  Text("Alamat: ${order["address"]}"),
+                  Text("Nama: ${order["name"] ?? "-"}"),
+                  Text("No HP: ${order["phone"] ?? "-"}"),
+                  Text("Alamat: ${order["address"] ?? "-"}"),
 
                   const SizedBox(height: 10),
 
@@ -133,7 +180,7 @@ class _KurirScreenState extends State<KurirScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
 
-                    child: Text(order["status"]),
+                    child: Text(order["status"] ?? "-"),
                   ),
 
                   const SizedBox(height: 15),
@@ -144,6 +191,11 @@ class _KurirScreenState extends State<KurirScreen> {
                     isExpanded: true,
 
                     items: const [
+                      DropdownMenuItem(
+                        value: "Diproses",
+                        child: Text("Diproses"),
+                      ),
+
                       DropdownMenuItem(
                         value: "Siap Dikirim",
                         child: Text("Siap Dikirim"),

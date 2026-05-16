@@ -18,6 +18,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<ProductModel> products = [];
 
+  // FILTER
+  String selectedService = "Isi Ulang";
+
   @override
   void initState() {
     super.initState();
@@ -27,9 +30,50 @@ class _HomeScreenState extends State<HomeScreen> {
   void fetchProducts() async {
     final result = await ApiService.getProducts();
 
+    if (!mounted) return;
+
     setState(() {
       products = result;
     });
+  }
+
+  // HARGA BERDASARKAN FILTER
+  int getPrice() {
+    if (selectedService == "Isi Ulang") {
+      return 7000;
+    } else if (selectedService == "Beli Baru") {
+      return 45000;
+    } else {
+      return 2000;
+    }
+  }
+
+  // WIDGET FILTER
+  Widget buildFilter(String title) {
+    final isSelected = selectedService == title;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedService = title;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.white,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -69,6 +113,24 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // FILTER
+          const SizedBox(height: 15),
+
+          SizedBox(
+            height: 45,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              scrollDirection: Axis.horizontal,
+              children: [
+                buildFilter("Isi Ulang"),
+                buildFilter("Beli Baru"),
+                buildFilter("Sewa"),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(15),
@@ -76,7 +138,11 @@ class _HomeScreenState extends State<HomeScreen> {
               itemBuilder: (context, index) {
                 final product = products[index];
 
-                return ProductItem(product: product);
+                return ProductItem(
+                  product: product,
+                  selectedService: selectedService,
+                  price: getPrice(),
+                );
               },
             ),
           ),
@@ -88,8 +154,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class ProductItem extends StatefulWidget {
   final ProductModel product;
+  final String selectedService;
+  final int price;
 
-  const ProductItem({super.key, required this.product});
+  const ProductItem({
+    super.key,
+    required this.product,
+    required this.selectedService,
+    required this.price,
+  });
 
   @override
   State<ProductItem> createState() => _ProductItemState();
@@ -134,20 +207,99 @@ class _ProductItemState extends State<ProductItem> {
 
                   const SizedBox(height: 5),
 
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // SERVICE
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      widget.selectedService,
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Text("Rp ${widget.product.price}"),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.payments_rounded,
+                              size: 16,
+                              color: Colors.green[700],
+                            ),
 
-                      const SizedBox(height: 5),
+                            const SizedBox(width: 5),
 
-                      Text(
-                        "Stock: ${widget.product.stock}",
-                        style: TextStyle(
+                            Text(
+                              "Rp ${widget.price}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
                           color: widget.product.stock <= 0
-                              ? Colors.red
-                              : Colors.green,
-                          fontWeight: FontWeight.bold,
+                              ? Colors.red.shade50
+                              : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 16,
+                              color: widget.product.stock <= 0
+                                  ? Colors.red
+                                  : Colors.blue[700],
+                            ),
+
+                            const SizedBox(width: 5),
+
+                            Text(
+                              "Stock ${widget.product.stock}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: widget.product.stock <= 0
+                                    ? Colors.red
+                                    : Colors.blue[700],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -188,7 +340,17 @@ class _ProductItemState extends State<ProductItem> {
                   onPressed: widget.product.stock <= 0
                       ? null
                       : () {
-                          cartProvider.addToCart(widget.product, quantity);
+                          final updatedProduct = ProductModel(
+                            id: widget.product.id,
+                            categoryId: widget.product.categoryId,
+                            merk:
+                                "${widget.product.merk} (${widget.selectedService})",
+                            price: widget.price,
+                            stock: widget.product.stock,
+                            image: widget.product.image,
+                          );
+
+                          cartProvider.addToCart(updatedProduct, quantity);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(

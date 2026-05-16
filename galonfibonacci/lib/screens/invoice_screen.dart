@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:galonfibonacci/api_config.dart';
 
 class InvoiceScreen extends StatefulWidget {
   final int orderId;
@@ -23,7 +24,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
 
   Future<void> fetchInvoice() async {
     final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/orders/detail/${widget.orderId}"),
+      Uri.parse("${ApiConfig.baseUrl}/orders/detail/${widget.orderId}"),
     );
 
     if (response.statusCode == 200) {

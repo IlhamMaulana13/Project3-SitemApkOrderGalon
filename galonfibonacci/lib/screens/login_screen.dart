@@ -1,14 +1,13 @@
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_dashboard_screen.dart';
-import 'package:galonfibonacci/screens/admin_screen.dart';
 import 'package:galonfibonacci/screens/kurir_screen.dart';
 import 'package:galonfibonacci/screens/main_screen.dart';
 import 'package:http/http.dart' as http;
-
-import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool isRegister;
@@ -23,6 +22,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final addressController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
+  bool isPasswordHidden = true;
+  bool isConfirmPasswordHidden = true;
+
   late bool isLogin;
 
   @override
@@ -31,19 +38,33 @@ class _LoginScreenState extends State<LoginScreen> {
     isLogin = !widget.isRegister;
   }
 
+  // =========================
+  // GET ROLE
+  // =========================
   Future<String> getRole(String uid) async {
     final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/users/$uid"),
+      Uri.parse("${ApiConfig.baseUrl}/users/$uid"),
     );
+
+    if (response.statusCode != 200) {
+      return "customer";
+    }
 
     final data = jsonDecode(response.body);
 
-    return data["role"];
+    return data["role"] ?? "customer";
   }
 
+  // =========================
+  // SUBMIT
+  // =========================
   Future<void> submit() async {
     try {
+      String? token = await FirebaseMessaging.instance.getToken();
+
+      // =========================
       // LOGIN
+      // =========================
       if (isLogin) {
         UserCredential userCredential = await FirebaseAuth.instance
             .signInWithEmailAndPassword(
@@ -53,16 +74,58 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final user = userCredential.user;
 
+        // UPDATE TOKEN
         await http.post(
-          Uri.parse("http://10.110.115.221:8080/users"),
-
+          Uri.parse("${ApiConfig.baseUrl}/users"),
           headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "firebase_uid": user!.uid,
+            "email": user.email,
+            "fcm_token": token,
+          }),
+        );
 
-          body: jsonEncode({"firebase_uid": user!.uid, "email": user.email}),
+        // AMBIL ROLE
+        String role = await getRole(user.uid);
+
+        Widget nextScreen;
+
+        if (role == "admin") {
+          nextScreen = const AdminDashboardScreen();
+        } else if (role == "kurir") {
+          nextScreen = const KurirScreen();
+        } else {
+          nextScreen = const MainScreen();
+        }
+
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => nextScreen),
+          (route) => false,
         );
       }
+      // =========================
       // REGISTER
+      // =========================
       else {
+        if (passwordController.text != confirmPasswordController.text) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Konfirmasi password tidak cocok")),
+          );
+          return;
+        }
+
+        if (nameController.text.isEmpty ||
+            phoneController.text.isEmpty ||
+            addressController.text.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Semua data harus diisi")),
+          );
+          return;
+        }
+
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
               email: emailController.text.trim(),
@@ -71,47 +134,82 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final user = userCredential.user;
 
+        // SIMPAN PROFILE
         await http.post(
-          Uri.parse("http://10.110.115.221:8080/users"),
+          Uri.parse("${ApiConfig.baseUrl}/profile"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "firebase_uid": user!.uid,
+            "email": user.email,
+            "name": nameController.text,
+            "phone": phoneController.text,
+            "address": addressController.text,
+          }),
+        );
+
+        await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/users"),
 
           headers: {"Content-Type": "application/json"},
 
-          body: jsonEncode({"firebase_uid": user!.uid, "email": user.email}),
+          body: jsonEncode({
+            "firebase_uid": user.uid,
+            "email": user.email,
+            "name": nameController.text,
+            "phone": phoneController.text,
+            "address": addressController.text,
+            "fcm_token": token,
+          }),
         );
+
+        await FirebaseAuth.instance.signOut();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Register berhasil, silakan login")),
+        );
+
+        setState(() {
+          isLogin = true;
+        });
       }
-
-      if (!mounted) return;
-
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user == null) return;
-
-      String role = await getRole(user.uid);
-
-      Widget nextScreen;
-
-      if (role == "admin") {
-        nextScreen = const AdminDashboardScreen();
-      } else if (role == "kurir") {
-        nextScreen = const KurirScreen();
-      } else {
-        nextScreen = const MainScreen();
-      }
-
-      if (!mounted) return;
-
-      Navigator.pushAndRemoveUntil(
-        context,
-
-        MaterialPageRoute(builder: (_) => nextScreen),
-
-        (route) => false,
-      );
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message ?? "Terjadi kesalahan")));
     }
+  }
+
+  // =========================
+  // TEXTFIELD
+  // =========================
+  Widget buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscure = false,
+    Widget? suffixIcon,
+    int maxLines = 1,
+    TextInputType keyboard = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      maxLines: maxLines,
+      keyboardType: keyboard,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
   }
 
   @override
@@ -121,95 +219,152 @@ class _LoginScreenState extends State<LoginScreen> {
 
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(25),
+          padding: const EdgeInsets.all(25),
 
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height * 0.9,
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
 
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // ICON
-                  Icon(Icons.water_drop, size: 90, color: Colors.blue[700]),
+              Icon(Icons.water_drop, size: 90, color: Colors.blue[700]),
 
-                  const SizedBox(height: 15),
+              const SizedBox(height: 15),
 
-                  // TITLE
-                  Text(
-                    "Galon Rizki Faras",
-                    style: TextStyle(
-                      fontSize: 26,
+              Text(
+                "Galon Rizki Faras",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                "Pemesanan air galon digital",
+                style: TextStyle(color: Colors.grey[700]),
+              ),
+
+              const SizedBox(height: 40),
+
+              // REGISTER FIELD
+              if (!isLogin) ...[
+                buildTextField(
+                  controller: nameController,
+                  label: "Nama Lengkap",
+                  icon: Icons.person,
+                ),
+
+                const SizedBox(height: 18),
+
+                buildTextField(
+                  controller: phoneController,
+                  label: "No HP",
+                  icon: Icons.phone,
+                  keyboard: TextInputType.phone,
+                ),
+
+                const SizedBox(height: 18),
+
+                buildTextField(
+                  controller: addressController,
+                  label: "Alamat",
+                  icon: Icons.location_on,
+                  maxLines: 3,
+                ),
+
+                const SizedBox(height: 18),
+              ],
+
+              // EMAIL
+              buildTextField(
+                controller: emailController,
+                label: "Email",
+                icon: Icons.email,
+                keyboard: TextInputType.emailAddress,
+              ),
+
+              const SizedBox(height: 18),
+
+              // PASSWORD
+              buildTextField(
+                controller: passwordController,
+                label: "Password",
+                icon: Icons.lock,
+                obscure: isPasswordHidden,
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      isPasswordHidden = !isPasswordHidden;
+                    });
+                  },
+                  icon: Icon(
+                    isPasswordHidden ? Icons.visibility_off : Icons.visibility,
+                  ),
+                ),
+              ),
+
+              // CONFIRM PASSWORD
+              if (!isLogin) ...[
+                const SizedBox(height: 18),
+
+                buildTextField(
+                  controller: confirmPasswordController,
+                  label: "Konfirmasi Password",
+                  icon: Icons.lock_outline,
+                  obscure: isConfirmPasswordHidden,
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        isConfirmPasswordHidden = !isConfirmPasswordHidden;
+                      });
+                    },
+                    icon: Icon(
+                      isConfirmPasswordHidden
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 30),
+
+              // BUTTON
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+
+                child: ElevatedButton(
+                  onPressed: submit,
+
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+
+                  child: Text(
+                    isLogin ? "Login" : "Register",
+                    style: const TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue[700],
                     ),
                   ),
+                ),
+              ),
 
-                  const SizedBox(height: 10),
+              const SizedBox(height: 15),
 
-                  Text(
-                    "Pemesanan air galon digital",
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
+              // TOGGLE
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
 
-                  const SizedBox(height: 40),
+                children: [
+                  Text(isLogin ? "Belum punya akun?" : "Sudah punya akun?"),
 
-                  // EMAIL
-                  TextField(
-                    controller: emailController,
-                    decoration: InputDecoration(
-                      labelText: "Email",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // PASSWORD
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: "Password",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // LOGIN / REGISTER BUTTON
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-
-                    child: ElevatedButton(
-                      onPressed: submit,
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[700],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-
-                      child: Text(
-                        isLogin ? "Login" : "Register",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // TOGGLE LOGIN REGISTER
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -218,30 +373,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
 
                     child: Text(
-                      isLogin
-                          ? "Belum punya akun? Register"
-                          : "Sudah punya akun? Login",
+                      isLogin ? "Register" : "Login",
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // GUEST MODE
-                  TextButton(
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MainScreen()),
-                      );
-                    },
-
-                    child: const Text("Masuk Sebagai Tamu"),
                   ),
                 ],
               ),
-            ),
+
+              // GUEST MODE
+              TextButton(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                  );
+                },
+
+                child: const Text("Masuk Sebagai Tamu"),
+              ),
+
+              const SizedBox(height: 30),
+            ],
           ),
         ),
       ),

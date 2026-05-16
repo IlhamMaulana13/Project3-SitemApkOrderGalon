@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:galonfibonacci/api_config.dart';
 
 class AdminVoucherScreen extends StatefulWidget {
   const AdminVoucherScreen({super.key});
@@ -24,9 +25,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   }
 
   Future<void> fetchVouchers() async {
-    final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/vouchers"),
-    );
+    final response = await http.get(Uri.parse("${ApiConfig.baseUrl}/vouchers"));
 
     if (response.statusCode == 200) {
       setState(() {
@@ -37,7 +36,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
 
   Future<void> createVoucher() async {
     final response = await http.post(
-      Uri.parse("http://10.110.115.221:8080/vouchers"),
+      Uri.parse("${ApiConfig.baseUrl}/vouchers"),
 
       headers: {"Content-Type": "application/json"},
 
@@ -59,7 +58,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
 
   Future<void> deleteVoucher(int id) async {
     final response = await http.delete(
-      Uri.parse("http://10.110.115.221:8080/vouchers/$id"),
+      Uri.parse("${ApiConfig.baseUrl}/vouchers/$id"),
     );
 
     if (response.statusCode == 200) {

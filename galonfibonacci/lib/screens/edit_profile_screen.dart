@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:galonfibonacci/api_config.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -22,7 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (user == null) return;
 
     final response = await http.post(
-      Uri.parse("http://10.110.115.221:8080/profile"),
+      Uri.parse("${ApiConfig.baseUrl}/users"),
 
       headers: {"Content-Type": "application/json"},
 

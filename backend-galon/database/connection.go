@@ -11,7 +11,7 @@ var DB *sql.DB
 
 func ConnectDB() {
 
-	connection := "root:@tcp(127.0.0.1:3306)/db_galon"
+	connection := "golangapp:Password123!@tcp(127.0.0.1:3306)/db_galon"
 
 	db, err := sql.Open("mysql", connection)
 

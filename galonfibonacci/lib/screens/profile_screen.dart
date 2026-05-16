@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:galonfibonacci/api_config.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -29,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
 
     final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/profile/${user.uid}"),
+      Uri.parse("${ApiConfig.baseUrl}/users/${user.uid}"),
     );
 
     if (response.statusCode == 200) {

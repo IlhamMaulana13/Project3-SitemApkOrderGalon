@@ -66,6 +66,8 @@ type Voucher struct {
 
 func main() {
 
+	database.InitFirebase()
+
 	database.ConnectDB()
 
 	r := gin.Default()
@@ -469,6 +471,62 @@ func main() {
 			return
 		}
 
+		// =========================
+		// NOTIFIKASI FIREBASE
+		// =========================
+
+		var token string
+		var name string
+
+		err = database.DB.QueryRow(`
+		SELECT
+			u.fcm_token,
+			u.name
+		FROM orders o
+		JOIN users u
+		ON u.firebase_uid = o.user_id
+		WHERE o.id = ?
+	`,
+			id,
+		).Scan(
+			&token,
+			&name,
+		)
+
+		if err == nil && token != "" {
+
+			title := "Status Pesanan"
+
+			bodyNotif := ""
+
+			if body.Status == "Diproses" {
+
+				bodyNotif =
+					"Halo " + name +
+						", pesanan anda sedang diproses"
+
+			} else if body.Status == "Dikirim" {
+
+				bodyNotif =
+					"Halo " + name +
+						", pesanan anda sedang dikirim"
+
+			} else if body.Status == "Selesai" {
+
+				bodyNotif =
+					"Halo " + name +
+						", pesanan anda telah selesai"
+			}
+
+			database.SendNotification(
+				token,
+				title,
+				bodyNotif,
+			)
+		}
+
+		// =========================
+
 		c.JSON(200, gin.H{
 			"message": "Status berhasil diupdate",
 		})
@@ -480,6 +538,10 @@ func main() {
 		var body struct {
 			FirebaseUID string `json:"firebase_uid"`
 			Email       string `json:"email"`
+			Name        string `json:"name"`
+			Phone       string `json:"phone"`
+			Address     string `json:"address"`
+			FCMToken    string `json:"fcm_token"`
 		}
 
 		if err := c.ShouldBindJSON(&body); err != nil {
@@ -491,7 +553,6 @@ func main() {
 			return
 		}
 
-		// cek user sudah ada atau belum
 		var count int
 
 		database.DB.QueryRow(`
@@ -500,17 +561,51 @@ func main() {
 		WHERE firebase_uid = ?
 	`, body.FirebaseUID).Scan(&count)
 
-		// kalau belum ada → insert
+		// INSERT USER BARU
 		if count == 0 {
 
 			_, err := database.DB.Exec(`
 			INSERT INTO users
-			(firebase_uid, email, role)
-			VALUES (?, ?, ?)
+			(firebase_uid, email, name, phone, address, role, fcm_token)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`,
 				body.FirebaseUID,
 				body.Email,
+				body.Name,
+				body.Phone,
+				body.Address,
 				"customer",
+				body.FCMToken,
+			)
+
+			if err != nil {
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
+				return
+			}
+
+		} else {
+
+			// UPDATE TOKEN + PROFILE
+			_, err := database.DB.Exec(`
+			UPDATE users
+			SET
+				email = ?,
+				name = ?,
+				phone = ?,
+				address = ?,
+				fcm_token = ?
+			WHERE firebase_uid = ?
+		`,
+				body.Email,
+				body.Name,
+				body.Phone,
+				body.Address,
+				body.FCMToken,
+				body.FirebaseUID,
 			)
 
 			if err != nil {
@@ -669,7 +764,7 @@ func main() {
 		})
 	})
 
-	// GET ORDER KHUSUS KURIR
+	// GET ORDER UNTUK KURIR
 	r.GET("/kurir/orders", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
@@ -682,9 +777,8 @@ func main() {
 			u.phone,
 			u.address
 		FROM orders o
-		JOIN users u
-		ON u.firebase_uid = o.user_id
-		WHERE o.status IN ('Siap Dikirim', 'Dikirim')
+		JOIN users u ON u.firebase_uid = o.user_id
+		WHERE o.status != 'Selesai'
 		ORDER BY o.id DESC
 	`)
 
@@ -699,7 +793,7 @@ func main() {
 
 		defer rows.Close()
 
-		var orders []gin.H
+		orders := []gin.H{}
 
 		for rows.Next() {
 
@@ -957,6 +1051,63 @@ func main() {
 		c.JSON(200, gin.H{
 			"message": "Voucher berhasil dihapus",
 		})
+	})
+
+	// GET REPORT
+	r.GET("/reports", func(c *gin.Context) {
+
+		rows, err := database.DB.Query(`
+		SELECT
+			o.id,
+			u.name,
+			o.total,
+			o.status,
+			o.created_at
+		FROM orders o
+		JOIN users u
+		ON u.firebase_uid = o.user_id
+		ORDER BY o.id DESC
+	`)
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		defer rows.Close()
+
+		var reports []gin.H
+
+		for rows.Next() {
+
+			var id int
+			var name string
+			var total int
+			var status string
+			var createdAt string
+
+			rows.Scan(
+				&id,
+				&name,
+				&total,
+				&status,
+				&createdAt,
+			)
+
+			reports = append(reports, gin.H{
+				"id":         id,
+				"name":       name,
+				"total":      total,
+				"status":     status,
+				"created_at": createdAt,
+			})
+		}
+
+		c.JSON(200, reports)
 	})
 
 	r.Run(":8080")

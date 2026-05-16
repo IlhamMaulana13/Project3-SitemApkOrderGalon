@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class AdminOrderScreen extends StatefulWidget {
@@ -13,7 +14,7 @@ class AdminOrderScreen extends StatefulWidget {
 class _AdminOrderScreenState extends State<AdminOrderScreen> {
   List orders = [];
 
-  final String baseUrl = "http://10.110.115.221:8080";
+  final String baseUrl = "${ApiConfig.baseUrl}";
 
   @override
   void initState() {

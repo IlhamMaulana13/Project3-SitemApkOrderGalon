@@ -1,8 +1,12 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
+import 'package:galonfibonacci/screens/login_screen.dart';
+import 'package:galonfibonacci/screens/report_screen.dart';
 import 'package:http/http.dart' as http;
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -24,7 +28,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> fetchDashboard() async {
     final response = await http.get(
-      Uri.parse("http://10.110.115.221:8080/dashboard"),
+      Uri.parse("${ApiConfig.baseUrl}/dashboard"),
     );
 
     if (response.statusCode == 200) {
@@ -76,6 +80,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
 
         backgroundColor: Colors.blue[700],
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+
+              if (!context.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+
+                (route) => false,
+              );
+            },
+          ),
+        ],
       ),
 
       body: dashboard == null
@@ -213,6 +237,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                               const Text(
                                 "Kelola Pesanan",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ReportScreen(),
+                            ),
+                          );
+                        },
+
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+
+                            children: [
+                              Icon(Icons.print, size: 40, color: Colors.green),
+
+                              const SizedBox(height: 10),
+
+                              const Text(
+                                "Cetak Laporan",
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ],
