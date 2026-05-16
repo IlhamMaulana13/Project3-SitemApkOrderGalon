@@ -586,21 +586,18 @@ func main() {
 
 				return
 			}
-
 		} else {
 
-			// UPDATE TOKEN + PROFILE
+			// UPDATE DATA USER
 			_, err := database.DB.Exec(`
 			UPDATE users
 			SET
-				email = ?,
 				name = ?,
 				phone = ?,
 				address = ?,
 				fcm_token = ?
 			WHERE firebase_uid = ?
 		`,
-				body.Email,
 				body.Name,
 				body.Phone,
 				body.Address,
