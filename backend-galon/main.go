@@ -588,19 +588,12 @@ func main() {
 			}
 		} else {
 
-			// UPDATE DATA USER
+			// UPDATE TOKEN SAJA
 			_, err := database.DB.Exec(`
-			UPDATE users
-			SET
-				name = ?,
-				phone = ?,
-				address = ?,
-				fcm_token = ?
-			WHERE firebase_uid = ?
-		`,
-				body.Name,
-				body.Phone,
-				body.Address,
+	UPDATE users
+	SET fcm_token = ?
+	WHERE firebase_uid = ?
+`,
 				body.FCMToken,
 				body.FirebaseUID,
 			)
