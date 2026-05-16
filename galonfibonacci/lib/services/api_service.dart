@@ -77,21 +77,21 @@ class ApiService {
     }
   }
 
-  static Future<List<ReportModel>> getReports() async {
+  static Future<Map<String, dynamic>> getProfile(String uid) async {
+    final response = await http.get(Uri.parse("$baseUrl/profile/$uid"));
 
-  final response = await http.get(
-    Uri.parse("$baseUrl/reports"),
-  );
-
-  if (response.statusCode == 200) {
-
-    final data = jsonDecode(response.body);
-
-    return List<ReportModel>.from(
-      data.map((e) => ReportModel.fromJson(e)),
-    );
+    return jsonDecode(response.body);
   }
 
-  return [];
-}
+  static Future<List<ReportModel>> getReports() async {
+    final response = await http.get(Uri.parse("$baseUrl/reports"));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      return List<ReportModel>.from(data.map((e) => ReportModel.fromJson(e)));
+    }
+
+    return [];
+  }
 }

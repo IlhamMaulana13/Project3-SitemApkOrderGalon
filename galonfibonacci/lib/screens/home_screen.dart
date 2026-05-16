@@ -20,11 +20,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // FILTER
   String selectedService = "Isi Ulang";
+  String userName = "Pelanggan";
 
   @override
   void initState() {
     super.initState();
     fetchProducts();
+    fetchUserName();
   }
 
   void fetchProducts() async {
@@ -35,6 +37,24 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       products = result;
     });
+  }
+
+  Future<void> fetchUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    try {
+      final response = await ApiService.getProfile(user.uid);
+
+      if (!mounted) return;
+
+      setState(() {
+        userName = response["name"] ?? "Pelanggan";
+      });
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   // HARGA BERDASARKAN FILTER
@@ -93,11 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 bottomRight: Radius.circular(20),
               ),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Halo Pelanggan!',
+                  'Halo $userName!',
                   style: TextStyle(color: Colors.white70),
                 ),
                 SizedBox(height: 5),

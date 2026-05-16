@@ -166,13 +166,80 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Register berhasil, silakan login")),
-        );
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
 
-        setState(() {
-          isLogin = true;
-        });
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+
+                  CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.green[100],
+
+                    child: Icon(
+                      Icons.check,
+                      color: Colors.green[700],
+                      size: 45,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    "REGISTER BERHASIL",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  const Text(
+                    "Silakan login menggunakan akun anda",
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  SizedBox(
+                    width: double.infinity,
+
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+
+                        setState(() {
+                          isLogin = true;
+
+                          // CLEAR FORM
+                          emailController.clear();
+                          passwordController.clear();
+                          confirmPasswordController.clear();
+                          nameController.clear();
+                          phoneController.clear();
+                          addressController.clear();
+                        });
+                      },
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+
+                      child: const Text("OK"),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
       }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
