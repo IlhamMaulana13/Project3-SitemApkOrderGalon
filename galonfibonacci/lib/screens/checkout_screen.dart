@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
+import 'package:galonfibonacci/screens/edit_profile_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:galonfibonacci/api_config.dart';
@@ -20,6 +22,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, dynamic>? profile;
 
   int discount = 0;
+
+  int selectedPaymentMethodId = 1;
+
+  final String transferVaCode = "7001234567890123";
+  final String qrisCode = "QRIS-1234-5678-9012";
+
+  final List<Map<String, dynamic>> paymentMethods = [
+    {"id": 1, "label": "QRIS", "subtitle": "Bayar cepat dengan scan QRIS"},
+    {
+      "id": 2,
+      "label": "Transfer Bank",
+      "subtitle": "Dapatkan kode VA untuk transfer",
+    },
+    {"id": 3, "label": "COD", "subtitle": "Bayar saat pesanan diterima"},
+  ];
 
   @override
   void initState() {
@@ -64,6 +81,133 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> showQrisDialog() async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text("QRIS"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: double.infinity,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Center(
+                  child: Icon(Icons.qr_code, size: 120, color: Colors.black54),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Scan QRIS di atas untuk menyelesaikan pembayaran.",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                qrisCode,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Tutup"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> showPaymentResultDialog(int paymentMethodId) async {
+    if (!mounted) return;
+
+    final title = paymentMethodId == 1
+        ? "Bayar dengan QRIS"
+        : paymentMethodId == 2
+        ? "Transfer Bank"
+        : "Cash on Delivery";
+
+    final subtitle = paymentMethodId == 1
+        ? "Tekan tombol QRIS untuk menampilkan kode pembayaran"
+        : paymentMethodId == 2
+        ? "Gunakan kode VA berikut untuk melakukan transfer"
+        : "Bayar di tempat saat pesanan diterima";
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(subtitle),
+              const SizedBox(height: 20),
+              if (paymentMethodId == 2)
+                Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        transferVaCode,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: transferVaCode));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Kode VA disalin")),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          actions: [
+            if (paymentMethodId == 1)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  showQrisDialog();
+                },
+                child: const Text("Tampilkan QRIS"),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Tutup"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> checkout() async {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
@@ -80,7 +224,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       body: jsonEncode({
         "user_id": user.uid,
-        "payment_method_id": 1,
+        "payment_method_id": selectedPaymentMethodId,
         "total": total,
 
         "items": cartProvider.items.map((item) {
@@ -96,10 +240,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (response.statusCode == 200) {
       cartProvider.clearCart();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Checkout berhasil")));
+      await showPaymentResultDialog(selectedPaymentMethodId);
 
+      if (!mounted) return;
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(
@@ -149,34 +292,95 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
 
                         children: [
-                          const Text(
-                            "Informasi Customer",
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Informasi Customer",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const EditProfileScreen(),
+                                    ),
+                                  );
 
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                                  fetchProfile();
+                                },
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text("Edit"),
+                              ),
+                            ],
                           ),
 
                           const SizedBox(height: 15),
 
                           ListTile(
+                            contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.person),
-
                             title: Text(profile?["name"] ?? "Belum diisi"),
+                            subtitle: const Text("Nama Lengkap"),
                           ),
 
                           ListTile(
+                            contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.phone),
-
                             title: Text(profile?["phone"] ?? "Belum diisi"),
+                            subtitle: const Text("Nomor HP"),
                           ),
 
                           ListTile(
+                            contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.location_on),
-
                             title: Text(profile?["address"] ?? "Belum diisi"),
+                            subtitle: const Text("Alamat Pengiriman"),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Metode Pembayaran",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ...paymentMethods.map((method) {
+                            return RadioListTile<int>(
+                              value: method["id"],
+                              groupValue: selectedPaymentMethodId,
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() {
+                                  selectedPaymentMethodId = value;
+                                });
+                              },
+                              title: Text(method["label"] as String),
+                              subtitle: Text(method["subtitle"] as String),
+                              activeColor: Colors.blue[700],
+                            );
+                          }).toList(),
                         ],
                       ),
                     ),

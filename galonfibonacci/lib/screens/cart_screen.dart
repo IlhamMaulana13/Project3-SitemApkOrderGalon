@@ -58,7 +58,10 @@ class CartScreen extends StatelessWidget {
 
                           GestureDetector(
                             onTap: () {
-                              cartProvider.removeItem(item.product.id);
+                              cartProvider.removeItem(
+                                item.product.id,
+                                item.service,
+                              );
                             },
                             child: const Icon(
                               Icons.delete,

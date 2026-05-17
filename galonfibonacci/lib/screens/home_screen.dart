@@ -370,7 +370,11 @@ class _ProductItemState extends State<ProductItem> {
                             image: widget.product.image,
                           );
 
-                          cartProvider.addToCart(updatedProduct, quantity);
+                          cartProvider.addToCart(
+                            updatedProduct,
+                            widget.selectedService,
+                            quantity,
+                          );
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(

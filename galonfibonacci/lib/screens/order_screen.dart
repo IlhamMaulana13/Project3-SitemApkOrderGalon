@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/screens/invoice_screen.dart';
 
@@ -50,7 +51,16 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   Future<void> fetchOrders() async {
-    final result = await ApiService.getOrders();
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        orders = [];
+      });
+      return;
+    }
+
+    final result = await ApiService.getOrders(userId: user.uid);
 
     // cek perubahan status
     for (var order in result) {

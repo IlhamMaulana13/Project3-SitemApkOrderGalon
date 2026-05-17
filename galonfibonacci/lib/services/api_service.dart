@@ -50,9 +50,12 @@ class ApiService {
     return response.statusCode == 200;
   }
 
-  static Future<List<OrderModel>> getOrders() async {
+  static Future<List<OrderModel>> getOrders({String? userId}) async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/orders"));
+      final url = userId == null
+          ? "$baseUrl/orders"
+          : "$baseUrl/orders/$userId";
+      final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
