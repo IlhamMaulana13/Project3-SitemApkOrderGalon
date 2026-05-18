@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:galonfibonacci/screens/edit_profile_screen.dart';
+import 'package:galonfibonacci/screens/payment_webview_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:galonfibonacci/api_config.dart';
@@ -23,31 +23,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   int discount = 0;
 
-  int selectedPaymentMethodId = 1;
-  String selectedPaymentChannel = "BCA";
+  bool isLoading = false;
 
-  final String qrisCode = "QRIS-1234-5678-9012";
-
-  final Map<String, String> transferVaCodes = {
-    "BCA": "7001234567890123",
-    "SeaBank": "8001234567890123",
-    "GoPay": "9001234567890123",
-  };
-
-  final List<Map<String, dynamic>> paymentMethods = [
-    {"id": 1, "label": "QRIS", "subtitle": "Bayar cepat dengan scan QRIS"},
-    {
-      "id": 2,
-      "label": "Transfer Bank",
-      "subtitle": "Pilih bank / e-wallet untuk transfer",
-    },
-    {"id": 3, "label": "COD", "subtitle": "Bayar saat pesanan diterima"},
-  ];
+  String selectedPayment = "QRIS";
 
   @override
   void initState() {
     super.initState();
-
     fetchProfile();
   }
 
@@ -56,19 +38,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (user == null) return;
 
-    final response = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/profile/${user.uid}"),
-    );
+    try {
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/profile/${user.uid}"),
+      );
 
-    if (response.statusCode == 200) {
-      setState(() {
-        profile = jsonDecode(response.body);
-      });
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+
+        setState(() {
+          profile = jsonDecode(response.body);
+        });
+      }
+    } catch (e) {
+      debugPrint(e.toString());
     }
   }
 
   void applyVoucher(int subtotal) {
-    if (voucherController.text == "GALON10") {
+    if (voucherController.text.trim() == "GALON10") {
       setState(() {
         discount = 10000;
       });
@@ -87,138 +75,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  Future<void> showQrisDialog() async {
-    if (!mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text("QRIS"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                width: double.infinity,
-                height: 220,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Center(
-                  child: Icon(Icons.qr_code, size: 120, color: Colors.black54),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Scan QRIS di atas untuk menyelesaikan pembayaran.",
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              SelectableText(
-                qrisCode,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Tutup"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> showPaymentResultDialog(int paymentMethodId) async {
-    if (!mounted) return;
-
-    final title = paymentMethodId == 1
-        ? "Bayar dengan QRIS"
-        : paymentMethodId == 2
-        ? "Transfer ${selectedPaymentChannel}"
-        : "Cash on Delivery";
-
-    final subtitle = paymentMethodId == 1
-        ? "Tekan tombol QRIS untuk menampilkan kode pembayaran"
-        : paymentMethodId == 2
-        ? "Gunakan kode VA berikut untuk melakukan transfer"
-        : "Bayar di tempat saat pesanan diterima";
-
-    final selectedVaCode = selectedPaymentMethodId == 2
-        ? transferVaCodes[selectedPaymentChannel] ??
-              transferVaCodes.values.first
-        : null;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(subtitle),
-              const SizedBox(height: 20),
-              if (paymentMethodId == 2 && selectedVaCode != null)
-                Row(
-                  children: [
-                    Expanded(
-                      child: SelectableText(
-                        selectedVaCode,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: selectedVaCode));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Kode VA disalin")),
-                        );
-                      },
-                      icon: const Icon(Icons.copy),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-          actions: [
-            if (paymentMethodId == 1)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  showQrisDialog();
-                },
-                child: const Text("Tampilkan QRIS"),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Tutup"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> checkout() async {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
@@ -226,45 +82,150 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (user == null) return;
 
-    int total = cartProvider.total - discount;
-
-    final response = await http.post(
-      Uri.parse("${ApiConfig.baseUrl}/orders"),
-
-      headers: {"Content-Type": "application/json"},
-
-      body: jsonEncode({
-        "user_id": user.uid,
-        "payment_method_id": selectedPaymentMethodId,
-        "payment_channel": selectedPaymentMethodId == 2
-            ? selectedPaymentChannel
-            : selectedPaymentMethodId == 1
-            ? "QRIS"
-            : "COD",
-        "total": total,
-
-        "items": cartProvider.items.map((item) {
-          return {
-            "product_id": item.product.id,
-            "qty": item.quantity,
-            "subtotal": item.product.price * item.quantity,
-          };
-        }).toList(),
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      cartProvider.clearCart();
-
-      await showPaymentResultDialog(selectedPaymentMethodId);
-
-      if (!mounted) return;
-      Navigator.pop(context);
-    } else {
+    if (cartProvider.items.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Checkout gagal")));
+      ).showSnackBar(const SnackBar(content: Text("Keranjang masih kosong")));
+      return;
     }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      int subtotal = cartProvider.total;
+      int total = subtotal - discount;
+
+      if (selectedPayment == "COD") {
+        final codResponse = await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/orders"),
+
+          headers: {"Content-Type": "application/json"},
+
+          body: jsonEncode({
+            "user_id": user.uid,
+            "payment_method_id": 2,
+            "payment_channel": "COD",
+            "total": total,
+
+            "items": cartProvider.items.map((item) {
+              return {
+                "product_id": item.product.id,
+                "qty": item.quantity,
+                "subtotal": item.product.price * item.quantity,
+              };
+            }).toList(),
+          }),
+        );
+
+        if (codResponse.statusCode == 200) {
+          cartProvider.clearCart();
+
+          if (!mounted) return;
+
+          showDialog(
+            context: context,
+            builder: (_) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+
+                title: const Text("Pesanan Berhasil"),
+
+                content: const Text("Pesanan COD berhasil dibuat."),
+
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+
+                    child: const Text("OK"),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        setState(() {
+          isLoading = false;
+        });
+
+        return;
+      }
+
+      final orderId = "ORDER-${DateTime.now().millisecondsSinceEpoch}";
+
+      final response = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/payment"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "order_id": orderId,
+          "total": total,
+          "customer_name": profile?["name"] ?? "",
+          "customer_email": user.email ?? "",
+          "customer_phone": profile?["phone"] ?? "",
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final paymentUrl = data["redirect_url"];
+
+        // SIMPAN ORDER KE DATABASE
+        await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/orders"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "user_id": user.uid,
+            "payment_method_id": 1,
+            "payment_channel": "Midtrans",
+            "total": total,
+            "items": cartProvider.items.map((item) {
+              return {
+                "product_id": item.product.id,
+                "qty": item.quantity,
+                "subtotal": item.product.price * item.quantity,
+              };
+            }).toList(),
+          }),
+        );
+
+        cartProvider.clearCart();
+
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentWebviewScreen(paymentUrl: paymentUrl),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal membuat pembayaran (${response.statusCode})"),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Terjadi error: $e")));
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override
@@ -280,9 +241,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       appBar: AppBar(
         title: const Text("Checkout", style: TextStyle(color: Colors.white)),
-
         backgroundColor: Colors.blue[700],
-
         iconTheme: const IconThemeData(color: Colors.white),
       ),
 
@@ -310,6 +269,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
                             children: [
                               const Text(
                                 "Informasi Customer",
@@ -318,6 +278,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+
                               TextButton.icon(
                                 onPressed: () async {
                                   await Navigator.push(
@@ -329,7 +290,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                                   fetchProfile();
                                 },
+
                                 icon: const Icon(Icons.edit, size: 18),
+
                                 label: const Text("Edit"),
                               ),
                             ],
@@ -339,22 +302,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                           ListTile(
                             contentPadding: EdgeInsets.zero,
+
                             leading: const Icon(Icons.person),
+
                             title: Text(profile?["name"] ?? "Belum diisi"),
+
                             subtitle: const Text("Nama Lengkap"),
                           ),
 
                           ListTile(
                             contentPadding: EdgeInsets.zero,
+
                             leading: const Icon(Icons.phone),
+
                             title: Text(profile?["phone"] ?? "Belum diisi"),
+
                             subtitle: const Text("Nomor HP"),
                           ),
 
                           ListTile(
                             contentPadding: EdgeInsets.zero,
+
                             leading: const Icon(Icons.location_on),
+
                             title: Text(profile?["address"] ?? "Belum diisi"),
+
                             subtitle: const Text("Alamat Pengiriman"),
                           ),
                         ],
@@ -368,7 +340,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -381,74 +352,69 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          ...paymentMethods.map((method) {
-                            final isSelected =
-                                selectedPaymentMethodId == method["id"];
-                            return Card(
-                              color: isSelected
-                                  ? Colors.blue.shade50
-                                  : Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? Colors.blue
-                                      : Colors.grey.shade300,
-                                ),
-                              ),
-                              margin: const EdgeInsets.only(bottom: 10),
-                              child: RadioListTile<int>(
-                                value: method["id"],
-                                groupValue: selectedPaymentMethodId,
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    selectedPaymentMethodId = value;
-                                    if (value != 2) {
-                                      selectedPaymentChannel = "BCA";
-                                    }
-                                  });
-                                },
-                                title: Text(
-                                  method["label"] as String,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected
-                                        ? Colors.blue[900]
-                                        : Colors.black87,
+
+                          const SizedBox(height: 15),
+
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: paymentItem(
+                                      "QRIS",
+                                      "assets/images/qris.png",
+                                    ),
                                   ),
-                                ),
-                                subtitle: Text(method["subtitle"] as String),
-                                activeColor: Colors.blue[700],
-                              ),
-                            );
-                          }).toList(),
-                          if (selectedPaymentMethodId == 2)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: DropdownButtonFormField<String>(
-                                value: selectedPaymentChannel,
-                                decoration: InputDecoration(
-                                  labelText: "Pilih Bank / E-Wallet",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+
+                                  const SizedBox(width: 10),
+
+                                  Expanded(
+                                    child: paymentItem(
+                                      "BCA VA",
+                                      "assets/images/bca.png",
+                                    ),
                                   ),
-                                ),
-                                items: transferVaCodes.keys.map((channel) {
-                                  return DropdownMenuItem(
-                                    value: channel,
-                                    child: Text(channel),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    selectedPaymentChannel = value;
-                                  });
-                                },
+                                ],
                               ),
-                            ),
+
+                              const SizedBox(height: 10),
+
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: paymentItem(
+                                      "GoPay",
+                                      "assets/images/gopay.png",
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 10),
+
+                                  Expanded(
+                                    child: paymentItem(
+                                      "ShopeePay",
+                                      "assets/images/shopepay.png",
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: paymentItem(
+                                      "COD",
+                                      "assets/images/cod.png",
+                                    ),
+                                  ),
+
+                                  const Expanded(child: SizedBox()),
+                                ],
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -604,7 +570,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     height: 55,
 
                     child: ElevatedButton(
-                      onPressed: checkout,
+                      onPressed: isLoading ? null : checkout,
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[700],
@@ -616,19 +582,82 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ),
 
-                      child: const Text(
-                        "Buat Pesanan",
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "Bayar Sekarang",
 
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget paymentItem(String title, String image) {
+    final isSelected = selectedPayment == title;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedPayment = title;
+        });
+        print(selectedPayment);
+      },
+
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+
+        padding: const EdgeInsets.all(14),
+
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade50 : Colors.white,
+
+          borderRadius: BorderRadius.circular(16),
+
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey.shade300,
+
+            width: 2,
+          ),
+        ),
+
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+
+              child: Icon(
+                isSelected ? Icons.check_circle : Icons.circle_outlined,
+
+                color: isSelected ? Colors.blue : Colors.grey,
+              ),
+            ),
+
+            const SizedBox(height: 5),
+
+            Image.asset(image, height: 40),
+
+            const SizedBox(height: 10),
+
+            Text(
+              title,
+
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+
+                color: isSelected ? Colors.blue[700] : Colors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

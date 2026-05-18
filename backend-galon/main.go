@@ -125,13 +125,14 @@ func main() {
 
 		result, err := database.DB.Exec(`
 			INSERT INTO orders
-			(user_id, payment_method_id, total, status)
-			VALUES (?, ?, ?, ?)
+			(user_id, payment_method_id, total, status, payment_status)
+			VALUES (?, ?, ?, ?, ?)
 		`,
 			order.UserID,
 			order.PaymentMethodID,
 			order.Total,
 			"Diproses",
+			"Pending",
 		)
 
 		if err != nil {
@@ -1101,6 +1102,49 @@ func main() {
 		}
 
 		c.JSON(200, reports)
+	})
+
+	r.POST("/midtrans/callback", func(c *gin.Context) {
+		var notification map[string]interface{}
+
+		c.BindJSON(&notification)
+
+		orderID := notification["order_id"].(string)
+		transactionStatus := notification["transaction_status"].(string)
+
+		if transactionStatus == "settlement" || transactionStatus == "capture" {
+
+			database.DB.Exec(`
+        UPDATE orders
+        SET payment_status='paid'
+        WHERE id=?
+    `, orderID)
+
+		}
+	})
+
+	r.GET("/payment-status/:orderId", func(c *gin.Context) {
+
+		orderId := c.Param("orderId")
+
+		var paymentStatus string
+
+		err := database.DB.QueryRow(`
+        SELECT payment_status
+        FROM orders
+        WHERE midtrans_order_id=?
+    `, orderId).Scan(&paymentStatus)
+
+		if err != nil {
+			c.JSON(404, gin.H{
+				"message": "Order tidak ditemukan",
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"payment_status": paymentStatus,
+		})
 	})
 
 	r.Run(":8080")
