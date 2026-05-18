@@ -5,6 +5,8 @@ import (
 	"backend-galon/handler"
 	"net/http"
 
+	"github.com/joho/godotenv"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -66,6 +68,8 @@ type Voucher struct {
 }
 
 func main() {
+
+	godotenv.Load()
 
 	database.InitFirebase()
 
