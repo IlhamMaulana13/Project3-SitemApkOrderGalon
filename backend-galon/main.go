@@ -28,7 +28,11 @@ type OrderItem struct {
 type Order struct {
 	UserID          string      `json:"user_id"`
 	PaymentMethodID int         `json:"payment_method_id"`
+	PaymentChannel  string      `json:"payment_channel"`
+	MidtransOrderID string      `json:"midtrans_order_id"`
 	Total           int         `json:"total"`
+	Status          string      `json:"status"`
+	PaymentStatus   string      `json:"payment_status"`
 	Items           []OrderItem `json:"items"`
 }
 
@@ -129,11 +133,13 @@ func main() {
 
 		result, err := database.DB.Exec(`
 			INSERT INTO orders
-			(user_id, payment_method_id, total, status, payment_status)
-			VALUES (?, ?, ?, ?, ?)
+			(user_id, payment_method_id, payment_channel, midtrans_order_id, total, status, payment_status)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`,
 			order.UserID,
 			order.PaymentMethodID,
+			order.PaymentChannel,
+			order.MidtransOrderID,
 			order.Total,
 			"Diproses",
 			"Pending",

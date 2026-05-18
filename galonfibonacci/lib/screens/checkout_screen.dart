@@ -177,7 +177,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         final paymentUrl = data["redirect_url"];
 
-        // SIMPAN ORDER KE DATABASE
         await http.post(
           Uri.parse("${ApiConfig.baseUrl}/orders"),
           headers: {"Content-Type": "application/json"},
@@ -185,6 +184,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             "user_id": user.uid,
             "payment_method_id": 1,
             "payment_channel": "Midtrans",
+            "midtrans_order_id": orderId,
             "total": total,
             "items": cartProvider.items.map((item) {
               return {
