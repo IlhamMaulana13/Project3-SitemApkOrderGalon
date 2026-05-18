@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend-galon/database"
+	"backend-galon/handler"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -71,6 +72,8 @@ func main() {
 	database.ConnectDB()
 
 	r := gin.Default()
+
+	r.POST("/payment", handler.CreatePayment)
 
 	// GET PRODUCTS
 	r.GET("/products", func(c *gin.Context) {

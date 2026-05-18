@@ -24,16 +24,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   int discount = 0;
 
   int selectedPaymentMethodId = 1;
+  String selectedPaymentChannel = "BCA";
 
-  final String transferVaCode = "7001234567890123";
   final String qrisCode = "QRIS-1234-5678-9012";
+
+  final Map<String, String> transferVaCodes = {
+    "BCA": "7001234567890123",
+    "SeaBank": "8001234567890123",
+    "GoPay": "9001234567890123",
+  };
 
   final List<Map<String, dynamic>> paymentMethods = [
     {"id": 1, "label": "QRIS", "subtitle": "Bayar cepat dengan scan QRIS"},
     {
       "id": 2,
       "label": "Transfer Bank",
-      "subtitle": "Dapatkan kode VA untuk transfer",
+      "subtitle": "Pilih bank / e-wallet untuk transfer",
     },
     {"id": 3, "label": "COD", "subtitle": "Bayar saat pesanan diterima"},
   ];
@@ -141,7 +147,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final title = paymentMethodId == 1
         ? "Bayar dengan QRIS"
         : paymentMethodId == 2
-        ? "Transfer Bank"
+        ? "Transfer ${selectedPaymentChannel}"
         : "Cash on Delivery";
 
     final subtitle = paymentMethodId == 1
@@ -149,6 +155,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         : paymentMethodId == 2
         ? "Gunakan kode VA berikut untuk melakukan transfer"
         : "Bayar di tempat saat pesanan diterima";
+
+    final selectedVaCode = selectedPaymentMethodId == 2
+        ? transferVaCodes[selectedPaymentChannel] ??
+              transferVaCodes.values.first
+        : null;
 
     await showDialog(
       context: context,
@@ -164,12 +175,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               Text(subtitle),
               const SizedBox(height: 20),
-              if (paymentMethodId == 2)
+              if (paymentMethodId == 2 && selectedVaCode != null)
                 Row(
                   children: [
                     Expanded(
                       child: SelectableText(
-                        transferVaCode,
+                        selectedVaCode,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -178,7 +189,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                     IconButton(
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: transferVaCode));
+                        Clipboard.setData(ClipboardData(text: selectedVaCode));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("Kode VA disalin")),
                         );
@@ -225,6 +236,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       body: jsonEncode({
         "user_id": user.uid,
         "payment_method_id": selectedPaymentMethodId,
+        "payment_channel": selectedPaymentMethodId == 2
+            ? selectedPaymentChannel
+            : selectedPaymentMethodId == 1
+            ? "QRIS"
+            : "COD",
         "total": total,
 
         "items": cartProvider.items.map((item) {
@@ -367,20 +383,72 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                           const SizedBox(height: 12),
                           ...paymentMethods.map((method) {
-                            return RadioListTile<int>(
-                              value: method["id"],
-                              groupValue: selectedPaymentMethodId,
-                              onChanged: (value) {
-                                if (value == null) return;
-                                setState(() {
-                                  selectedPaymentMethodId = value;
-                                });
-                              },
-                              title: Text(method["label"] as String),
-                              subtitle: Text(method["subtitle"] as String),
-                              activeColor: Colors.blue[700],
+                            final isSelected =
+                                selectedPaymentMethodId == method["id"];
+                            return Card(
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? Colors.blue
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              child: RadioListTile<int>(
+                                value: method["id"],
+                                groupValue: selectedPaymentMethodId,
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    selectedPaymentMethodId = value;
+                                    if (value != 2) {
+                                      selectedPaymentChannel = "BCA";
+                                    }
+                                  });
+                                },
+                                title: Text(
+                                  method["label"] as String,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.blue[900]
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                subtitle: Text(method["subtitle"] as String),
+                                activeColor: Colors.blue[700],
+                              ),
                             );
                           }).toList(),
+                          if (selectedPaymentMethodId == 2)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: DropdownButtonFormField<String>(
+                                value: selectedPaymentChannel,
+                                decoration: InputDecoration(
+                                  labelText: "Pilih Bank / E-Wallet",
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                items: transferVaCodes.keys.map((channel) {
+                                  return DropdownMenuItem(
+                                    value: channel,
+                                    child: Text(channel),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    selectedPaymentChannel = value;
+                                  });
+                                },
+                              ),
+                            ),
                         ],
                       ),
                     ),
