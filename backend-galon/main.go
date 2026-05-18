@@ -1125,12 +1125,15 @@ func main() {
 		if transactionStatus == "settlement" || transactionStatus == "capture" {
 
 			database.DB.Exec(`
-        UPDATE orders
-        SET payment_status='paid'
-        WHERE id=?
-    `, orderID)
+    UPDATE orders
+    SET payment_status='paid'
+    WHERE midtrans_order_id=?
+	`, orderID)
 
 		}
+		c.JSON(200, gin.H{
+    "message": "callback received",
+	})
 	})
 
 	r.GET("/payment-status/:orderId", func(c *gin.Context) {
