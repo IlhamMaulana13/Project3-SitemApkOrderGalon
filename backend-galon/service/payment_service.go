@@ -9,8 +9,10 @@ import (
 
 func CreatePayment(orderID string, amount int64) (*snap.Response, error) {
 
-	var s = snap.Client{}
-	midtrans.ServerKey = os.Getenv("MIDTRANS_SERVER_KEY")
+	serverKey := os.Getenv("MIDTRANS_SERVER_KEY")
+
+	var s snap.Client
+	s.New(serverKey, midtrans.Sandbox)
 
 	req := &snap.Request{
 		TransactionDetails: midtrans.TransactionDetails{

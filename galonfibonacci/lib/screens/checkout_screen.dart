@@ -107,6 +107,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             "user_id": user.uid,
             "payment_method_id": 2,
             "payment_channel": "COD",
+            "midtrans_order_id": "",
             "total": total,
 
             "items": cartProvider.items.map((item) {
@@ -183,7 +184,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           body: jsonEncode({
             "user_id": user.uid,
             "payment_method_id": 1,
-            "payment_channel": "Midtrans",
+            "payment_channel": selectedPayment,
             "midtrans_order_id": orderId,
             "total": total,
             "items": cartProvider.items.map((item) {
