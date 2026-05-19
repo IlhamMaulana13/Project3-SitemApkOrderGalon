@@ -107,7 +107,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             "user_id": user.uid,
             "payment_method_id": 2,
             "payment_channel": "COD",
-            "midtrans_order_id": "",
+            "midtrans_order_id": null,
             "total": total,
 
             "items": cartProvider.items.map((item) {
