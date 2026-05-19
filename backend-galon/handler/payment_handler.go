@@ -18,17 +18,15 @@ func CreatePayment(c *gin.Context) {
 
 	var req PaymentRequest
 
-	// Bind request JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "Invalid request body",
+			"message": "Invalid request",
 			"error":   err.Error(),
 		})
 		return
 	}
 
-	// Validation
 	if req.OrderID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -47,29 +45,25 @@ func CreatePayment(c *gin.Context) {
 
 	log.Println("CREATE PAYMENT:", req.OrderID, req.Total)
 
-	// Create Midtrans transaction
 	resp, err := service.CreatePayment(
 		req.OrderID,
 		req.Total,
 	)
 
-	// Handle Midtrans error
 	if err != nil {
 
 		log.Println("MIDTRANS ERROR:", err)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Gagal membuat transaksi",
+			"message": "Gagal membuat payment",
 			"error":   err.Error(),
 		})
 		return
 	}
 
-	// Success response
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
-		"message":      "Payment berhasil dibuat",
 		"token":        resp.Token,
 		"redirect_url": resp.RedirectURL,
 	})
