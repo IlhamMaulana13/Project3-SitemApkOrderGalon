@@ -3,6 +3,7 @@ package main
 import (
 	"backend-galon/database"
 	"backend-galon/handler"
+	"log"
 	"net/http"
 
 	"github.com/joho/godotenv"
@@ -1115,26 +1116,47 @@ func main() {
 	})
 
 	r.POST("/midtrans/callback", func(c *gin.Context) {
-		var notification map[string]interface{}
 
-		c.BindJSON(&notification)
+	var notification map[string]interface{}
 
-		orderID := notification["order_id"].(string)
-		transactionStatus := notification["transaction_status"].(string)
+	// bind json callback
+	if err := c.BindJSON(&notification); err != nil {
+		c.JSON(400, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
-		if transactionStatus == "settlement" || transactionStatus == "capture" {
+	// log isi callback
+	log.Println("MIDTRANS CALLBACK:", notification)
 
-			database.DB.Exec(`
-    UPDATE orders
-    SET payment_status='paid'
-    WHERE midtrans_order_id=?
-	`, orderID)
+	orderID := notification["order_id"].(string)
+	transactionStatus := notification["transaction_status"].(string)
 
+	log.Println("ORDER ID:", orderID)
+	log.Println("TRANSACTION STATUS:", transactionStatus)
+
+	// jika pembayaran sukses
+	if transactionStatus == "settlement" ||
+		transactionStatus == "capture" {
+
+		result := database.DB.Exec(`
+			UPDATE orders
+			SET payment_status='paid'
+			WHERE midtrans_order_id=?
+		`, orderID)
+
+		if result.Error != nil {
+			log.Println("UPDATE ERROR:", result.Error)
+		} else {
+			log.Println("PAYMENT UPDATED SUCCESS")
 		}
-		c.JSON(200, gin.H{
-    "message": "callback received",
+	}
+
+	c.JSON(200, gin.H{
+		"message": "callback received",
 	})
-	})
+})
 
 	r.GET("/payment-status/:orderId", func(c *gin.Context) {
 
