@@ -1138,20 +1138,23 @@ func main() {
 
 	// jika pembayaran sukses
 	if transactionStatus == "settlement" ||
-		transactionStatus == "capture" {
+	transactionStatus == "capture" {
 
-		result := database.DB.Exec(`
-			UPDATE orders
-			SET payment_status='paid'
-			WHERE midtrans_order_id=?
-		`, orderID)
+	log.Println("CALLBACK ORDER ID:", orderID)
+	log.Println("CALLBACK STATUS:", transactionStatus)
 
-		if result.Error != nil {
-			log.Println("UPDATE ERROR:", result.Error)
-		} else {
-			log.Println("PAYMENT UPDATED SUCCESS")
-		}
+	result := database.DB.Exec(`
+		UPDATE orders
+		SET payment_status='paid'
+		WHERE midtrans_order_id=?
+	`, orderID)
+
+	log.Println("ROWS AFFECTED:", result.RowsAffected)
+
+	if result.Error != nil {
+		log.Println("UPDATE ERROR:", result.Error)
 	}
+}
 
 	c.JSON(200, gin.H{
 		"message": "callback received",
