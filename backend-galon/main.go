@@ -1119,7 +1119,6 @@ func main() {
 
 	var notification map[string]interface{}
 
-	// bind json callback
 	if err := c.BindJSON(&notification); err != nil {
 		c.JSON(400, gin.H{
 			"error": err.Error(),
@@ -1127,34 +1126,27 @@ func main() {
 		return
 	}
 
-	// log isi callback
-	log.Println("MIDTRANS CALLBACK:", notification)
-
 	orderID := notification["order_id"].(string)
 	transactionStatus := notification["transaction_status"].(string)
-
-	log.Println("ORDER ID:", orderID)
-	log.Println("TRANSACTION STATUS:", transactionStatus)
-
-	// jika pembayaran sukses
-	if transactionStatus == "settlement" ||
-	transactionStatus == "capture" {
 
 	log.Println("CALLBACK ORDER ID:", orderID)
 	log.Println("CALLBACK STATUS:", transactionStatus)
 
-	result := database.DB.Exec(`
-		UPDATE orders
-		SET payment_status='paid'
-		WHERE midtrans_order_id=?
-	`, orderID)
+	if transactionStatus == "settlement" || transactionStatus == "capture" {
 
-	log.Println("ROWS AFFECTED:", result.RowsAffected)
+		result, err := database.DB.Exec(`
+			UPDATE orders
+			SET payment_status='paid'
+			WHERE midtrans_order_id=?
+		`, orderID)
 
-	if result.Error != nil {
-		log.Println("UPDATE ERROR:", result.Error)
+		if err != nil {
+			log.Println("UPDATE ERROR:", err)
+		} else {
+			rows, _ := result.RowsAffected()
+			log.Println("ROWS UPDATED:", rows)
+		}
 	}
-}
 
 	c.JSON(200, gin.H{
 		"message": "callback received",
