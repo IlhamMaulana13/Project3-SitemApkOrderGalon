@@ -113,20 +113,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 bottomRight: Radius.circular(20),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  'Halo $userName!',
-                  style: TextStyle(color: Colors.white70),
+                Image.asset(
+                  'assets/images/logo_galon.png',
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.contain,
                 ),
-                SizedBox(height: 5),
-                Text(
-                  'Mau pesan galon apa hari ini?',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Halo $userName!',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        'Mau pesan galon apa hari ini?',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

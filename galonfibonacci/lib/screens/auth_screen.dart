@@ -17,12 +17,17 @@ class AuthScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.water_drop, size: 100, color: Colors.white),
+              Image.asset(
+                'assets/images/logo_galon.png',
+                width: 200,
+                height: 200,
+                fit: BoxFit.contain,
+              ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 5),
 
               Text(
-                'Galon Rizki Faras',
+                'Galon Rizzki Faras',
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontSize: 28,
@@ -30,7 +35,7 @@ class AuthScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               Text(
                 'Pemesanan air galon digital untuk UMKM',

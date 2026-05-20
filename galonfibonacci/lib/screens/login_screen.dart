@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -18,7 +19,9 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _waveController;
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
@@ -30,12 +33,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isPasswordHidden = true;
   bool isConfirmPasswordHidden = true;
 
+  static const Duration _switchDuration = Duration(milliseconds: 420);
+
   late bool isLogin;
 
   @override
   void initState() {
     super.initState();
     isLogin = !widget.isRegister;
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    nameController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
   }
 
   // =========================
@@ -102,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => nextScreen),
+          _createPageRoute(nextScreen),
           (route) => false,
         );
       }
@@ -248,6 +269,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Route _createPageRoute(Widget screen) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => screen,
+      transitionDuration: const Duration(milliseconds: 420),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.16),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
+    );
+  }
+
   // =========================
   // TEXTFIELD
   // =========================
@@ -267,13 +308,21 @@ class _LoginScreenState extends State<LoginScreen> {
       keyboardType: keyboard,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        prefixIcon: Icon(icon, color: Colors.blue[800]),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Colors.white.withOpacity(0.95),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 18,
+          horizontal: 18,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.blue.shade300, width: 2),
         ),
       ),
     );
@@ -282,193 +331,431 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(25),
-
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-
-              Icon(Icons.water_drop, size: 90, color: Colors.blue[700]),
-
-              const SizedBox(height: 15),
-
-              Text(
-                "Galon Rizki Faras",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
-                ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.blue.shade800,
+                  Colors.blue.shade600,
+                  Colors.lightBlue.shade200,
+                ],
               ),
-
-              const SizedBox(height: 10),
-
-              Text(
-                "Pemesanan air galon digital",
-                style: TextStyle(color: Colors.grey[700]),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: 220,
+              child: AnimatedBuilder(
+                animation: _waveController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: WavePainter(_waveController.value * 2 * math.pi),
+                    child: Container(),
+                  );
+                },
               ),
-
-              const SizedBox(height: 40),
-
-              // REGISTER FIELD
-              if (!isLogin) ...[
-                buildTextField(
-                  controller: nameController,
-                  label: "Nama Lengkap",
-                  icon: Icons.person,
-                ),
-
-                const SizedBox(height: 18),
-
-                buildTextField(
-                  controller: phoneController,
-                  label: "No HP",
-                  icon: Icons.phone,
-                  keyboard: TextInputType.phone,
-                ),
-
-                const SizedBox(height: 18),
-
-                buildTextField(
-                  controller: addressController,
-                  label: "Alamat",
-                  icon: Icons.location_on,
-                  maxLines: 3,
-                ),
-
-                const SizedBox(height: 18),
-              ],
-
-              // EMAIL
-              buildTextField(
-                controller: emailController,
-                label: "Email",
-                icon: Icons.email,
-                keyboard: TextInputType.emailAddress,
+            ),
+          ),
+          Positioned(
+            top: 24,
+            left: 26,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.14),
               ),
-
-              const SizedBox(height: 18),
-
-              // PASSWORD
-              buildTextField(
-                controller: passwordController,
-                label: "Password",
-                icon: Icons.lock,
-                obscure: isPasswordHidden,
-                suffixIcon: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      isPasswordHidden = !isPasswordHidden;
-                    });
-                  },
-                  icon: Icon(
-                    isPasswordHidden ? Icons.visibility_off : Icons.visibility,
-                  ),
-                ),
+            ),
+          ),
+          Positioned(
+            top: 48,
+            right: 18,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.16),
               ),
-
-              // CONFIRM PASSWORD
-              if (!isLogin) ...[
-                const SizedBox(height: 18),
-
-                buildTextField(
-                  controller: confirmPasswordController,
-                  label: "Konfirmasi Password",
-                  icon: Icons.lock_outline,
-                  obscure: isConfirmPasswordHidden,
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        isConfirmPasswordHidden = !isConfirmPasswordHidden;
-                      });
-                    },
-                    icon: Icon(
-                      isConfirmPasswordHidden
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 30),
-
-              // BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-
-                child: ElevatedButton(
-                  onPressed: submit,
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-
-                  child: Text(
-                    isLogin ? "Login" : "Register",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              // TOGGLE
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(isLogin ? "Belum punya akun?" : "Sudah punya akun?"),
-
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        isLogin = !isLogin;
-                      });
-                    },
-
-                    child: Text(
-                      isLogin ? "Register" : "Login",
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.bold,
-                      ),
+                  const SizedBox(height: 6),
+                  Image.asset(
+                    'assets/images/logo_galon.png',
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Galon Rizzki Faras',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pemesanan air galon digital dengan pengalaman segar dan modern.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.92),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.12),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(width: 12),
+                            Text(
+                              isLogin ? 'Masuk Akun' : 'Daftar Akun Baru',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.blue.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 14),
+                        AnimatedSwitcher(
+                          duration: _switchDuration,
+                          layoutBuilder: (currentChild, previousChildren) {
+                            return Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
+                            );
+                          },
+                          child: Text(
+                            isLogin
+                                ? 'Masukkan kredensial Anda untuk melanjutkan.'
+                                : 'Lengkapi data untuk membuat akun pelanggan.',
+                            key: ValueKey<bool>(isLogin),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.blueGrey.shade600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        AnimatedSwitcher(
+                          duration: _switchDuration,
+                          layoutBuilder: (currentChild, previousChildren) {
+                            return Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
+                            );
+                          },
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                          child: isLogin
+                              ? Column(
+                                  key: const ValueKey('login-form'),
+                                  children: [
+                                    buildTextField(
+                                      controller: emailController,
+                                      label: 'Email',
+                                      icon: Icons.email,
+                                      keyboard: TextInputType.emailAddress,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildTextField(
+                                      controller: passwordController,
+                                      label: 'Password',
+                                      icon: Icons.lock,
+                                      obscure: isPasswordHidden,
+                                      suffixIcon: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            isPasswordHidden =
+                                                !isPasswordHidden;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          isPasswordHidden
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                          color: Colors.blue[800],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  key: const ValueKey('register-form'),
+                                  children: [
+                                    buildTextField(
+                                      controller: nameController,
+                                      label: 'Nama Lengkap',
+                                      icon: Icons.person,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildTextField(
+                                      controller: phoneController,
+                                      label: 'No HP',
+                                      icon: Icons.phone,
+                                      keyboard: TextInputType.phone,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildTextField(
+                                      controller: addressController,
+                                      label: 'Alamat',
+                                      icon: Icons.location_on,
+                                      maxLines: 3,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildTextField(
+                                      controller: emailController,
+                                      label: 'Email',
+                                      icon: Icons.email,
+                                      keyboard: TextInputType.emailAddress,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildTextField(
+                                      controller: passwordController,
+                                      label: 'Password',
+                                      icon: Icons.lock,
+                                      obscure: isPasswordHidden,
+                                      suffixIcon: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            isPasswordHidden =
+                                                !isPasswordHidden;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          isPasswordHidden
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                          color: Colors.blue[800],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildTextField(
+                                      controller: confirmPasswordController,
+                                      label: 'Konfirmasi Password',
+                                      icon: Icons.lock_outline,
+                                      obscure: isConfirmPasswordHidden,
+                                      suffixIcon: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            isConfirmPasswordHidden =
+                                                !isConfirmPasswordHidden;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          isConfirmPasswordHidden
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                          color: Colors.blue[800],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade700,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 6,
+                            ),
+                            child: Text(
+                              isLogin ? 'Login' : 'Register',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              isLogin
+                                  ? 'Belum punya akun?'
+                                  : 'Sudah punya akun?',
+                              style: TextStyle(color: Colors.blueGrey.shade700),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  isLogin = !isLogin;
+                                });
+                              },
+                              child: Text(
+                                isLogin ? 'Register' : 'Login',
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        TextButton(
+                          onPressed: () async {
+                            await FirebaseAuth.instance.signOut();
+                            Navigator.pushReplacement(
+                              context,
+                              _createPageRoute(const MainScreen()),
+                            );
+                          },
+                          child: Text(
+                            'Masuk Sebagai Tamu',
+                            style: TextStyle(color: Colors.blue.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.65),
+                                Colors.white.withOpacity(0.18),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Colors.white.withOpacity(0.35),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2.0),
+                          child: Image.asset(
+                            'assets/images/logo_galon.png',
+                            width: 20,
+                            height: 20,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-
-              // GUEST MODE
-              TextButton(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MainScreen()),
-                  );
-                },
-
-                child: const Text("Masuk Sebagai Tamu"),
-              ),
-
-              const SizedBox(height: 30),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+  }
+}
+
+class WavePainter extends CustomPainter {
+  final double animationValue;
+
+  WavePainter(this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _drawWave(canvas, size, Colors.white.withOpacity(0.22), 0, 1.0, 0.60);
+    _drawWave(
+      canvas,
+      size,
+      Colors.white.withOpacity(0.14),
+      math.pi * 0.9,
+      0.85,
+      0.68,
+    );
+  }
+
+  void _drawWave(
+    Canvas canvas,
+    Size size,
+    Color color,
+    double phase,
+    double scale,
+    double yFactor,
+  ) {
+    final paint = Paint()..color = color;
+    final path = Path();
+    final yOffset = size.height * yFactor;
+    final amplitude = size.height * 0.12 * scale;
+    path.moveTo(0, yOffset);
+
+    for (double x = 0; x <= size.width; x += 1) {
+      final y =
+          yOffset +
+          math.sin((x / size.width * 2 * math.pi) + animationValue + phase) *
+              amplitude;
+      path.lineTo(x, y);
+    }
+
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant WavePainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue;
   }
 }

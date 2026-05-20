@@ -24,22 +24,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> fetchProfile() async {
-  final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) return;
+    if (user == null) return;
 
-  final response = await http.get(
-    Uri.parse("${ApiConfig.baseUrl}/profile/${user.uid}"),
-  );
+    final response = await http.get(
+      Uri.parse("${ApiConfig.baseUrl}/profile/${user.uid}"),
+    );
 
-  if (response.statusCode == 200) {
-    if (!mounted) return;
+    if (response.statusCode == 200) {
+      if (!mounted) return;
 
-    setState(() {
-      userData = jsonDecode(response.body);
-    });
+      setState(() {
+        userData = jsonDecode(response.body);
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {

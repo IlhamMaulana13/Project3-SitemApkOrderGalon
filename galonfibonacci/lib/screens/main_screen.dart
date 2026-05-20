@@ -30,9 +30,23 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         backgroundColor: Colors.blue[700],
 
-        title: const Text(
-          "Galon Rizki Faras",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/images/logo_galon.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              "Galon Rizzki Faras",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
 
         actions: [
