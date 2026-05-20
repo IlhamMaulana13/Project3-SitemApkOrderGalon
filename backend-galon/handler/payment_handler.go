@@ -18,7 +18,6 @@ func CreatePayment(c *gin.Context) {
 
 	var req PaymentRequest
 
-	// VALIDASI JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
 
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -29,7 +28,6 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
-	// VALIDASI ORDER ID
 	if req.OrderID == "" {
 
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -40,7 +38,6 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
-	// VALIDASI TOTAL
 	if req.Total <= 0 {
 
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -53,7 +50,6 @@ func CreatePayment(c *gin.Context) {
 
 	log.Println("CREATE PAYMENT:", req.OrderID, req.Total)
 
-	// CREATE MIDTRANS
 	resp, err := service.CreatePayment(
 		req.OrderID,
 		req.Total,
@@ -62,10 +58,10 @@ func CreatePayment(c *gin.Context) {
 	log.Println("RESP:", resp)
 	log.Println("ERR:", err)
 
-	// HANDLE ERROR
+	// ERROR CHECK
 	if err != nil {
 
-		log.Println("MIDTRANS ERROR:", err)
+		log.Println("MIDTRANS ERROR")
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -75,12 +71,12 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
-	// HANDLE NIL RESPONSE
+	// RESPONSE NULL CHECK
 	if resp == nil {
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "response midtrans kosong",
+			"message": "Response Midtrans kosong",
 		})
 
 		return
@@ -88,13 +84,11 @@ func CreatePayment(c *gin.Context) {
 
 	log.Println("MIDTRANS SUCCESS:", resp.RedirectURL)
 
-	// RESPONSE KE FLUTTER
+	// KIRIM KE FLUTTER
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
 		"message":      "Payment berhasil dibuat",
 		"token":        resp.Token,
 		"redirect_url": resp.RedirectURL,
 	})
-
-	log.Println("SEND TO FLUTTER:", resp.RedirectURL)
 }
