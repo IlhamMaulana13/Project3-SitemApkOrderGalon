@@ -1117,63 +1117,51 @@ func main() {
 
 	r.POST("/midtrans/callback", func(c *gin.Context) {
 
-	var notification map[string]interface{}
+		var notification map[string]interface{}
 
-	if err := c.BindJSON(&notification); err != nil {
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
+		if err := c.BindJSON(&notification); err != nil {
 
-	orderID := notification["order_id"].(string)
-	transactionStatus := notification["transaction_status"].(string)
+			log.Println("BIND JSON ERROR:", err)
 
-	log.Println("CALLBACK ORDER ID:", orderID)
-	log.Println("CALLBACK STATUS:", transactionStatus)
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
 
-	if transactionStatus == "settlement" || transactionStatus == "capture" {
+			return
+		}
 
-		result, err := database.DB.Exec(`
+		log.Println("CALLBACK MASUK")
+		log.Println("FULL NOTIFICATION:", notification)
+
+		orderID := notification["order_id"].(string)
+		transactionStatus := notification["transaction_status"].(string)
+
+		log.Println("CALLBACK ORDER ID:", orderID)
+		log.Println("CALLBACK STATUS:", transactionStatus)
+
+		if transactionStatus == "settlement" ||
+			transactionStatus == "capture" {
+
+			result, err := database.DB.Exec(`
 			UPDATE orders
 			SET payment_status='paid'
 			WHERE midtrans_order_id=?
 		`, orderID)
 
-		if err != nil {
-			log.Println("UPDATE ERROR:", err)
-		} else {
-			rows, _ := result.RowsAffected()
-			log.Println("ROWS UPDATED:", rows)
-		}
-	}
+			if err != nil {
 
-	c.JSON(200, gin.H{
-		"message": "callback received",
-	})
-})
+				log.Println("UPDATE ERROR:", err)
 
-	r.GET("/payment-status/:orderId", func(c *gin.Context) {
+			} else {
 
-		orderId := c.Param("orderId")
+				rows, _ := result.RowsAffected()
 
-		var paymentStatus string
-
-		err := database.DB.QueryRow(`
-        SELECT payment_status
-        FROM orders
-        WHERE midtrans_order_id=?
-    `, orderId).Scan(&paymentStatus)
-
-		if err != nil {
-			c.JSON(404, gin.H{
-				"message": "Order tidak ditemukan",
-			})
-			return
+				log.Println("ROWS UPDATED:", rows)
+			}
 		}
 
 		c.JSON(200, gin.H{
-			"payment_status": paymentStatus,
+			"message": "callback received",
 		})
 	})
 
