@@ -70,6 +70,8 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
+	log.Println("SEND TO FLUTTER:", resp.RedirectURL)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
 		"message":      "Payment berhasil dibuat",
