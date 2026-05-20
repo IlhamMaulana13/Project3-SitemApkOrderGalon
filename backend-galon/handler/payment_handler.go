@@ -58,10 +58,9 @@ func CreatePayment(c *gin.Context) {
 	log.Println("RESP:", resp)
 	log.Println("ERR:", err)
 
-	// ERROR CHECK
 	if err != nil {
 
-		log.Println("MIDTRANS ERROR")
+		log.Println("MIDTRANS FAILED")
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -71,7 +70,6 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
-	// RESPONSE NULL CHECK
 	if resp == nil {
 
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -84,7 +82,6 @@ func CreatePayment(c *gin.Context) {
 
 	log.Println("MIDTRANS SUCCESS:", resp.RedirectURL)
 
-	// KIRIM KE FLUTTER
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
 		"message":      "Payment berhasil dibuat",
