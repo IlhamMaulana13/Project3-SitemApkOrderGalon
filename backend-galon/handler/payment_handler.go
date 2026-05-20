@@ -55,20 +55,37 @@ func CreatePayment(c *gin.Context) {
 		req.Total,
 	)
 
+	log.Println("RESP:", resp)
+	log.Println("ERR:", err)
+
 	if err != nil {
-
-		log.Println("MIDTRANS ERROR:", err)
-
-		// JANGAN PAKAI err.Error()
-		// karena SDK Midtrans bisa panic
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Gagal membuat transaksi",
+			"message": err.Error(),
 		})
 
 		return
 	}
+
+	if resp == nil {
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "response midtrans kosong",
+		})
+
+		return
+	}
+
+	log.Println("MIDTRANS SUCCESS:", resp.RedirectURL)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":      true,
+		"message":      "Payment berhasil dibuat",
+		"token":        resp.Token,
+		"redirect_url": resp.RedirectURL,
+	})
 
 	log.Println("SEND TO FLUTTER:", resp.RedirectURL)
 
