@@ -205,9 +205,20 @@ class ProductItem extends StatefulWidget {
 class _ProductItemState extends State<ProductItem> {
   int quantity = 1;
 
+  bool get useStock {
+    return widget.selectedService == "Beli Baru";
+  }
+
+  bool get isOutOfStock {
+    return useStock && widget.product.stock <= 0;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(
+      context,
+      listen: false,
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 15),
@@ -299,43 +310,45 @@ class _ProductItemState extends State<ProductItem> {
                         ),
                       ),
 
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: widget.product.stock <= 0
-                              ? Colors.red.shade50
-                              : Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              size: 16,
-                              color: widget.product.stock <= 0
-                                  ? Colors.red
-                                  : Colors.blue[700],
-                            ),
-
-                            const SizedBox(width: 5),
-
-                            Text(
-                              "Stock ${widget.product.stock}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                      // STOCK HANYA UNTUK BELI BARU
+                      if (useStock)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.product.stock <= 0
+                                ? Colors.red.shade50
+                                : Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.inventory_2_outlined,
+                                size: 16,
                                 color: widget.product.stock <= 0
                                     ? Colors.red
                                     : Colors.blue[700],
                               ),
-                            ),
-                          ],
+
+                              const SizedBox(width: 5),
+
+                              Text(
+                                "Stock ${widget.product.stock}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: widget.product.stock <= 0
+                                      ? Colors.red
+                                      : Colors.blue[700],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ],
@@ -371,7 +384,7 @@ class _ProductItemState extends State<ProductItem> {
                 ),
 
                 ElevatedButton(
-                  onPressed: widget.product.stock <= 0
+                  onPressed: isOutOfStock
                       ? null
                       : () {
                           final updatedProduct = ProductModel(
@@ -399,7 +412,9 @@ class _ProductItemState extends State<ProductItem> {
                           );
                         },
 
-                  child: Text(widget.product.stock <= 0 ? "Habis" : "Tambah"),
+                  child: Text(
+                    isOutOfStock ? "Habis" : "Tambah",
+                  ),
                 ),
               ],
             ),

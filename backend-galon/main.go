@@ -3,8 +3,12 @@ package main
 import (
 	"backend-galon/database"
 	"backend-galon/handler"
+	"backend-galon/service"
+	"crypto/sha512"
+	"encoding/hex"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
 
@@ -1117,11 +1121,11 @@ func main() {
 
 	r.POST("/midtrans/callback", func(c *gin.Context) {
 
+		log.Println("CALLBACK MASUK")
+
 		var notification map[string]interface{}
 
 		if err := c.BindJSON(&notification); err != nil {
-
-			log.Println("BIND JSON ERROR:", err)
 
 			c.JSON(400, gin.H{
 				"error": err.Error(),
@@ -1130,33 +1134,199 @@ func main() {
 			return
 		}
 
-		log.Println("CALLBACK MASUK")
 		log.Println("FULL NOTIFICATION:", notification)
 
+		// =========================
+		// AMBIL DATA CALLBACK
+		// =========================
 		orderID := notification["order_id"].(string)
+		statusCode := notification["status_code"].(string)
+		grossAmount := notification["gross_amount"].(string)
+		signatureKey := notification["signature_key"].(string)
 		transactionStatus := notification["transaction_status"].(string)
 
 		log.Println("CALLBACK ORDER ID:", orderID)
 		log.Println("CALLBACK STATUS:", transactionStatus)
 
+		// =========================
+		// VALIDASI SIGNATURE
+		// =========================
+		serverKey := os.Getenv("MIDTRANS_SERVER_KEY")
+
+		rawSignature := orderID + statusCode + grossAmount + serverKey
+
+		hash := sha512.Sum512([]byte(rawSignature))
+
+		expectedSignature := hex.EncodeToString(hash[:])
+
+		if signatureKey != expectedSignature {
+
+			log.Println("SIGNATURE INVALID")
+
+			c.JSON(403, gin.H{
+				"message": "Invalid signature",
+			})
+
+			return
+		}
+
+		log.Println("SIGNATURE VALID")
+
+		// =========================
+		// HANDLE PAYMENT SUCCESS
+		// =========================
 		if transactionStatus == "settlement" ||
 			transactionStatus == "capture" {
 
+			// =========================
+			// CEK STATUS SEKARANG
+			// =========================
+			var currentStatus string
+
+			err := database.DB.QueryRow(`
+		SELECT payment_status
+		FROM orders
+		WHERE midtrans_order_id=?
+	`, orderID).Scan(&currentStatus)
+
+			if err != nil {
+
+				log.Println("CEK STATUS ERROR:", err)
+
+				c.JSON(500, gin.H{
+					"message": "Gagal cek status order",
+				})
+
+				return
+			}
+
+			log.Println("CURRENT STATUS:", currentStatus)
+
+			// =========================
+			// IDEMPOTENCY
+			// JIKA SUDAH PAID
+			// JANGAN PROCESS LAGI
+			// =========================
+			if currentStatus == "paid" {
+
+				log.Println("ORDER SUDAH PAID, SKIP")
+
+				c.JSON(200, gin.H{
+					"message": "already processed",
+				})
+
+				return
+			}
+
+			// =========================
+			// UPDATE STATUS
+			// =========================
+			result, err := database.DB.Exec(`
+		UPDATE orders
+		SET payment_status='paid'
+		WHERE midtrans_order_id=?
+	`, orderID)
+
+			if err != nil {
+
+				log.Println("UPDATE PAID ERROR:", err)
+
+				c.JSON(500, gin.H{
+					"message": "Gagal update paid",
+				})
+
+				return
+			}
+
+			rows, _ := result.RowsAffected()
+
+			log.Println("ROWS UPDATED PAID:", rows)
+
+			// =========================
+			// REDUCE STOCK
+			// =========================
+			err = service.ReduceStockByOrder(orderID)
+
+			if err != nil {
+
+				log.Println("REDUCE STOCK ERROR:", err)
+
+				c.JSON(500, gin.H{
+					"message": "Gagal reduce stock",
+				})
+
+				return
+			}
+
+			log.Println("STOCK BERHASIL DIKURANGI")
+		}
+
+		// =========================
+		// HANDLE EXPIRE
+		// =========================
+		if transactionStatus == "expire" {
+
 			result, err := database.DB.Exec(`
 			UPDATE orders
-			SET payment_status='paid'
+			SET payment_status='expired'
 			WHERE midtrans_order_id=?
 		`, orderID)
 
 			if err != nil {
 
-				log.Println("UPDATE ERROR:", err)
+				log.Println("UPDATE EXPIRED ERROR:", err)
 
 			} else {
 
 				rows, _ := result.RowsAffected()
 
-				log.Println("ROWS UPDATED:", rows)
+				log.Println("ROWS UPDATED EXPIRED:", rows)
+			}
+		}
+
+		// =========================
+		// HANDLE CANCEL
+		// =========================
+		if transactionStatus == "cancel" {
+
+			result, err := database.DB.Exec(`
+			UPDATE orders
+			SET payment_status='cancelled'
+			WHERE midtrans_order_id=?
+		`, orderID)
+
+			if err != nil {
+
+				log.Println("UPDATE CANCEL ERROR:", err)
+
+			} else {
+
+				rows, _ := result.RowsAffected()
+
+				log.Println("ROWS UPDATED CANCEL:", rows)
+			}
+		}
+
+		// =========================
+		// HANDLE PENDING
+		// =========================
+		if transactionStatus == "pending" {
+
+			result, err := database.DB.Exec(`
+			UPDATE orders
+			SET payment_status='pending'
+			WHERE midtrans_order_id=?
+		`, orderID)
+
+			if err != nil {
+
+				log.Println("UPDATE PENDING ERROR:", err)
+
+			} else {
+
+				rows, _ := result.RowsAffected()
+
+				log.Println("ROWS UPDATED PENDING:", rows)
 			}
 		}
 
