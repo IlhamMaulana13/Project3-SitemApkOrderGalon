@@ -5,6 +5,11 @@ import (
 	"log"
 )
 
+type StockItem struct {
+	ProductID int
+	Qty       int
+}
+
 func ReduceStockByOrderTx(
 	tx *sql.Tx,
 	orderID string,
@@ -21,26 +26,50 @@ func ReduceStockByOrderTx(
 		return err
 	}
 
-	defer rows.Close()
+	// =========================
+	// SIMPAN DULU KE ARRAY
+	// =========================
+	var items []StockItem
 
 	for rows.Next() {
 
-		var productID int
-		var qty int
+		var item StockItem
 
-		err := rows.Scan(&productID, &qty)
+		err := rows.Scan(
+			&item.ProductID,
+			&item.Qty,
+		)
 
 		if err != nil {
+			rows.Close()
 			return err
 		}
 
-		log.Println("REDUCE STOCK:", productID, qty)
+		items = append(items, item)
+	}
+
+	// WAJIB CLOSE DULU
+	rows.Close()
+
+	// =========================
+	// BARU UPDATE STOCK
+	// =========================
+	for _, item := range items {
+
+		log.Println(
+			"REDUCE STOCK:",
+			item.ProductID,
+			item.Qty,
+		)
 
 		_, err = tx.Exec(`
 			UPDATE products
 			SET stock = stock - ?
 			WHERE id = ?
-		`, qty, productID)
+		`,
+			item.Qty,
+			item.ProductID,
+		)
 
 		if err != nil {
 			return err
