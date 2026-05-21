@@ -1,14 +1,16 @@
 package service
 
 import (
+	"database/sql"
 	"log"
-
-	"backend-galon/database"
 )
 
-func ReduceStockByOrder(orderID string) error {
+func ReduceStockByOrderTx(
+	tx *sql.Tx,
+	orderID string,
+) error {
 
-	rows, err := database.DB.Query(`
+	rows, err := tx.Query(`
 		SELECT product_id, qty
 		FROM order_items oi
 		JOIN orders o ON oi.order_id = o.id
@@ -34,7 +36,7 @@ func ReduceStockByOrder(orderID string) error {
 
 		log.Println("REDUCE STOCK:", productID, qty)
 
-		_, err = database.DB.Exec(`
+		_, err = tx.Exec(`
 			UPDATE products
 			SET stock = stock - ?
 			WHERE id = ?
