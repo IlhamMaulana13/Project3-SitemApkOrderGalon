@@ -97,4 +97,12 @@ class ApiService {
 
     return [];
   }
+
+  static Future<Map<String, dynamic>> checkPaymentStatus(String orderId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/payment-status/$orderId"),
+    );
+
+    return jsonDecode(response.body);
+  }
 }

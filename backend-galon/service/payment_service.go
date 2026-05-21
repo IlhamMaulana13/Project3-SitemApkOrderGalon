@@ -1,39 +1,54 @@
 package service
 
 import (
+	"database/sql"
 	"log"
-	"os"
-
-	"github.com/midtrans/midtrans-go"
-	"github.com/midtrans/midtrans-go/snap"
 )
 
-func CreatePayment(orderID string, amount int64) (*snap.Response, error) {
+func ReduceStockByOrderTx(
+	tx *sql.Tx,
+	orderID string,
+) error {
 
-	serverKey := os.Getenv("MIDTRANS_SERVER_KEY")
-
-	log.Println("SERVER KEY:", serverKey)
-	log.Println("ORDER ID:", orderID)
-	log.Println("AMOUNT:", amount)
-
-	var s snap.Client
-	s.New(serverKey, midtrans.Sandbox)
-
-	req := &snap.Request{
-		TransactionDetails: midtrans.TransactionDetails{
-			OrderID:  orderID,
-			GrossAmt: amount,
-		},
-	}
-
-	resp, err := s.CreateTransaction(req)
+	rows, err := tx.Query(`
+		SELECT product_id, qty
+		FROM order_items
+		WHERE order_id = (
+			SELECT id
+			FROM orders
+			WHERE midtrans_order_id=?
+		)
+	`, orderID)
 
 	if err != nil {
-		log.Println("MIDTRANS CREATE ERROR:", err)
-		return nil, err
+		return err
 	}
 
-	log.Println("MIDTRANS SUCCESS:", resp.RedirectURL)
+	defer rows.Close()
 
-	return resp, nil
+	for rows.Next() {
+
+		var productID int
+		var qty int
+
+		err := rows.Scan(&productID, &qty)
+
+		if err != nil {
+			return err
+		}
+
+		log.Println("REDUCE STOCK:", productID, qty)
+
+		_, err = tx.Exec(`
+			UPDATE products
+			SET stock = stock - ?
+			WHERE id=?
+		`, qty, productID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

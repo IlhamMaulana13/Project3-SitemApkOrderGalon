@@ -9,19 +9,16 @@ import '../api_config.dart';
 class PaymentWaitingScreen extends StatefulWidget {
   final String orderId;
 
-  const PaymentWaitingScreen({
-    super.key,
-    required this.orderId,
-  });
+  const PaymentWaitingScreen({super.key, required this.orderId});
 
   @override
-  State<PaymentWaitingScreen> createState() =>
-      _PaymentWaitingScreenState();
+  State<PaymentWaitingScreen> createState() => _PaymentWaitingScreenState();
 }
 
-class _PaymentWaitingScreenState
-    extends State<PaymentWaitingScreen> {
-  Timer? timer;
+class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> {
+  Timer? countdownTimer;
+
+  Timer? pollingTimer;
 
   String paymentStatus = "pending";
 
@@ -37,31 +34,58 @@ class _PaymentWaitingScreenState
   }
 
   void startTimer() {
-    timer = Timer.periodic(
-      const Duration(seconds: 1),
-      (timer) {
-        if (remainingSeconds > 0) {
-          setState(() {
-            remainingSeconds--;
-          });
-        }
-      },
-    );
+    countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (remainingSeconds > 0) {
+        setState(() {
+          remainingSeconds--;
+        });
+      }
+    });
   }
 
   void startAutoCheck() {
-    Timer.periodic(
-      const Duration(seconds: 5),
-      (timer) async {
-        await checkPaymentStatus();
+    pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      await checkPaymentStatus();
 
-        if (paymentStatus == "paid") {
-          timer.cancel();
+      if (paymentStatus == "paid") {
+        timer.cancel();
 
-          if (!mounted) return;
+        if (!mounted) return;
 
-          showSuccessDialog();
-        }
+        showSuccessDialog();
+      }
+
+      if (paymentStatus == "expire" || paymentStatus == "cancel") {
+        timer.cancel();
+
+        if (!mounted) return;
+
+        showFailedDialog();
+      }
+    });
+  }
+
+  void showFailedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Pembayaran Gagal"),
+
+          content: const Text("Pembayaran expired atau dibatalkan"),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+
+                Navigator.pop(context);
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
       },
     );
   }
@@ -69,9 +93,7 @@ class _PaymentWaitingScreenState
   Future<void> checkPaymentStatus() async {
     try {
       final response = await http.get(
-        Uri.parse(
-          "${ApiConfig.baseUrl}/payment-status/${widget.orderId}",
-        ),
+        Uri.parse("${ApiConfig.baseUrl}/payment-status/${widget.orderId}"),
       );
 
       if (response.statusCode == 200) {
@@ -80,8 +102,7 @@ class _PaymentWaitingScreenState
         if (!mounted) return;
 
         setState(() {
-          paymentStatus =
-              data["payment_status"] ?? "pending";
+          paymentStatus = data["payment_status"] ?? "pending";
         });
       }
     } catch (e) {
@@ -101,9 +122,7 @@ class _PaymentWaitingScreenState
 
           title: const Text("Pembayaran Berhasil"),
 
-          content: const Text(
-            "Pesanan kamu berhasil dibayar.",
-          ),
+          content: const Text("Pesanan kamu berhasil dibayar."),
 
           actions: [
             TextButton(
@@ -122,18 +141,19 @@ class _PaymentWaitingScreenState
   }
 
   String formatTime(int seconds) {
-    final minutes =
-        (seconds ~/ 60).toString().padLeft(2, '0');
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
 
-    final secs =
-        (seconds % 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
 
     return "$minutes:$secs";
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    countdownTimer?.cancel();
+
+    pollingTimer?.cancel();
+
     super.dispose();
   }
 
@@ -150,8 +170,7 @@ class _PaymentWaitingScreenState
 
         backgroundColor: Colors.blue[700],
 
-        iconTheme:
-            const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
 
       body: Padding(
@@ -182,10 +201,7 @@ class _PaymentWaitingScreenState
 
                   const Text(
                     "Menunggu Pembayaran",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 10),
@@ -193,9 +209,7 @@ class _PaymentWaitingScreenState
                   Text(
                     "Selesaikan pembayaran sebelum waktu habis",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(color: Colors.grey[700]),
                   ),
 
                   const SizedBox(height: 25),
@@ -209,8 +223,7 @@ class _PaymentWaitingScreenState
                     decoration: BoxDecoration(
                       color: Colors.orange.shade50,
 
-                      borderRadius:
-                          BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16),
                     ),
 
                     child: Text(
@@ -236,8 +249,7 @@ class _PaymentWaitingScreenState
                           ? Colors.green.shade50
                           : Colors.orange.shade50,
 
-                      borderRadius:
-                          BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(30),
                     ),
 
                     child: Text(
@@ -266,9 +278,7 @@ class _PaymentWaitingScreenState
 
                       icon: const Icon(Icons.refresh),
 
-                      label: const Text(
-                        "Cek Status Pembayaran",
-                      ),
+                      label: const Text("Cek Status Pembayaran"),
                     ),
                   ),
                 ],

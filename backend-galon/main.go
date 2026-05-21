@@ -1173,61 +1173,36 @@ func main() {
 		log.Println("SIGNATURE VALID")
 
 		// =========================
-		// HANDLE PAYMENT SUCCESS
+		// HANDLE SUCCESS PAYMENT
 		// =========================
 		if transactionStatus == "settlement" ||
 			transactionStatus == "capture" {
 
-			// =========================
-			// CEK STATUS SEKARANG
-			// =========================
-			var currentStatus string
-
-			err := database.DB.QueryRow(`
-		SELECT payment_status
-		FROM orders
-		WHERE midtrans_order_id=?
-	`, orderID).Scan(&currentStatus)
+			// BEGIN TRANSACTION
+			tx, err := database.DB.Begin()
 
 			if err != nil {
 
-				log.Println("CEK STATUS ERROR:", err)
+				log.Println("BEGIN TX ERROR:", err)
 
 				c.JSON(500, gin.H{
-					"message": "Gagal cek status order",
+					"message": "Gagal begin transaction",
 				})
 
 				return
 			}
 
-			log.Println("CURRENT STATUS:", currentStatus)
-
-			// =========================
-			// IDEMPOTENCY
-			// JIKA SUDAH PAID
-			// JANGAN PROCESS LAGI
-			// =========================
-			if currentStatus == "paid" {
-
-				log.Println("ORDER SUDAH PAID, SKIP")
-
-				c.JSON(200, gin.H{
-					"message": "already processed",
-				})
-
-				return
-			}
-
-			// =========================
-			// UPDATE STATUS
-			// =========================
-			result, err := database.DB.Exec(`
-		UPDATE orders
-		SET payment_status='paid'
-		WHERE midtrans_order_id=?
-	`, orderID)
+			// UPDATE STATUS KE PAID
+			result, err := tx.Exec(`
+			UPDATE orders
+			SET payment_status='paid'
+			WHERE midtrans_order_id=?
+			AND payment_status!='paid'
+		`, orderID)
 
 			if err != nil {
+
+				tx.Rollback()
 
 				log.Println("UPDATE PAID ERROR:", err)
 
@@ -1240,19 +1215,47 @@ func main() {
 
 			rows, _ := result.RowsAffected()
 
-			log.Println("ROWS UPDATED PAID:", rows)
+			log.Println("ROWS UPDATED:", rows)
 
-			// =========================
+			// CALLBACK DUPLICATE
+			if rows == 0 {
+
+				tx.Rollback()
+
+				log.Println("ORDER SUDAH PAID / DUPLICATE CALLBACK")
+
+				c.JSON(200, gin.H{
+					"message": "already processed",
+				})
+
+				return
+			}
+
 			// REDUCE STOCK
-			// =========================
-			err = service.ReduceStockByOrder(orderID)
+			err = service.ReduceStockByOrderTx(tx, orderID)
 
 			if err != nil {
+
+				tx.Rollback()
 
 				log.Println("REDUCE STOCK ERROR:", err)
 
 				c.JSON(500, gin.H{
 					"message": "Gagal reduce stock",
+				})
+
+				return
+			}
+
+			// COMMIT
+			err = tx.Commit()
+
+			if err != nil {
+
+				log.Println("COMMIT ERROR:", err)
+
+				c.JSON(500, gin.H{
+					"message": "Gagal commit transaction",
 				})
 
 				return
