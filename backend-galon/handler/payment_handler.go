@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"backend-galon/database"
 	"backend-galon/service"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,27 @@ func CreatePayment(c *gin.Context) {
 		req.OrderID,
 		req.Total,
 	)
+
+	_, err = database.DB.Exec(`
+	UPDATE orders
+	SET payment_url=?
+	WHERE midtrans_order_id=?
+`,
+		resp.RedirectURL,
+		req.OrderID,
+	)
+
+	if err != nil {
+
+		log.Println("UPDATE PAYMENT URL ERROR:", err)
+
+		c.JSON(500, gin.H{
+			"success": false,
+			"message": "Gagal simpan payment url",
+		})
+
+		return
+	}
 
 	log.Println("RESP:", resp)
 	log.Println("ERR:", err)

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 import '../api_config.dart';
 
@@ -51,6 +53,8 @@ class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> {
         timer.cancel();
 
         if (!mounted) return;
+        
+        Provider.of<CartProvider>(context, listen: false).clearCart();
 
         showSuccessDialog();
       }

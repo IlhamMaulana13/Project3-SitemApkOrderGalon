@@ -32,6 +32,7 @@ type OrderItem struct {
 
 type Order struct {
 	UserID          string      `json:"user_id"`
+	IdempotencyKey  string      `json:"idempotency_key"`
 	PaymentMethodID int         `json:"payment_method_id"`
 	PaymentChannel  string      `json:"payment_channel"`
 	MidtransOrderID string      `json:"midtrans_order_id"`
@@ -130,49 +131,143 @@ func main() {
 		var order Order
 
 		if err := c.ShouldBindJSON(&order); err != nil {
+
+			// =========================
+			// IDEMPOTENCY CHECK
+			// =========================
+			var existingID int
+
+			err := database.DB.QueryRow(`
+	SELECT id
+	FROM orders
+	WHERE idempotency_key=?
+	LIMIT 1
+`,
+				order.IdempotencyKey,
+			).Scan(&existingID)
+
+			if err == nil {
+
+				c.JSON(200, gin.H{
+					"success":  true,
+					"message":  "Duplicate request",
+					"order_id": existingID,
+				})
+
+				return
+			}
+
 			c.JSON(400, gin.H{
 				"error": err.Error(),
 			})
+
 			return
 		}
 
-		result, err := database.DB.Exec(`
-			INSERT INTO orders
-			(user_id, payment_method_id, payment_channel, midtrans_order_id, total, status, payment_status)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-		`,
+		// =========================
+		// CEK PENDING ORDER
+		// =========================
+		var existingOrderID int
+		var existingMidtransID string
+		var existingPaymentURL string
+
+		err := database.DB.QueryRow(`
+	SELECT id, midtrans_order_id, payment_url
+	FROM orders
+	WHERE user_id=?
+	AND payment_status='pending'
+	ORDER BY id DESC
+	LIMIT 1
+`,
+			order.UserID,
+		).Scan(
+			&existingOrderID,
+			&existingMidtransID,
+			&existingPaymentURL,
+		)
+
+		if err == nil {
+
+			c.JSON(400, gin.H{
+				"success":           false,
+				"message":           "Masih ada pembayaran pending",
+				"order_id":          existingOrderID,
+				"midtrans_order_id": existingMidtransID,
+				"payment_url":       existingPaymentURL,
+			})
+
+			return
+		}
+
+		// =========================
+		// BEGIN TRANSACTION
+		// =========================
+		tx, err := database.DB.Begin()
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": "Gagal begin transaction",
+			})
+
+			return
+		}
+
+		// =========================
+		// INSERT ORDER
+		// =========================
+		result, err := tx.Exec(`
+		INSERT INTO orders
+		(user_id, payment_method_id, payment_channel, midtrans_order_id, total, status, payment_status, idempotency_key)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`,
 			order.UserID,
 			order.PaymentMethodID,
 			order.PaymentChannel,
 			order.MidtransOrderID,
 			order.Total,
 			"Diproses",
-			"Pending",
+			"pending",
+			order.IdempotencyKey,
 		)
 
 		if err != nil {
+
+			tx.Rollback()
+
 			c.JSON(500, gin.H{
 				"error": err.Error(),
 			})
+
 			return
 		}
 
 		orderID, _ := result.LastInsertId()
 
+		// =========================
+		// INSERT ITEMS
+		// =========================
 		for _, item := range order.Items {
 
 			// CEK STOCK
 			var stock int
+			var reservedStock int
 
-			err := database.DB.QueryRow(`
-		SELECT stock
-		FROM products
-		WHERE id = ?
-	`,
+			err := tx.QueryRow(`
+	SELECT stock, reserved_stock
+	FROM products
+	WHERE id = ?
+	FOR UPDATE
+`,
 				item.ProductID,
-			).Scan(&stock)
+			).Scan(
+				&stock,
+				&reservedStock,
+			)
 
 			if err != nil {
+
+				tx.Rollback()
 
 				c.JSON(500, gin.H{
 					"error": err.Error(),
@@ -181,8 +276,11 @@ func main() {
 				return
 			}
 
-			// VALIDASI STOCK
-			if stock < item.Qty {
+			availableStock := stock - reservedStock
+
+			if availableStock < item.Qty {
+
+				tx.Rollback()
 
 				c.JSON(400, gin.H{
 					"error": "Stock tidak cukup",
@@ -192,11 +290,11 @@ func main() {
 			}
 
 			// INSERT ORDER ITEM
-			_, err = database.DB.Exec(`
-		INSERT INTO order_items
-		(order_id, product_id, qty, subtotal)
-		VALUES (?, ?, ?, ?)
-	`,
+			_, err = tx.Exec(`
+			INSERT INTO order_items
+			(order_id, product_id, qty, subtotal)
+			VALUES (?, ?, ?, ?)
+		`,
 				orderID,
 				item.ProductID,
 				item.Qty,
@@ -205,24 +303,7 @@ func main() {
 
 			if err != nil {
 
-				c.JSON(500, gin.H{
-					"error": err.Error(),
-				})
-
-				return
-			}
-
-			// KURANGI STOCK
-			_, err = database.DB.Exec(`
-					UPDATE products
-					SET stock = stock - ?
-					WHERE id = ?
-				`,
-				item.Qty,
-				item.ProductID,
-			)
-
-			if err != nil {
+				tx.Rollback()
 
 				c.JSON(500, gin.H{
 					"error": err.Error(),
@@ -230,6 +311,20 @@ func main() {
 
 				return
 			}
+		}
+
+		// =========================
+		// COMMIT
+		// =========================
+		err = tx.Commit()
+
+		if err != nil {
+
+			c.JSON(500, gin.H{
+				"error": "Gagal commit transaction",
+			})
+
+			return
 		}
 
 		c.JSON(200, gin.H{
@@ -1269,21 +1364,62 @@ func main() {
 		// =========================
 		if transactionStatus == "expire" {
 
-			result, err := database.DB.Exec(`
-			UPDATE orders
-			SET payment_status='expired'
-			WHERE midtrans_order_id=?
-		`, orderID)
+			tx, err := database.DB.Begin()
 
 			if err != nil {
 
+				log.Println("BEGIN TX EXPIRE ERROR:", err)
+
+				return
+			}
+
+			result, err := tx.Exec(`
+		UPDATE orders
+		SET
+			payment_status='expired',
+			payment_url=NULL
+		WHERE midtrans_order_id=?
+		AND payment_status='pending'
+	`, orderID)
+
+			if err != nil {
+
+				tx.Rollback()
+
 				log.Println("UPDATE EXPIRED ERROR:", err)
 
-			} else {
+				return
+			}
 
-				rows, _ := result.RowsAffected()
+			rows, _ := result.RowsAffected()
 
-				log.Println("ROWS UPDATED EXPIRED:", rows)
+			log.Println("ROWS UPDATED EXPIRED:", rows)
+
+			// hanya release kalau benar2 berubah
+			if rows > 0 {
+
+				err = service.ReleaseReservedStockTx(
+					tx,
+					orderID,
+				)
+
+				if err != nil {
+
+					tx.Rollback()
+
+					log.Println("RELEASE STOCK ERROR:", err)
+
+					return
+				}
+			}
+
+			err = tx.Commit()
+
+			if err != nil {
+
+				log.Println("COMMIT EXPIRE ERROR:", err)
+
+				return
 			}
 		}
 
@@ -1294,8 +1430,11 @@ func main() {
 
 			result, err := database.DB.Exec(`
 			UPDATE orders
-			SET payment_status='cancelled'
-			WHERE midtrans_order_id=?
+SET
+	payment_status='cancelled',
+	payment_url=NULL
+WHERE midtrans_order_id=?
+AND payment_status='pending'
 		`, orderID)
 
 			if err != nil {
@@ -1335,6 +1474,63 @@ func main() {
 
 		c.JSON(200, gin.H{
 			"message": "callback received",
+		})
+	})
+
+	r.GET("/payment/retry/:user_id", func(c *gin.Context) {
+
+		userID := c.Param("user_id")
+
+		var order struct {
+			ID              int
+			MidtransOrderID string
+			PaymentURL      string
+			Total           int
+			PaymentStatus   string
+		}
+
+		err := database.DB.QueryRow(`
+		SELECT
+			id,
+			midtrans_order_id,
+			payment_url,
+			total,
+			payment_status
+		FROM orders
+		WHERE user_id=?
+		AND payment_status='pending'
+		AND payment_url IS NOT NULL
+		ORDER BY id DESC
+		LIMIT 1
+	`,
+			userID,
+		).Scan(
+			&order.ID,
+			&order.MidtransOrderID,
+			&order.PaymentURL,
+			&order.Total,
+			&order.PaymentStatus,
+		)
+
+		if err != nil {
+
+			c.JSON(404, gin.H{
+				"success": false,
+				"message": "Tidak ada pending payment",
+			})
+
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"success": true,
+			"data": gin.H{
+				"order_id":          order.ID,
+				"midtrans_order_id": order.MidtransOrderID,
+				"payment_url":       order.PaymentURL,
+				"total":             order.Total,
+				"payment_status":    order.PaymentStatus,
+			},
 		})
 	})
 

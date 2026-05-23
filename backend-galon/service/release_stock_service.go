@@ -2,10 +2,9 @@ package service
 
 import (
 	"database/sql"
-	"log"
 )
 
-func ReduceStockByOrderTx(
+func ReleaseReservedStockTx(
 	tx *sql.Tx,
 	orderID string,
 ) error {
@@ -50,13 +49,14 @@ func ReduceStockByOrderTx(
 
 	for _, item := range items {
 
-		log.Println("REDUCE STOCK:", item.ProductID, item.Qty)
-
 		_, err = tx.Exec(`
 			UPDATE products
-			SET
-				stock = stock - ?,
-				reserved_stock = reserved_stock - ?
+			SET reserved_stock =
+			CASE
+				WHEN reserved_stock >= ?
+				THEN reserved_stock - ?
+				ELSE 0
+			END
 			WHERE id=?
 		`,
 			item.Qty,
