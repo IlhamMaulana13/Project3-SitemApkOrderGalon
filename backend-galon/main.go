@@ -167,8 +167,6 @@ func main() {
 
 			if err == nil {
 
-				log.Println("DUPLICATE ORDER:", existingID)
-
 				c.JSON(200, gin.H{
 					"success":  true,
 					"message":  "Duplicate request",
