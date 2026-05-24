@@ -152,28 +152,31 @@ func main() {
 		// =========================
 		// IDEMPOTENCY CHECK
 		// =========================
-		var existingID int
+		if order.IdempotencyKey != "" {
 
-		err = database.DB.QueryRow(`
-    SELECT id
-    FROM orders
-    WHERE idempotency_key=?
-    LIMIT 1
-`,
-			order.IdempotencyKey,
-		).Scan(&existingID)
+			var existingID int
 
-		if err == nil {
+			err := database.DB.QueryRow(`
+        SELECT id
+        FROM orders
+        WHERE idempotency_key=?
+        LIMIT 1
+    `,
+				order.IdempotencyKey,
+			).Scan(&existingID)
 
-			log.Println("DUPLICATE ORDER:", existingID)
+			if err == nil {
 
-			c.JSON(200, gin.H{
-				"success":  true,
-				"message":  "Duplicate request",
-				"order_id": existingID,
-			})
+				log.Println("DUPLICATE ORDER:", existingID)
 
-			return
+				c.JSON(200, gin.H{
+					"success":  true,
+					"message":  "Duplicate request",
+					"order_id": existingID,
+				})
+
+				return
+			}
 		}
 
 		// =========================
