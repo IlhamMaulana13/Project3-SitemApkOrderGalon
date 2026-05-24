@@ -330,6 +330,93 @@ func main() {
 
 				return
 			}
+
+			for _, item := range order.Items {
+
+				// CEK STOCK
+				var stock int
+				var reservedStock int
+
+				err := tx.QueryRow(`
+	SELECT stock, reserved_stock
+	FROM products
+	WHERE id = ?
+	FOR UPDATE
+`,
+					item.ProductID,
+				).Scan(
+					&stock,
+					&reservedStock,
+				)
+
+				if err != nil {
+
+					tx.Rollback()
+
+					c.JSON(500, gin.H{
+						"error": err.Error(),
+					})
+
+					return
+				}
+
+				availableStock := stock - reservedStock
+
+				if availableStock < item.Qty {
+
+					tx.Rollback()
+
+					c.JSON(400, gin.H{
+						"error": "Stock tidak cukup",
+					})
+
+					return
+				}
+
+				// INSERT ORDER ITEM
+				_, err = tx.Exec(`
+			INSERT INTO order_items
+			(order_id, product_id, qty, subtotal)
+			VALUES (?, ?, ?, ?)
+		`,
+					orderID,
+					item.ProductID,
+					item.Qty,
+					item.Subtotal,
+				)
+
+				if err != nil {
+
+					tx.Rollback()
+
+					c.JSON(500, gin.H{
+						"error": err.Error(),
+					})
+
+					return
+				}
+			}
+
+			// RESERVE STOCK
+			_, err = tx.Exec(`
+    UPDATE products
+    SET reserved_stock = reserved_stock + ?
+    WHERE id = ?
+`,
+				item.Qty,
+				item.ProductID,
+			)
+
+			if err != nil {
+
+				tx.Rollback()
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
+				return
+			}
 		}
 
 		// =========================
