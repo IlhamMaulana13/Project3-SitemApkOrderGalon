@@ -129,36 +129,48 @@ func main() {
 	r.POST("/orders", func(c *gin.Context) {
 
 		var order Order
+		var err error
 
-		if err := c.ShouldBindJSON(&order); err != nil {
+		// =========================
+		// BIND JSON
+		// =========================
+		err = c.ShouldBindJSON(&order)
 
-			// =========================
-			// IDEMPOTENCY CHECK
-			// =========================
-			var existingID int
+		if err != nil {
 
-			err := database.DB.QueryRow(`
-	SELECT id
-	FROM orders
-	WHERE idempotency_key=?
-	LIMIT 1
-`,
-				order.IdempotencyKey,
-			).Scan(&existingID)
-
-			if err == nil {
-
-				c.JSON(200, gin.H{
-					"success":  true,
-					"message":  "Duplicate request",
-					"order_id": existingID,
-				})
-
-				return
-			}
+			log.Println("BIND ERROR:", err)
 
 			c.JSON(400, gin.H{
 				"error": err.Error(),
+			})
+
+			return
+		}
+
+		log.Printf("ORDER MASUK: %+v\n", order)
+
+		// =========================
+		// IDEMPOTENCY CHECK
+		// =========================
+		var existingID int
+
+		err = database.DB.QueryRow(`
+    SELECT id
+    FROM orders
+    WHERE idempotency_key=?
+    LIMIT 1
+`,
+			order.IdempotencyKey,
+		).Scan(&existingID)
+
+		if err == nil {
+
+			log.Println("DUPLICATE ORDER:", existingID)
+
+			c.JSON(200, gin.H{
+				"success":  true,
+				"message":  "Duplicate request",
+				"order_id": existingID,
 			})
 
 			return
@@ -171,7 +183,7 @@ func main() {
 		var existingMidtransID string
 		var existingPaymentURL string
 
-		err := database.DB.QueryRow(`
+		err = database.DB.QueryRow(`
 	SELECT id, midtrans_order_id, payment_url
 	FROM orders
 	WHERE user_id=?
@@ -233,6 +245,8 @@ func main() {
 
 		if err != nil {
 
+			log.Println("INSERT ORDER ERROR:", err)
+
 			tx.Rollback()
 
 			c.JSON(500, gin.H{
@@ -243,6 +257,8 @@ func main() {
 		}
 
 		orderID, _ := result.LastInsertId()
+
+		log.Println("ORDER BERHASIL DIBUAT:", orderID)
 
 		// =========================
 		// INSERT ITEMS
