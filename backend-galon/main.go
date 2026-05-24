@@ -125,7 +125,6 @@ func main() {
 		c.JSON(http.StatusOK, products)
 	})
 
-	// POST ORDER
 	r.POST("/orders", func(c *gin.Context) {
 
 		var order Order
@@ -135,7 +134,6 @@ func main() {
 		// BIND JSON
 		// =========================
 		err = c.ShouldBindJSON(&order)
-
 		if err != nil {
 
 			log.Println("BIND ERROR:", err)
@@ -157,11 +155,11 @@ func main() {
 			var existingID int
 
 			err := database.DB.QueryRow(`
-        SELECT id
-        FROM orders
-        WHERE idempotency_key=?
-        LIMIT 1
-    `,
+			SELECT id
+			FROM orders
+			WHERE idempotency_key=?
+			LIMIT 1
+		`,
 				order.IdempotencyKey,
 			).Scan(&existingID)
 
@@ -178,20 +176,20 @@ func main() {
 		}
 
 		// =========================
-		// CEK PENDING ORDER
+		// CEK ORDER PENDING
 		// =========================
 		var existingOrderID int
 		var existingMidtransID string
 		var existingPaymentURL string
 
 		err = database.DB.QueryRow(`
-	SELECT id, midtrans_order_id, payment_url
-	FROM orders
-	WHERE user_id=?
-	AND payment_status='pending'
-	ORDER BY id DESC
-	LIMIT 1
-`,
+		SELECT id, midtrans_order_id, payment_url
+		FROM orders
+		WHERE user_id=?
+		AND payment_status='pending'
+		ORDER BY id DESC
+		LIMIT 1
+	`,
 			order.UserID,
 		).Scan(
 			&existingOrderID,
@@ -213,7 +211,7 @@ func main() {
 		}
 
 		// =========================
-		// BEGIN TRANSACTION
+		// BEGIN TX
 		// =========================
 		tx, err := database.DB.Begin()
 
@@ -231,7 +229,16 @@ func main() {
 		// =========================
 		result, err := tx.Exec(`
 		INSERT INTO orders
-		(user_id, payment_method_id, payment_channel, midtrans_order_id, total, status, payment_status, idempotency_key)
+		(
+			user_id,
+			payment_method_id,
+			payment_channel,
+			midtrans_order_id,
+			total,
+			status,
+			payment_status,
+			idempotency_key
+		)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 			order.UserID,
@@ -246,9 +253,9 @@ func main() {
 
 		if err != nil {
 
-			log.Println("INSERT ORDER ERROR:", err)
-
 			tx.Rollback()
+
+			log.Println("INSERT ORDER ERROR:", err)
 
 			c.JSON(500, gin.H{
 				"error": err.Error(),
@@ -261,127 +268,27 @@ func main() {
 
 		log.Println("ORDER BERHASIL DIBUAT:", orderID)
 
-		r.POST("/orders", func(c *gin.Context) {
+		// =========================
+		// INSERT ITEMS
+		// =========================
+		for _, item := range order.Items {
 
-			var order Order
-			var err error
+			var stock int
+			var reservedStock int
 
-			// =========================
-			// BIND JSON
-			// =========================
-			err = c.ShouldBindJSON(&order)
-
-			if err != nil {
-
-				log.Println("BIND ERROR:", err)
-
-				c.JSON(400, gin.H{
-					"error": err.Error(),
-				})
-
-				return
-			}
-
-			log.Printf("ORDER MASUK: %+v\n", order)
-
-			// =========================
-			// IDEMPOTENCY CHECK
-			// =========================
-			if order.IdempotencyKey != "" {
-
-				var existingID int
-
-				err := database.DB.QueryRow(`
-        SELECT id
-        FROM orders
-        WHERE idempotency_key=?
-        LIMIT 1
-    `,
-					order.IdempotencyKey,
-				).Scan(&existingID)
-
-				if err == nil {
-
-					c.JSON(200, gin.H{
-						"success":  true,
-						"message":  "Duplicate request",
-						"order_id": existingID,
-					})
-
-					return
-				}
-			}
-
-			// =========================
-			// CEK PENDING ORDER
-			// =========================
-			var existingOrderID int
-			var existingMidtransID string
-			var existingPaymentURL string
-
-			err = database.DB.QueryRow(`
-	SELECT id, midtrans_order_id, payment_url
-	FROM orders
-	WHERE user_id=?
-	AND payment_status='pending'
-	ORDER BY id DESC
-	LIMIT 1
-`,
-				order.UserID,
+			err := tx.QueryRow(`
+			SELECT stock,reserved_stock
+			FROM products
+			WHERE id=?
+			FOR UPDATE
+		`,
+				item.ProductID,
 			).Scan(
-				&existingOrderID,
-				&existingMidtransID,
-				&existingPaymentURL,
-			)
-
-			if err == nil {
-
-				c.JSON(400, gin.H{
-					"success":           false,
-					"message":           "Masih ada pembayaran pending",
-					"order_id":          existingOrderID,
-					"midtrans_order_id": existingMidtransID,
-					"payment_url":       existingPaymentURL,
-				})
-
-				return
-			}
-
-			// =========================
-			// BEGIN TRANSACTION
-			// =========================
-			tx, err := database.DB.Begin()
-
-			if err != nil {
-
-				c.JSON(500, gin.H{
-					"error": "Gagal begin transaction",
-				})
-
-				return
-			}
-
-			// =========================
-			// INSERT ORDER
-			// =========================
-			result, err := tx.Exec(`
-		INSERT INTO orders
-		(user_id, payment_method_id, payment_channel, midtrans_order_id, total, status, payment_status, idempotency_key)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`,
-				order.UserID,
-				order.PaymentMethodID,
-				order.PaymentChannel,
-				order.MidtransOrderID,
-				order.Total,
-				"Diproses",
-				"pending",
-				order.IdempotencyKey,
+				&stock,
+				&reservedStock,
 			)
 
 			if err != nil {
-
-				log.Println("INSERT ORDER ERROR:", err)
 
 				tx.Rollback()
 
@@ -392,185 +299,68 @@ func main() {
 				return
 			}
 
-			orderID, _ := result.LastInsertId()
+			availableStock := stock - reservedStock
 
-			log.Println("ORDER BERHASIL DIBUAT:", orderID)
+			if availableStock < item.Qty {
 
-			// =========================
-			// INSERT ITEMS
-			// =========================
-			for _, item := range order.Items {
+				tx.Rollback()
 
-				// CEK STOCK
-				var stock int
-				var reservedStock int
-
-				err := tx.QueryRow(`
-	SELECT stock, reserved_stock
-	FROM products
-	WHERE id = ?
-	FOR UPDATE
-`,
-					item.ProductID,
-				).Scan(
-					&stock,
-					&reservedStock,
-				)
-
-				if err != nil {
-
-					tx.Rollback()
-
-					c.JSON(500, gin.H{
-						"error": err.Error(),
-					})
-
-					return
-				}
-
-				availableStock := stock - reservedStock
-
-				if availableStock < item.Qty {
-
-					tx.Rollback()
-
-					c.JSON(400, gin.H{
-						"error": "Stock tidak cukup",
-					})
-
-					return
-				}
-
-				// INSERT ORDER ITEM
-				_, err = tx.Exec(`
-			INSERT INTO order_items
-			(order_id, product_id, qty, subtotal)
-			VALUES (?, ?, ?, ?)
-		`,
-					orderID,
-					item.ProductID,
-					item.Qty,
-					item.Subtotal,
-				)
-
-				if err != nil {
-
-					tx.Rollback()
-
-					c.JSON(500, gin.H{
-						"error": err.Error(),
-					})
-
-					return
-				}
-
-				for _, item := range order.Items {
-
-					// CEK STOCK
-					var stock int
-					var reservedStock int
-
-					err := tx.QueryRow(`
-	SELECT stock, reserved_stock
-	FROM products
-	WHERE id = ?
-	FOR UPDATE
-`,
-						item.ProductID,
-					).Scan(
-						&stock,
-						&reservedStock,
-					)
-
-					if err != nil {
-
-						tx.Rollback()
-
-						c.JSON(500, gin.H{
-							"error": err.Error(),
-						})
-
-						return
-					}
-
-					availableStock := stock - reservedStock
-
-					if availableStock < item.Qty {
-
-						tx.Rollback()
-
-						c.JSON(400, gin.H{
-							"error": "Stock tidak cukup",
-						})
-
-						return
-					}
-
-					// INSERT ORDER ITEM
-					_, err = tx.Exec(`
-			INSERT INTO order_items
-			(order_id, product_id, qty, subtotal)
-			VALUES (?, ?, ?, ?)
-		`,
-						orderID,
-						item.ProductID,
-						item.Qty,
-						item.Subtotal,
-					)
-
-					if err != nil {
-
-						tx.Rollback()
-
-						c.JSON(500, gin.H{
-							"error": err.Error(),
-						})
-
-						return
-					}
-				}
-
-				// RESERVE STOCK
-				_, err = tx.Exec(`
-    UPDATE products
-    SET reserved_stock = reserved_stock + ?
-    WHERE id = ?
-`,
-					item.Qty,
-					item.ProductID,
-				)
-
-				if err != nil {
-
-					tx.Rollback()
-
-					c.JSON(500, gin.H{
-						"error": err.Error(),
-					})
-
-					return
-				}
-			}
-
-			// =========================
-			// COMMIT
-			// =========================
-			err = tx.Commit()
-
-			if err != nil {
-
-				c.JSON(500, gin.H{
-					"error": "Gagal commit transaction",
+				c.JSON(400, gin.H{
+					"error": "Stock tidak cukup",
 				})
 
 				return
 			}
 
-			c.JSON(200, gin.H{
-				"message":  "Order berhasil dibuat",
-				"order_id": orderID,
-			})
-		})
+			// INSERT ORDER ITEM
+			_, err = tx.Exec(`
+			INSERT INTO order_items
+			(
+				order_id,
+				product_id,
+				qty,
+				subtotal
+			)
+			VALUES (?, ?, ?, ?)
+		`,
+				orderID,
+				item.ProductID,
+				item.Qty,
+				item.Subtotal,
+			)
+
+			if err != nil {
+
+				tx.Rollback()
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
+				return
+			}
+
+			// RESERVE STOCK
+			_, err = tx.Exec(`
+			UPDATE products
+			SET reserved_stock = reserved_stock + ?
+			WHERE id=?
+		`,
+				item.Qty,
+				item.ProductID,
+			)
+
+			if err != nil {
+
+				tx.Rollback()
+
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+
+				return
+			}
+		}
 
 		// =========================
 		// COMMIT
