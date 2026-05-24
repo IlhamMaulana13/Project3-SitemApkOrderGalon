@@ -56,7 +56,7 @@ func CreatePayment(c *gin.Context) {
 		req.Total,
 	)
 
-	_, err = database.DB.Exec(`
+	result, err := database.DB.Exec(`
 	UPDATE orders
 	SET payment_url=?
 	WHERE midtrans_order_id=?
@@ -64,6 +64,13 @@ func CreatePayment(c *gin.Context) {
 		resp.RedirectURL,
 		req.OrderID,
 	)
+
+	if err != nil {
+		log.Println("UPDATE ERROR:", err)
+	} else {
+		rows, _ := result.RowsAffected()
+		log.Println("PAYMENT URL UPDATED ROWS:", rows)
+	}
 
 	if err != nil {
 
@@ -109,5 +116,35 @@ func CreatePayment(c *gin.Context) {
 		"message":      "Payment berhasil dibuat",
 		"token":        resp.Token,
 		"redirect_url": resp.RedirectURL,
+	})
+}
+
+func GetPaymentStatus(c *gin.Context) {
+
+	orderID := c.Param("orderId")
+
+	var status string
+
+	err := database.DB.QueryRow(`
+		SELECT payment_status
+		FROM orders
+		WHERE midtrans_order_id=?
+	`,
+		orderID,
+	).Scan(&status)
+
+	if err != nil {
+
+		c.JSON(404, gin.H{
+			"success": false,
+			"message": "Order tidak ditemukan",
+		})
+
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"status":  status,
 	})
 }
