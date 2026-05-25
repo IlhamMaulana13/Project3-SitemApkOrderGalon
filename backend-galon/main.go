@@ -123,6 +123,7 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, products)
+		
 	})
 
 	r.POST("/orders", func(c *gin.Context) {
@@ -240,7 +241,7 @@ func main() {
 			idempotency_key
 		)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`,
+		`,
 			order.UserID,
 			order.PaymentMethodID,
 			order.PaymentChannel,
