@@ -1477,24 +1477,127 @@ func main() {
 		// =========================
 		if transactionStatus == "cancel" {
 
-			result, err := database.DB.Exec(`
-			UPDATE orders
-SET
-	payment_status='cancelled',
-	payment_url=NULL
-WHERE midtrans_order_id=?
-AND payment_status='pending'
-		`, orderID)
+			tx, err := database.DB.Begin()
 
 			if err != nil {
 
+				log.Println("BEGIN TX CANCEL ERROR:", err)
+
+				return
+			}
+
+			result, err := tx.Exec(`
+		UPDATE orders
+		SET
+			payment_status='cancelled',
+			payment_url=NULL
+		WHERE midtrans_order_id=?
+		AND payment_status='pending'
+	`, orderID)
+
+			if err != nil {
+
+				tx.Rollback()
+
 				log.Println("UPDATE CANCEL ERROR:", err)
 
-			} else {
+				return
+			}
 
-				rows, _ := result.RowsAffected()
+			rows, _ := result.RowsAffected()
 
-				log.Println("ROWS UPDATED CANCEL:", rows)
+			log.Println("ROWS UPDATED CANCEL:", rows)
+
+			// hanya release stock jika status benar-benar berubah
+			if rows > 0 {
+
+				err = service.ReleaseReservedStockTx(
+					tx,
+					orderID,
+				)
+
+				if err != nil {
+
+					tx.Rollback()
+
+					log.Println("RELEASE STOCK CANCEL ERROR:", err)
+
+					return
+				}
+			}
+
+			err = tx.Commit()
+
+			if err != nil {
+
+				log.Println("COMMIT CANCEL ERROR:", err)
+
+				return
+			}
+
+			log.Println("CANCEL BERHASIL DIPROSES")
+		}
+
+		// =========================
+		// HANDLE DENY
+		// =========================
+		if transactionStatus == "deny" {
+
+			tx, err := database.DB.Begin()
+
+			if err != nil {
+
+				log.Println("BEGIN TX DENY ERROR:", err)
+
+				return
+			}
+
+			result, err := tx.Exec(`
+		UPDATE orders
+		SET
+			payment_status='failed',
+			payment_url=NULL
+		WHERE midtrans_order_id=?
+		AND payment_status='pending'
+	`, orderID)
+
+			if err != nil {
+
+				tx.Rollback()
+
+				log.Println("UPDATE DENY ERROR:", err)
+
+				return
+			}
+
+			rows, _ := result.RowsAffected()
+
+			log.Println("ROWS UPDATED DENY:", rows)
+
+			if rows > 0 {
+
+				err = service.ReleaseReservedStockTx(
+					tx,
+					orderID,
+				)
+
+				if err != nil {
+
+					tx.Rollback()
+
+					log.Println("RELEASE STOCK DENY ERROR:", err)
+
+					return
+				}
+			}
+
+			err = tx.Commit()
+
+			if err != nil {
+
+				log.Println("COMMIT DENY ERROR:", err)
+
+				return
 			}
 		}
 
