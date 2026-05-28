@@ -109,7 +109,13 @@ func main() {
 
 	var columnName string
 	var err error
-	err = database.DB.QueryRow(`SHOW COLUMNS FROM order_items LIKE 'service'`).Scan(&columnName)
+	err = database.DB.QueryRow(`
+		SELECT COLUMN_NAME
+		FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'order_items'
+		AND COLUMN_NAME = 'service'
+	`).Scan(&columnName)
 	if err == sql.ErrNoRows {
 		_, err = database.DB.Exec(`ALTER TABLE order_items ADD COLUMN service VARCHAR(255) NOT NULL DEFAULT ''`)
 		if err != nil {
