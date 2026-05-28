@@ -13,9 +13,14 @@ class AdminVoucherScreen extends StatefulWidget {
 
 class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   List vouchers = [];
+
   final Set<int> selectedVoucherIds = {};
+
   final discountController = TextEditingController();
+
   final assignEmailController = TextEditingController();
+
+  bool assignToAllCustomers = true;
 
   @override
   void initState() {
@@ -72,7 +77,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
     });
   }
 
-  Future<void> assignSelectedVoucher(String email) async {
+  Future<void> assignSelectedVoucher() async {
     if (selectedVoucherIds.isEmpty) {
       return;
     }
@@ -83,11 +88,13 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
           content: Text("Pilih maksimal 1 voucher untuk diberikan."),
         ),
       );
+
       return;
     }
 
     final selectedVoucher = vouchers.firstWhere(
       (voucher) => voucher["id"] == selectedVoucherIds.first,
+
       orElse: () => null,
     );
 
@@ -95,29 +102,39 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Voucher tidak ditemukan.")));
+
       return;
     }
 
     final response = await http.post(
       Uri.parse("${ApiConfig.baseUrl}/user-vouchers/assign"),
+
       headers: {"Content-Type": "application/json"},
+
       body: jsonEncode({
-        "email": email,
+        "assign_to_all": assignToAllCustomers,
+
+        "email": assignToAllCustomers
+            ? null
+            : assignEmailController.text.trim(),
+
         "voucher_codes": [selectedVoucher["code"]],
       }),
     );
 
     if (response.statusCode == 200) {
       selectedVoucherIds.clear();
+
       assignEmailController.clear();
+
       Navigator.pop(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Voucher berhasil diberikan ke customer."),
-        ),
+        const SnackBar(content: Text("Voucher berhasil diberikan.")),
       );
     } else {
       final body = jsonDecode(response.body);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(body["error"] ?? "Gagal memberikan voucher.")),
       );
@@ -129,58 +146,104 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Pilih voucher yang ingin diberikan.")),
       );
+
       return;
     }
 
     if (selectedVoucherIds.length > 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Pilih maksimal 1 voucher untuk diberikan."),
-        ),
+        const SnackBar(content: Text("Pilih maksimal 1 voucher.")),
       );
+
       return;
     }
 
     showDialog(
       context: context,
+
       builder: (_) {
         return AlertDialog(
-          title: const Text("Berikan Voucher ke Customer"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Masukkan email customer untuk mengirim voucher.",
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                controller: assignEmailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: "Email Customer"),
-              ),
-            ],
+          title: const Text("Berikan Voucher"),
+
+          content: StatefulBuilder(
+            builder: (context, setModalState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+
+                children: [
+                  const Text(
+                    "Pilih target pemberian voucher.",
+                    style: TextStyle(fontSize: 14),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  RadioListTile<bool>(
+                    value: true,
+
+                    groupValue: assignToAllCustomers,
+
+                    title: const Text("Semua Customer"),
+
+                    onChanged: (value) {
+                      setModalState(() {
+                        assignToAllCustomers = value!;
+                      });
+                    },
+                  ),
+
+                  RadioListTile<bool>(
+                    value: false,
+
+                    groupValue: assignToAllCustomers,
+
+                    title: const Text("Customer Tertentu"),
+
+                    onChanged: (value) {
+                      setModalState(() {
+                        assignToAllCustomers = value!;
+                      });
+                    },
+                  ),
+
+                  if (!assignToAllCustomers)
+                    TextField(
+                      controller: assignEmailController,
+
+                      keyboardType: TextInputType.emailAddress,
+
+                      decoration: const InputDecoration(
+                        labelText: "Email Customer",
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
+
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
               },
+
               child: const Text("Batal"),
             ),
+
             ElevatedButton(
               onPressed: () {
-                final email = assignEmailController.text.trim();
-                if (email.isEmpty) {
+                if (!assignToAllCustomers &&
+                    assignEmailController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Masukkan email customer terlebih dahulu."),
-                    ),
+                    const SnackBar(content: Text("Masukkan email customer.")),
                   );
+
                   return;
                 }
-                assignSelectedVoucher(email);
+
+                assignSelectedVoucher();
               },
+
               child: const Text("Kirim"),
             ),
           ],
@@ -202,7 +265,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
 
             children: [
               const Text(
-                "Kode voucher akan dibuat otomatis oleh sistem.",
+                "Kode voucher dibuat otomatis.",
                 style: TextStyle(fontSize: 14),
               ),
 
@@ -210,6 +273,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
 
               TextField(
                 controller: discountController,
+
                 keyboardType: TextInputType.number,
 
                 decoration: const InputDecoration(labelText: "Potongan"),
@@ -263,37 +327,48 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
 
       body: Padding(
         padding: const EdgeInsets.all(15),
+
         child: Column(
           children: [
             Expanded(
               child: ListView.builder(
                 itemCount: vouchers.length,
+
                 itemBuilder: (context, index) {
                   final voucher = vouchers[index];
+
                   final isSelected = selectedVoucherIds.contains(voucher["id"]);
 
                   return Card(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
+
                     child: ListTile(
                       leading: Checkbox(
                         value: isSelected,
+
                         onChanged: (_) {
                           toggleVoucherSelected(voucher["id"] as int);
                         },
                       ),
+
                       title: Text(
                         voucher["code"],
+
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
+
                       subtitle: Text("Potongan Rp ${voucher["discount"]}"),
+
                       trailing: IconButton(
                         onPressed: () {
                           deleteVoucher(voucher["id"]);
                         },
+
                         icon: const Icon(Icons.delete, color: Colors.red),
                       ),
+
                       onTap: () {
                         toggleVoucherSelected(voucher["id"] as int);
                       },
@@ -302,17 +377,23 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                 },
               ),
             ),
+
             const SizedBox(height: 16),
+
             SizedBox(
               width: double.infinity,
+
               child: ElevatedButton(
                 onPressed: showAssignDialog,
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[700],
                 ),
+
                 child: const Text("Berikan ke Customer"),
               ),
             ),
+
             const SizedBox(height: 16),
           ],
         ),

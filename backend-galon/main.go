@@ -1269,85 +1269,154 @@ func main() {
 
 	// ASSIGN VOUCHER TO CUSTOMER
 	r.POST("/user-vouchers/assign", func(c *gin.Context) {
+
 		type assignRequest struct {
 			UserUID      string   `json:"user_uid"`
 			Email        string   `json:"email"`
+			AssignAll    bool     `json:"assign_all"`
 			VoucherCodes []string `json:"voucher_codes"`
 		}
 
 		var req assignRequest
+
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
 			return
 		}
 
 		if len(req.VoucherCodes) == 0 {
-			c.JSON(400, gin.H{"error": "Pilih setidaknya satu voucher"})
-			return
-		}
-
-		if len(req.VoucherCodes) > 1 {
-			c.JSON(400, gin.H{"error": "Hanya satu voucher dapat diberikan ke customer saat ini"})
-			return
-		}
-
-		userID := req.UserUID
-		if userID == "" && req.Email != "" {
-			err := database.DB.QueryRow(`
-			SELECT firebase_uid FROM users WHERE email = ?
-		`, req.Email).Scan(&userID)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					c.JSON(404, gin.H{"error": "Customer tidak ditemukan"})
-					return
-				}
-				c.JSON(500, gin.H{"error": err.Error()})
-				return
-			}
-		}
-
-		if userID == "" {
-			c.JSON(400, gin.H{"error": "User UID atau email customer diperlukan"})
+			c.JSON(400, gin.H{
+				"error": "Voucher wajib dipilih",
+			})
 			return
 		}
 
 		code := req.VoucherCodes[0]
+
 		var voucher Voucher
+
 		err := database.DB.QueryRow(`
 		SELECT id, code, discount, is_active
 		FROM vouchers
-		WHERE code = ?
-		AND is_active = TRUE
-	`, code).Scan(
+		WHERE code=?
+	`,
+			code,
+		).Scan(
 			&voucher.ID,
 			&voucher.Code,
 			&voucher.Discount,
 			&voucher.IsActive,
 		)
+
 		if err != nil {
-			if err == sql.ErrNoRows {
-				c.JSON(404, gin.H{"error": "Voucher tidak ditemukan atau tidak aktif"})
+			c.JSON(404, gin.H{
+				"error": "Voucher tidak ditemukan",
+			})
+			return
+		}
+
+		// =====================================
+		// ASSIGN KE SEMUA CUSTOMER
+		// =====================================
+		if req.AssignAll {
+
+			rows, err := database.DB.Query(`
+			SELECT firebase_uid
+			FROM users
+			WHERE role='customer'
+		`)
+
+			if err != nil {
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
 				return
 			}
-			c.JSON(500, gin.H{"error": err.Error()})
+
+			defer rows.Close()
+
+			for rows.Next() {
+
+				var uid string
+
+				rows.Scan(&uid)
+
+				_, err := database.DB.Exec(`
+				INSERT INTO user_vouchers
+				(user_id, code, discount, is_used)
+				VALUES (?, ?, ?, false)
+			`,
+					uid,
+					voucher.Code,
+					voucher.Discount,
+				)
+
+				if err != nil {
+					log.Println("ASSIGN ALL ERROR:", err)
+				}
+			}
+
+			c.JSON(200, gin.H{
+				"message": "Voucher berhasil diberikan ke semua customer",
+			})
+
+			return
+		}
+
+		// =====================================
+		// ASSIGN KE CUSTOMER TERTENTU
+		// =====================================
+
+		if req.Email == "" {
+			c.JSON(400, gin.H{
+				"error": "Email customer wajib diisi",
+			})
+			return
+		}
+
+		var userID string
+
+		err = database.DB.QueryRow(`
+		SELECT firebase_uid
+		FROM users
+		WHERE email=?
+	`,
+			req.Email,
+		).Scan(&userID)
+
+		if err != nil {
+
+			c.JSON(404, gin.H{
+				"error": "Customer tidak ditemukan",
+			})
+
 			return
 		}
 
 		_, err = database.DB.Exec(`
-		INSERT INTO user_vouchers (user_id, code, discount, is_used)
+		INSERT INTO user_vouchers
+		(user_id, code, discount, is_used)
 		VALUES (?, ?, ?, false)
-		ON DUPLICATE KEY UPDATE code = VALUES(code), discount = VALUES(discount), is_used = false
-		`,
+	`,
 			userID,
 			voucher.Code,
 			voucher.Discount,
 		)
+
 		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+
 			return
 		}
 
-		c.JSON(200, gin.H{"message": "Voucher berhasil diberikan ke customer"})
+		c.JSON(200, gin.H{
+			"message": "Voucher berhasil diberikan",
+		})
 	})
 
 	// GET VOUCHER BY CODE
