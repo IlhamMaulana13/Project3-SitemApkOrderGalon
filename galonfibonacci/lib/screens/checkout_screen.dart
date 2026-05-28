@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -106,9 +107,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         discount = matchedDiscount;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Voucher berhasil digunakan")),
-      );
+      final applied = min(discount, subtotal);
+      final message = discount > subtotal
+          ? "Voucher berhasil digunakan. Diskon disesuaikan menjadi Rp $applied."
+          : "Voucher berhasil digunakan.";
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
@@ -117,9 +123,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         discount = 10000;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Voucher berhasil digunakan")),
-      );
+      final applied = min(discount, subtotal);
+      final message = discount > subtotal
+          ? "Voucher berhasil digunakan. Diskon disesuaikan menjadi Rp $applied."
+          : "Voucher berhasil digunakan.";
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
@@ -152,7 +163,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       int subtotal = cartProvider.total;
-      int total = subtotal - discount;
+      int appliedDiscount = min(discount, subtotal);
+      int total = subtotal - appliedDiscount;
 
       if (selectedPayment == "COD") {
         final codResponse = await http.post(
@@ -296,8 +308,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cartProvider = Provider.of<CartProvider>(context);
 
     int subtotal = cartProvider.total;
+    int appliedDiscount = min(discount, subtotal);
 
-    int total = subtotal - discount;
+    int total = subtotal - appliedDiscount;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -622,7 +635,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               const Text("Potongan"),
 
                               Text(
-                                "- Rp $discount",
+                                "- Rp $appliedDiscount",
 
                                 style: const TextStyle(color: Colors.red),
                               ),

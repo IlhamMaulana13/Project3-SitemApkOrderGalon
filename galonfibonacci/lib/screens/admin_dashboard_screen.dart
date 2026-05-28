@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
+import 'package:galonfibonacci/screens/admin_voucher_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:galonfibonacci/screens/report_screen.dart';
 import 'package:http/http.dart' as http;
@@ -504,10 +505,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                       buildMenuCard(
                         context,
-                        icon: Icons.settings,
-                        title: 'Setting Admin',
+                        icon: Icons.local_offer,
+                        title: 'Kelola Voucher',
                         color: Colors.purple,
-                        onTap: () {},
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminVoucherScreen(),
+                          ),
+                        ),
                       ),
                     ],
                   ),

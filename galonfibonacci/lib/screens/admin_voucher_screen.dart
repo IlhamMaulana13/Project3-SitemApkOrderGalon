@@ -13,8 +13,9 @@ class AdminVoucherScreen extends StatefulWidget {
 
 class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   List vouchers = [];
-
+  final Set<int> selectedVoucherIds = {};
   final discountController = TextEditingController();
+  final assignEmailController = TextEditingController();
 
   @override
   void initState() {
@@ -59,6 +60,133 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
     if (response.statusCode == 200) {
       fetchVouchers();
     }
+  }
+
+  void toggleVoucherSelected(int id) {
+    setState(() {
+      if (selectedVoucherIds.contains(id)) {
+        selectedVoucherIds.remove(id);
+      } else {
+        selectedVoucherIds.add(id);
+      }
+    });
+  }
+
+  Future<void> assignSelectedVoucher(String email) async {
+    if (selectedVoucherIds.isEmpty) {
+      return;
+    }
+
+    if (selectedVoucherIds.length > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Pilih maksimal 1 voucher untuk diberikan."),
+        ),
+      );
+      return;
+    }
+
+    final selectedVoucher = vouchers.firstWhere(
+      (voucher) => voucher["id"] == selectedVoucherIds.first,
+      orElse: () => null,
+    );
+
+    if (selectedVoucher == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Voucher tidak ditemukan.")));
+      return;
+    }
+
+    final response = await http.post(
+      Uri.parse("${ApiConfig.baseUrl}/user-vouchers/assign"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "email": email,
+        "voucher_codes": [selectedVoucher["code"]],
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      selectedVoucherIds.clear();
+      assignEmailController.clear();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Voucher berhasil diberikan ke customer."),
+        ),
+      );
+    } else {
+      final body = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(body["error"] ?? "Gagal memberikan voucher.")),
+      );
+    }
+  }
+
+  void showAssignDialog() {
+    if (selectedVoucherIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Pilih voucher yang ingin diberikan.")),
+      );
+      return;
+    }
+
+    if (selectedVoucherIds.length > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Pilih maksimal 1 voucher untuk diberikan."),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Berikan Voucher ke Customer"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Masukkan email customer untuk mengirim voucher.",
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: assignEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: "Email Customer"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Batal"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final email = assignEmailController.text.trim();
+                if (email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Masukkan email customer terlebih dahulu."),
+                    ),
+                  );
+                  return;
+                }
+                assignSelectedVoucher(email);
+              },
+              child: const Text("Kirim"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void showVoucherDialog() {
@@ -133,43 +261,61 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
 
-      body: ListView.builder(
+      body: Padding(
         padding: const EdgeInsets.all(15),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                itemCount: vouchers.length,
+                itemBuilder: (context, index) {
+                  final voucher = vouchers[index];
+                  final isSelected = selectedVoucherIds.contains(voucher["id"]);
 
-        itemCount: vouchers.length,
-
-        itemBuilder: (context, index) {
-          final voucher = vouchers[index];
-
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue[100],
-
-                child: Icon(Icons.discount, color: Colors.blue[700]),
-              ),
-
-              title: Text(
-                voucher["code"],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-
-              subtitle: Text("Potongan Rp ${voucher["discount"]}"),
-
-              trailing: IconButton(
-                onPressed: () {
-                  deleteVoucher(voucher["id"]);
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: ListTile(
+                      leading: Checkbox(
+                        value: isSelected,
+                        onChanged: (_) {
+                          toggleVoucherSelected(voucher["id"] as int);
+                        },
+                      ),
+                      title: Text(
+                        voucher["code"],
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text("Potongan Rp ${voucher["discount"]}"),
+                      trailing: IconButton(
+                        onPressed: () {
+                          deleteVoucher(voucher["id"]);
+                        },
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                      ),
+                      onTap: () {
+                        toggleVoucherSelected(voucher["id"] as int);
+                      },
+                    ),
+                  );
                 },
-
-                icon: const Icon(Icons.delete, color: Colors.red),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: showAssignDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                ),
+                child: const Text("Berikan ke Customer"),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
