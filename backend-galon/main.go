@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend-galon/database"
+	"backend-galon/handler"
 	"backend-galon/service"
 	"crypto/sha512"
 	"encoding/hex"
@@ -148,6 +149,8 @@ func main() {
 		c.JSON(http.StatusOK, products)
 
 	})
+
+	r.POST("/payment", handler.CreatePayment)
 
 	r.POST("/orders", func(c *gin.Context) {
 
