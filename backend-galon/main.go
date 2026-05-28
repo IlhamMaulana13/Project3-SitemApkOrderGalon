@@ -4,6 +4,7 @@ import (
 	"backend-galon/database"
 	"backend-galon/handler"
 	"backend-galon/service"
+	"crypto/rand"
 	"crypto/sha512"
 	"database/sql"
 	"encoding/hex"
@@ -87,6 +88,15 @@ type UserVoucher struct {
 	Discount  int    `json:"discount"`
 	IsUsed    bool   `json:"is_used"`
 	CreatedAt string `json:"created_at"`
+}
+
+func generateVoucherCode() string {
+	buf := make([]byte, 3)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return fmt.Sprintf("VOUCHER-%d", os.Getpid())
+	}
+	return fmt.Sprintf("VOUCHER-%s", hex.EncodeToString(buf))
 }
 
 func main() {
@@ -1222,6 +1232,10 @@ func main() {
 			return
 		}
 
+		if voucher.Code == "" {
+			voucher.Code = generateVoucherCode()
+		}
+
 		_, err := database.DB.Exec(`
 		INSERT INTO vouchers
 		(code, discount, is_active)
@@ -1243,6 +1257,7 @@ func main() {
 
 		c.JSON(200, gin.H{
 			"message": "Voucher berhasil dibuat",
+			"code":    voucher.Code,
 		})
 	})
 

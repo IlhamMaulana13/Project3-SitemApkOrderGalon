@@ -14,7 +14,6 @@ class AdminVoucherScreen extends StatefulWidget {
 class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   List vouchers = [];
 
-  final codeController = TextEditingController();
   final discountController = TextEditingController();
 
   @override
@@ -40,14 +39,10 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
 
       headers: {"Content-Type": "application/json"},
 
-      body: jsonEncode({
-        "code": codeController.text,
-        "discount": int.parse(discountController.text),
-      }),
+      body: jsonEncode({"discount": int.parse(discountController.text)}),
     );
 
     if (response.statusCode == 200) {
-      codeController.clear();
       discountController.clear();
 
       Navigator.pop(context);
@@ -78,10 +73,9 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
             mainAxisSize: MainAxisSize.min,
 
             children: [
-              TextField(
-                controller: codeController,
-
-                decoration: const InputDecoration(labelText: "Kode Voucher"),
+              const Text(
+                "Kode voucher akan dibuat otomatis oleh sistem.",
+                style: TextStyle(fontSize: 14),
               ),
 
               const SizedBox(height: 15),
