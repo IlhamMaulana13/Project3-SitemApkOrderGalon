@@ -1,0 +1,26 @@
+@startuml Lihat_Produk
+!theme plain
+title Sequence Diagram: Lihat Produk (View Products)
+actor Customer
+participant "Mobile App\n(Flutter)" as App
+participant "Backend\nAPI" as API
+database "Database" as DB
+
+Customer -> App: Buka Aplikasi / Klik Menu Produk
+App -> API: GET /api/products
+API -> DB: Query Daftar Produk
+DB --> API: Return Data Produk
+API --> App: Response JSON (List Produk)
+App -> App: Parse & Display Produk
+App --> Customer: Tampilkan Daftar Produk dengan\n(Nama, Harga, Gambar, Stok)
+
+alt Klik Detail Produk
+    Customer -> App: Klik Salah Satu Produk
+    App -> API: GET /api/products/{id}
+    API -> DB: Query Detail Produk
+    DB --> API: Return Data Detail
+    API --> App: Response Detail Produk
+    App --> Customer: Tampilkan Detail Produk\n(Deskripsi Lengkap, Harga, Stok, Review)
+end
+
+@enduml

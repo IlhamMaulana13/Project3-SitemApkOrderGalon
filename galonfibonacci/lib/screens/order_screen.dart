@@ -16,6 +16,7 @@ class OrderScreen extends StatefulWidget {
 
 class _OrderScreenState extends State<OrderScreen> {
   List<OrderModel> orders = [];
+  List<Map<String, dynamic>> rewardVouchers = [];
 
   Timer? timer;
 
@@ -43,10 +44,31 @@ class _OrderScreenState extends State<OrderScreen> {
     super.initState();
 
     fetchOrders();
+    fetchUserVouchers();
 
     // realtime refresh tiap 5 detik
     timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       fetchOrders();
+      fetchUserVouchers();
+    });
+  }
+
+  Future<void> fetchUserVouchers() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        rewardVouchers = [];
+      });
+      return;
+    }
+
+    final result = await ApiService.getUserVouchers(user.uid);
+
+    if (!mounted) return;
+
+    setState(() {
+      rewardVouchers = result;
     });
   }
 
@@ -104,157 +126,156 @@ class _OrderScreenState extends State<OrderScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      body: orders.isEmpty
+      body: orders.isEmpty && rewardVouchers.isEmpty
           ? const Center(child: Text("Belum ada pesanan"))
-          : ListView.builder(
+          : ListView(
               padding: const EdgeInsets.all(15),
-
-              itemCount: orders.length,
-
-              itemBuilder: (context, index) {
-                final order = orders[index];
-
-                return InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-
-                      MaterialPageRoute(
-                        builder: (_) => InvoiceScreen(orderId: order.id),
-                      ),
-                    );
-                  },
-
-                  child: Card(
-                    elevation: 3,
-
+              children: [
+                if (rewardVouchers.isNotEmpty)
+                  Card(
+                    color: Colors.green[50],
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-
                     margin: const EdgeInsets.only(bottom: 15),
-
                     child: Padding(
-                      padding: const EdgeInsets.all(15),
-
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                            children: [
-                              Text(
-                                "Pesanan #${order.id}",
-
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 6,
-                                ),
-
-                                decoration: BoxDecoration(
-                                  color: getStatusColor(order.status),
-
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-
-                                child: Text(
-                                  order.status,
-
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 15),
-
-                          Row(
-                            children: [
-                              Icon(Icons.payments, color: Colors.green[700]),
-
-                              const SizedBox(width: 8),
-
-                              Text(
-                                "Rp ${order.total}",
-
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 18,
-                                color: Colors.grey[700],
-                              ),
-
-                              const SizedBox(width: 8),
-
-                              Text(
-                                order.createdAt,
-
-                                style: TextStyle(color: Colors.grey[700]),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 15),
-
-                          SizedBox(
-                            width: double.infinity,
-
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        InvoiceScreen(orderId: order.id),
-                                  ),
-                                );
-                              },
-
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue[700],
-
-                                foregroundColor: Colors.white,
-
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-
-                              icon: const Icon(Icons.receipt_long),
-
-                              label: const Text("Lihat Invoice"),
+                          const Text(
+                            "Selamat! Kamu mendapatkan voucher",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "Transaksi ke-5 kamu berhasil. Gunakan kode ${rewardVouchers.first['code']} untuk potongan Rp ${rewardVouchers.first['discount']},",
+                            style: const TextStyle(fontSize: 16),
                           ),
                         ],
                       ),
                     ),
                   ),
-                );
-              },
+                if (orders.isEmpty) ...[
+                  const Center(child: Text("Belum ada pesanan")),
+                ] else
+                  ...orders.map((order) {
+                    return InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => InvoiceScreen(orderId: order.id),
+                          ),
+                        );
+                      },
+                      child: Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        margin: const EdgeInsets.only(bottom: 15),
+                        child: Padding(
+                          padding: const EdgeInsets.all(15),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Pesanan #${order.id}",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: getStatusColor(order.status),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      order.status,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.payments,
+                                    color: Colors.green[700],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Rp ${order.total}",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 18,
+                                    color: Colors.grey[700],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    order.createdAt,
+                                    style: TextStyle(color: Colors.grey[700]),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            InvoiceScreen(orderId: order.id),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue[700],
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.receipt_long),
+                                  label: const Text("Lihat Invoice"),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+              ],
             ),
     );
   }

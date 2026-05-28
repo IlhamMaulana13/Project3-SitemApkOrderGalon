@@ -86,6 +86,26 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  static Future<List<Map<String, dynamic>>> getUserVouchers(
+    String userId,
+  ) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/user-vouchers/$userId"),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data is List) {
+        return List<Map<String, dynamic>>.from(
+          data.map((item) => Map<String, dynamic>.from(item)),
+        );
+      }
+    }
+
+    return [];
+  }
+
   static Future<List<ReportModel>> getReports() async {
     final response = await http.get(Uri.parse("$baseUrl/reports"));
 

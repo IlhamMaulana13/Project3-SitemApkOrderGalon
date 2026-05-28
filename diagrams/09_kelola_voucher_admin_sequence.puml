@@ -1,0 +1,124 @@
+@startuml Kelola_Voucher_Admin
+!theme plain
+title Sequence Diagram: Kelola Voucher (Manage Vouchers) - Admin
+actor Admin
+participant "Mobile App\n(Flutter)" as App
+participant "Backend\nAPI" as API
+database "Database" as DB
+
+Admin -> App: Login sebagai Admin
+App -> App: Set Admin Session
+App --> Admin: Tampilkan Admin Dashboard
+
+Admin -> App: Klik Menu Kelola Voucher
+App -> API: GET /api/admin/vouchers
+API -> DB: Query All Vouchers
+DB --> API: Return Voucher List
+API --> App: Response JSON (Voucher List)
+App --> Admin: Tampilkan Daftar Voucher\n(Code, Diskon, Expired Date, Usage Count, Status)
+
+alt Buat Voucher Baru
+    Admin -> App: Klik Tombol Buat Voucher
+    App --> Admin: Tampilkan Form Create Voucher
+
+    Admin -> App: Input Kode, Tipe Diskon (%), Nominal, Masa Berlaku, Min Purchase, Max Usage
+    App -> App: Validasi Input (Kode Unik, Format Valid)
+
+    alt Input Valid
+        App -> API: POST /api/admin/vouchers
+        note right of App
+            Request Body:
+            - code
+            - discount_type (percentage/fixed)
+            - discount_value
+            - start_date
+            - expiry_date
+            - min_purchase
+            - max_usage
+            - max_usage_per_user
+            - description
+            - admin_id
+        end note
+
+        API -> DB: Check Voucher Code Uniqueness
+        alt Code Not Exists
+            API -> DB: Create New Voucher
+            DB --> API: Success (Voucher ID Generated)
+            API --> App: Response 201 (Voucher Created)
+            App --> Admin: Tampilkan Success "Voucher berhasil dibuat"
+            App -> API: GET /api/admin/vouchers
+            API -> DB: Query Updated Voucher List
+            DB --> API: Return List
+            API --> App: Response Updated List
+            App --> Admin: Refresh Daftar Voucher
+        else Code Already Exists
+            API --> App: Response 409
+            App --> Admin: Tampilkan Error "Kode voucher sudah ada"
+        end
+    else Input Invalid
+        App --> Admin: Tampilkan Error "Lengkapi semua field dengan benar"
+    end
+
+else Edit Voucher
+    Admin -> App: Klik Salah Satu Voucher untuk Edit
+    App -> API: GET /api/admin/vouchers/{voucher_id}
+    API -> DB: Query Voucher Detail
+    DB --> API: Return Voucher Data
+    API --> App: Response Voucher Detail
+    App --> Admin: Tampilkan Form Edit dengan Data Existing
+
+    Admin -> App: Update Fields (Diskon, Masa Berlaku, Max Usage, dll)
+    App -> App: Validasi Input
+
+    alt Input Valid
+        App -> API: PUT /api/admin/vouchers/{voucher_id}
+        API -> DB: Update Voucher Record
+        DB --> API: Success
+        API --> App: Response 200 (Voucher Updated)
+        App --> Admin: Tampilkan Success "Voucher berhasil diubah"
+    else Input Invalid
+        App --> Admin: Tampilkan Error "Data tidak valid"
+    end
+
+else Deactivate/Delete Voucher
+    Admin -> App: Klik Tombol Deactivate/Delete
+    App --> Admin: Tampilkan Confirmation Dialog
+
+    Admin -> App: Confirm Delete
+    App -> API: DELETE /api/admin/vouchers/{voucher_id}
+
+    API -> DB: Check if Voucher Already Used
+    alt Voucher Not Used Yet
+        API -> DB: Delete Voucher Record
+        DB --> API: Success
+        API --> App: Response 200
+        App --> Admin: Tampilkan Success "Voucher berhasil dihapus"
+    else Voucher Already Used
+        API -> DB: Mark Voucher as Inactive
+        DB --> API: Success
+        API --> App: Response 200 (Marked Inactive)
+        App --> Admin: Tampilkan Success "Voucher dinonaktifkan\n(data riwayat tetap tersimpan)"
+    end
+
+    App -> API: GET /api/admin/vouchers
+    API -> DB: Query Updated List
+    DB --> API: Return List
+    API --> App: Response Updated List
+    App --> Admin: Refresh Daftar Voucher
+
+else View Voucher Statistics
+    Admin -> App: Klik Tab Statistik/Analytics
+    App -> API: GET /api/admin/vouchers/{voucher_id}/stats
+    note right of App
+        Query Params:
+        - date_range
+        - status
+    end note
+
+    API -> DB: Query Voucher Usage Statistics
+    DB --> API: Return (Times Used, Total Discount, Avg Discount Per Use)
+    API --> App: Response Statistics
+    App --> Admin: Tampilkan Statistik\n(Usage Count, Total Discount Given, Popular Vouchers)
+end
+
+@enduml

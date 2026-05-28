@@ -2,10 +2,10 @@ package main
 
 import (
 	"backend-galon/database"
-	"backend-galon/handler"
 	"backend-galon/service"
 	"crypto/sha512"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -77,6 +77,15 @@ type Voucher struct {
 	IsActive bool   `json:"is_active"`
 }
 
+type UserVoucher struct {
+	ID        int    `json:"id"`
+	UserID    string `json:"user_id"`
+	Code      string `json:"code"`
+	Discount  int    `json:"discount"`
+	IsUsed    bool   `json:"is_used"`
+	CreatedAt string `json:"created_at"`
+}
+
 func main() {
 
 	godotenv.Load()
@@ -85,9 +94,23 @@ func main() {
 
 	database.ConnectDB()
 
-	r := gin.Default()
+	_, err := database.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS user_vouchers (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			user_id VARCHAR(255) NOT NULL,
+			code VARCHAR(100) NOT NULL,
+			discount INT NOT NULL,
+			is_used BOOLEAN NOT NULL DEFAULT FALSE,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY unique_user_reward (user_id)
+		)
+	`)
 
-	r.POST("/payment", handler.CreatePayment)
+	if err != nil {
+		log.Fatal("Gagal buat tabel user_vouchers:", err)
+	}
+
+	r := gin.Default()
 
 	// GET PRODUCTS
 	r.GET("/products", func(c *gin.Context) {
@@ -123,7 +146,7 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, products)
-		
+
 	})
 
 	r.POST("/orders", func(c *gin.Context) {
@@ -135,6 +158,9 @@ func main() {
 		// BIND JSON
 		// =========================
 		err = c.ShouldBindJSON(&order)
+		log.Printf("ORDER MASUK: %+v\n", order)
+		log.Println("IDEMPOTENCY:", order.IdempotencyKey)
+
 		if err != nil {
 
 			log.Println("BIND ERROR:", err)
@@ -419,6 +445,51 @@ func main() {
 		}
 
 		c.JSON(200, orders)
+	})
+
+	r.GET("/user-vouchers/:user_id", func(c *gin.Context) {
+		userID := c.Param("user_id")
+
+		rows, err := database.DB.Query(`
+		SELECT id, code, discount, is_used, created_at
+		FROM user_vouchers
+		WHERE user_id = ?
+		AND is_used = FALSE
+		ORDER BY created_at DESC
+	`, userID)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		defer rows.Close()
+
+		var vouchers []gin.H
+
+		for rows.Next() {
+			var id int
+			var code string
+			var discount int
+			var isUsed bool
+			var createdAt string
+
+			errs := rows.Scan(&id, &code, &discount, &isUsed, &createdAt)
+
+			if errs != nil {
+				continue
+			}
+
+			vouchers = append(vouchers, gin.H{
+				"id":         id,
+				"code":       code,
+				"discount":   discount,
+				"is_used":    isUsed,
+				"created_at": createdAt,
+			})
+		}
+
+		c.JSON(200, vouchers)
 	})
 
 	// GET DETAIL ORDER
@@ -1374,6 +1445,68 @@ func main() {
 				})
 
 				return
+			}
+
+			var userID string
+			err = tx.QueryRow(`
+			SELECT user_id
+			FROM orders
+			WHERE midtrans_order_id = ?
+		`, orderID).Scan(&userID)
+
+			if err != nil {
+				tx.Rollback()
+				log.Println("GET USER ERROR:", err)
+				c.JSON(500, gin.H{
+					"message": "Gagal mengambil data pengguna",
+				})
+				return
+			}
+
+			var paidCount int
+			err = tx.QueryRow(`
+			SELECT COUNT(*)
+			FROM orders
+			WHERE user_id = ?
+			AND payment_status = 'paid'
+		`, userID).Scan(&paidCount)
+
+			if err != nil {
+				tx.Rollback()
+				log.Println("COUNT PAID ORDERS ERROR:", err)
+				c.JSON(500, gin.H{
+					"message": "Gagal menghitung transaksi pengguna",
+				})
+				return
+			}
+
+			if paidCount == 5 {
+				suffix := userID
+				if len(suffix) > 4 {
+					suffix = suffix[len(suffix)-4:]
+				}
+
+				code := fmt.Sprintf("VOUCHER5X-%s", suffix)
+				_, err = tx.Exec(`
+				INSERT INTO user_vouchers (user_id, code, discount)
+				VALUES (?, ?, ?)
+				ON DUPLICATE KEY UPDATE code = code
+			`,
+					userID,
+					code,
+					10000,
+				)
+
+				if err != nil {
+					tx.Rollback()
+					log.Println("CREATE REWARD VOUCHER ERROR:", err)
+					c.JSON(500, gin.H{
+						"message": "Gagal membuat voucher reward",
+					})
+					return
+				}
+
+				log.Println("VOUCHER REWARD DIBUAT:", code, "UNTUK", userID)
 			}
 
 			// REDUCE STOCK

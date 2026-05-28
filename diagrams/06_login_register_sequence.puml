@@ -1,0 +1,80 @@
+@startuml Login_Register
+!theme plain
+title Sequence Diagram: Login / Register (Authentication)
+actor "User\n(Customer/Admin/Kurir)" as User
+participant "Mobile App\n(Flutter)" as App
+participant "Backend\nAPI" as API
+database "Database" as DB
+
+User -> App: Buka Aplikasi
+App --> User: Tampilkan Login Screen
+
+alt Register (Pengguna Baru)
+    User -> App: Klik Register
+    App --> User: Tampilkan Register Form
+
+    User -> App: Input Email, Password, Nama, Role Selection
+    App -> App: Validasi Input (Email Format, Password Strength)
+
+    alt Input Valid
+        App -> API: POST /api/auth/register
+        note right of App
+            Request Body:
+            - email
+            - password
+            - name
+            - role (customer/admin/kurir)
+            - phone (optional)
+        end note
+
+        API -> DB: Check Email Already Exists
+        alt Email Belum Terdaftar
+            API -> DB: Create New User Account
+            DB --> API: Success (User ID Generated)
+            API --> App: Response 200 (Success)
+            App --> User: Tampilkan Success Message\n& Redirect to Login
+        else Email Sudah Terdaftar
+            API --> App: Response 400 (Email exists)
+            App --> User: Tampilkan Error "Email sudah terdaftar"
+        end
+    else Input Invalid
+        App --> User: Tampilkan Error (Invalid Format/Weak Password)
+    end
+else Login (Pengguna Existing)
+    User -> App: Input Email & Password
+    App -> App: Validasi Input
+
+    alt Input Valid
+        App -> API: POST /api/auth/login
+        note right of App
+            Request Body:
+            - email
+            - password
+        end note
+
+        API -> DB: Query User by Email
+        alt User Found
+            API -> API: Verify Password Hash
+
+            alt Password Correct
+                API -> API: Generate JWT Token
+                API -> DB: Log Login Activity
+                DB --> API: Success
+                API --> App: Response 200 (Token, User Data, Role)
+                App -> App: Store Token (Secure Storage)
+                App -> App: Set User Session
+                App --> User: Redirect to Home Screen\n(sesuai role: Customer/Admin/Kurir)
+            else Password Wrong
+                API --> App: Response 401 (Invalid Password)
+                App --> User: Tampilkan Error "Password salah"
+            end
+        else User Not Found
+            API --> App: Response 404 (User not found)
+            App --> User: Tampilkan Error "Email tidak terdaftar"
+        end
+    else Input Invalid
+        App --> User: Tampilkan Error (Email format invalid)
+    end
+end
+
+@enduml

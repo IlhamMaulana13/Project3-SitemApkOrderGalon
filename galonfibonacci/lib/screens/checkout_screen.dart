@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:galonfibonacci/screens/edit_profile_screen.dart';
 import 'package:galonfibonacci/screens/payment_webview_screen.dart';
+import 'package:galonfibonacci/services/api_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:galonfibonacci/api_config.dart';
@@ -20,6 +21,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final voucherController = TextEditingController();
 
   Map<String, dynamic>? profile;
+
+  List<Map<String, dynamic>> rewardVouchers = [];
 
   int discount = 0;
 
@@ -49,14 +52,67 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() {
           profile = jsonDecode(response.body);
         });
+
+        fetchUserVouchers();
       }
     } catch (e) {
       debugPrint(e.toString());
     }
   }
 
+  Future<void> fetchUserVouchers() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    try {
+      final result = await ApiService.getUserVouchers(user.uid);
+
+      if (!mounted) return;
+
+      setState(() {
+        rewardVouchers = result;
+      });
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
   void applyVoucher(int subtotal) {
-    if (voucherController.text.trim() == "GALON10") {
+    final code = voucherController.text.trim();
+
+    if (code.isEmpty) {
+      setState(() {
+        discount = 0;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Masukkan kode voucher terlebih dahulu")),
+      );
+      return;
+    }
+
+    int matchedDiscount = 0;
+
+    for (var voucher in rewardVouchers) {
+      if (voucher["code"] == code) {
+        matchedDiscount = voucher["discount"] as int;
+        break;
+      }
+    }
+
+    if (matchedDiscount > 0) {
+      setState(() {
+        discount = matchedDiscount;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Voucher berhasil digunakan")),
+      );
+      return;
+    }
+
+    if (code == "GALON10") {
       setState(() {
         discount = 10000;
       });
@@ -64,15 +120,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Voucher berhasil digunakan")),
       );
-    } else {
-      setState(() {
-        discount = 0;
-      });
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Voucher tidak valid")));
+      return;
     }
+
+    setState(() {
+      discount = 0;
+    });
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Voucher tidak valid")));
   }
 
   Future<void> checkout() async {
@@ -177,6 +234,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         final data = jsonDecode(response.body);
 
         final paymentUrl = data["redirect_url"];
+        final idempotencyKey =
+            "${user.uid}_${DateTime.now().millisecondsSinceEpoch}";
 
         await http.post(
           Uri.parse("${ApiConfig.baseUrl}/orders"),
@@ -186,6 +245,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             "payment_method_id": 1,
             "payment_channel": selectedPayment,
             "midtrans_order_id": orderId,
+            "idempotency_key": idempotencyKey,
             "total": total,
             "items": cartProvider.items.map((item) {
               return {
@@ -420,6 +480,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  if (rewardVouchers.isNotEmpty)
+                    Card(
+                      color: Colors.green[50],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Voucher Reward",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Selamat! Transaksi ke-5 kamu mendapatkan voucher ${rewardVouchers.first["code"]} dengan potongan Rp ${rewardVouchers.first["discount"]}.",
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "Masukkan kode tersebut di kolom voucher dan klik Apply.",
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 20),
 
