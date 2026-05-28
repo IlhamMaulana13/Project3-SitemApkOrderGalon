@@ -10,7 +10,7 @@ func ReleaseReservedStockTx(
 ) error {
 
 	rows, err := tx.Query(`
-		SELECT product_id, qty
+		SELECT product_id, qty, service
 		FROM order_items oi
 		JOIN orders o ON oi.order_id = o.id
 		WHERE o.midtrans_order_id=?
@@ -23,6 +23,7 @@ func ReleaseReservedStockTx(
 	var items []struct {
 		ProductID int
 		Qty       int
+		Service   string
 	}
 
 	for rows.Next() {
@@ -30,11 +31,13 @@ func ReleaseReservedStockTx(
 		var item struct {
 			ProductID int
 			Qty       int
+			Service   string
 		}
 
 		err := rows.Scan(
 			&item.ProductID,
 			&item.Qty,
+			&item.Service,
 		)
 
 		if err != nil {
@@ -48,6 +51,9 @@ func ReleaseReservedStockTx(
 	rows.Close()
 
 	for _, item := range items {
+		if item.Service == "Isi Ulang" {
+			continue
+		}
 
 		_, err = tx.Exec(`
 			UPDATE products

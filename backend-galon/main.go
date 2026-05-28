@@ -5,6 +5,7 @@ import (
 	"backend-galon/handler"
 	"backend-galon/service"
 	"crypto/sha512"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -26,9 +27,10 @@ type Product struct {
 }
 
 type OrderItem struct {
-	ProductID int `json:"product_id"`
-	Qty       int `json:"qty"`
-	Subtotal  int `json:"subtotal"`
+	ProductID int    `json:"product_id"`
+	Qty       int    `json:"qty"`
+	Subtotal  int    `json:"subtotal"`
+	Service   string `json:"service"`
 }
 
 type Order struct {
@@ -95,7 +97,19 @@ func main() {
 
 	database.ConnectDB()
 
-	_, err := database.DB.Exec(`
+	var columnName string
+	var err error
+	err = database.DB.QueryRow(`SHOW COLUMNS FROM order_items LIKE 'service'`).Scan(&columnName)
+	if err == sql.ErrNoRows {
+		_, err = database.DB.Exec(`ALTER TABLE order_items ADD COLUMN service VARCHAR(255) NOT NULL DEFAULT ''`)
+		if err != nil {
+			log.Fatal("Gagal menambahkan kolom service ke order_items:", err)
+		}
+	} else if err != nil {
+		log.Fatal("Gagal memeriksa kolom service pada order_items:", err)
+	}
+
+	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS user_vouchers (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			user_id VARCHAR(255) NOT NULL,
@@ -331,15 +345,17 @@ func main() {
 
 			availableStock := stock - reservedStock
 
-			if availableStock < item.Qty {
+			if item.Service != "Isi Ulang" {
+				if availableStock < item.Qty {
 
-				tx.Rollback()
+					tx.Rollback()
 
-				c.JSON(400, gin.H{
-					"error": "Stock tidak cukup",
-				})
+					c.JSON(400, gin.H{
+						"error": "Stock tidak cukup",
+					})
 
-				return
+					return
+				}
 			}
 
 			// INSERT ORDER ITEM
@@ -349,14 +365,16 @@ func main() {
 				order_id,
 				product_id,
 				qty,
-				subtotal
+				subtotal,
+				service
 			)
-			VALUES (?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?)
 		`,
 				orderID,
 				item.ProductID,
 				item.Qty,
 				item.Subtotal,
+				item.Service,
 			)
 
 			if err != nil {
@@ -371,14 +389,26 @@ func main() {
 			}
 
 			// RESERVE STOCK
-			_, err = tx.Exec(`
+			if item.Service != "Isi Ulang" {
+				_, err = tx.Exec(`
 			UPDATE products
 			SET reserved_stock = reserved_stock + ?
 			WHERE id=?
 		`,
-				item.Qty,
-				item.ProductID,
-			)
+					item.Qty,
+					item.ProductID,
+				)
+
+				if err != nil {
+					tx.Rollback()
+
+					c.JSON(500, gin.H{
+						"error": err.Error(),
+					})
+
+					return
+				}
+			}
 
 			if err != nil {
 

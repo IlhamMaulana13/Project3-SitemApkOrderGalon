@@ -11,7 +11,7 @@ func ReduceStockByOrderTx(
 ) error {
 
 	rows, err := tx.Query(`
-		SELECT product_id, qty
+		SELECT product_id, qty, service
 		FROM order_items oi
 		JOIN orders o ON oi.order_id = o.id
 		WHERE o.midtrans_order_id=?
@@ -24,6 +24,7 @@ func ReduceStockByOrderTx(
 	var items []struct {
 		ProductID int
 		Qty       int
+		Service   string
 	}
 
 	for rows.Next() {
@@ -31,11 +32,13 @@ func ReduceStockByOrderTx(
 		var item struct {
 			ProductID int
 			Qty       int
+			Service   string
 		}
 
 		err := rows.Scan(
 			&item.ProductID,
 			&item.Qty,
+			&item.Service,
 		)
 
 		if err != nil {
@@ -49,7 +52,10 @@ func ReduceStockByOrderTx(
 	rows.Close()
 
 	for _, item := range items {
-
+		if item.Service == "Isi Ulang" {
+			log.Println("SKIP STOCK REDUCTION FOR ISI ULANG:", item.ProductID, item.Qty)
+			continue
+		}
 		log.Println("REDUCE STOCK:", item.ProductID, item.Qty)
 
 		_, err = tx.Exec(`

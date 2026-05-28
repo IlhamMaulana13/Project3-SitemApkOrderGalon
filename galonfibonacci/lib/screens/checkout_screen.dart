@@ -172,6 +172,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 "product_id": item.product.id,
                 "qty": item.quantity,
                 "subtotal": item.product.price * item.quantity,
+                "service": item.service,
               };
             }).toList(),
           }),
@@ -252,6 +253,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 "product_id": item.product.id,
                 "qty": item.quantity,
                 "subtotal": item.product.price * item.quantity,
+                "service": item.service,
               };
             }).toList(),
           }),
