@@ -859,6 +859,77 @@ func main() {
 						", pesanan anda telah selesai"
 			}
 
+			if body.Status == "Selesai" {
+
+				// =========================
+				// AMBIL USER ID
+				// =========================
+				var userID string
+
+				err := database.DB.QueryRow(`
+		SELECT user_id
+		FROM orders
+		WHERE id = ?
+	`, id).Scan(&userID)
+
+				if err == nil {
+
+					// =========================
+					// HITUNG ORDER SELESAI
+					// =========================
+					var selesaiCount int
+
+					err = database.DB.QueryRow(`
+			SELECT COUNT(*)
+			FROM orders
+			WHERE user_id = ?
+			AND status = 'Selesai'
+		`, userID).Scan(&selesaiCount)
+
+					if err == nil {
+
+						// =========================
+						// HITUNG VOUCHER REWARD
+						// =========================
+						var rewardCount int
+
+						err = database.DB.QueryRow(`
+				SELECT COUNT(*)
+				FROM user_vouchers
+				WHERE user_id = ?
+			`, userID).Scan(&rewardCount)
+
+						if err == nil {
+
+							expectedReward := selesaiCount / 5
+
+							if rewardCount < expectedReward {
+
+								code := generateVoucherCode()
+
+								_, err = database.DB.Exec(`
+						INSERT INTO user_vouchers
+						(user_id, code, discount, is_used)
+						VALUES (?, ?, ?, false)
+					`,
+									userID,
+									code,
+									10000,
+								)
+
+								if err == nil {
+
+									log.Println(
+										"VOUCHER REWARD DIBUAT:",
+										code,
+									)
+								}
+							}
+						}
+					}
+				}
+			}
+
 			database.SendNotification(
 				token,
 				title,
@@ -1773,96 +1844,6 @@ func main() {
 					"message": "Gagal mengambil data pengguna",
 				})
 				return
-			}
-
-			// =========================
-			// HITUNG TOTAL ORDER VALID
-			// =========================
-			var paidCount int
-
-			err = tx.QueryRow(`
-	SELECT COUNT(*)
-	FROM orders
-	WHERE user_id = ?
-	AND payment_status = 'paid'
-	AND status = 'Selesai'
-`, userID).Scan(&paidCount)
-
-			if err != nil {
-
-				tx.Rollback()
-
-				log.Println("COUNT PAID ORDERS ERROR:", err)
-
-				c.JSON(500, gin.H{
-					"message": "Gagal menghitung transaksi",
-				})
-
-				return
-			}
-
-			log.Println("TOTAL ORDER SELESAI:", paidCount)
-
-			// =========================
-			// CEK TOTAL VOUCHER REWARD
-			// =========================
-			var rewardCount int
-
-			err = tx.QueryRow(`
-	SELECT COUNT(*)
-	FROM user_vouchers
-	WHERE user_id = ?
-`, userID).Scan(&rewardCount)
-
-			if err != nil {
-
-				tx.Rollback()
-
-				log.Println("COUNT REWARD ERROR:", err)
-
-				c.JSON(500, gin.H{
-					"message": "Gagal cek reward",
-				})
-
-				return
-			}
-
-			// =========================
-			// SETIAP 5 TRANSAKSI
-			// =========================
-			if paidCount >= 5 {
-
-				expectedReward := paidCount / 5
-
-				if rewardCount < expectedReward {
-
-					code := generateVoucherCode()
-
-					_, err = tx.Exec(`
-			INSERT INTO user_vouchers
-			(user_id, code, discount, is_used)
-			VALUES (?, ?, ?, false)
-		`,
-						userID,
-						code,
-						10000,
-					)
-
-					if err != nil {
-
-						tx.Rollback()
-
-						log.Println("CREATE REWARD ERROR:", err)
-
-						c.JSON(500, gin.H{
-							"message": "Gagal membuat reward",
-						})
-
-						return
-					}
-
-					log.Println("VOUCHER REWARD BERHASIL:", code)
-				}
 			}
 
 			// REDUCE STOCK
