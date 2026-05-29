@@ -70,6 +70,7 @@ class _OrderScreenState extends State<OrderScreen> {
     setState(() {
       rewardVouchers = result;
     });
+    
   }
 
   Future<void> fetchOrders() async {
@@ -131,34 +132,6 @@ class _OrderScreenState extends State<OrderScreen> {
           : ListView(
               padding: const EdgeInsets.all(15),
               children: [
-                if (rewardVouchers.isNotEmpty)
-                  Card(
-                    color: Colors.green[50],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    margin: const EdgeInsets.only(bottom: 15),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Selamat! Kamu mendapatkan voucher",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            "Transaksi ke-5 kamu berhasil. Gunakan kode ${rewardVouchers.first['code']} untuk potongan Rp ${rewardVouchers.first['discount']},",
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 if (orders.isEmpty) ...[
                   const Center(child: Text("Belum ada pesanan")),
                 ] else

@@ -74,73 +74,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() {
         rewardVouchers = result;
       });
+
+      applyVoucher(Provider.of<CartProvider>(context, listen: false).total);
     } catch (e) {
       debugPrint(e.toString());
     }
   }
 
   void applyVoucher(int subtotal) {
-    final code = voucherController.text.trim();
-
-    if (code.isEmpty) {
-      setState(() {
-        discount = 0;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Masukkan kode voucher terlebih dahulu")),
-      );
-      return;
-    }
-
     int matchedDiscount = 0;
 
-    for (var voucher in rewardVouchers) {
-      if (voucher["code"] == code) {
-        matchedDiscount = voucher["discount"] as int;
-        break;
+    // AUTO ambil voucher reward pertama
+    if (rewardVouchers.isNotEmpty) {
+      matchedDiscount = rewardVouchers.first["discount"] as int;
+
+      voucherController.text = rewardVouchers.first["code"];
+    }
+
+    // fallback voucher manual
+    if (matchedDiscount == 0) {
+      final code = voucherController.text.trim();
+
+      for (var voucher in rewardVouchers) {
+        if (voucher["code"] == code) {
+          matchedDiscount = voucher["discount"] as int;
+          break;
+        }
+      }
+
+      if (matchedDiscount == 0 && code == "GALON10") {
+        matchedDiscount = 10000;
       }
     }
 
-    if (matchedDiscount > 0) {
-      setState(() {
-        discount = matchedDiscount;
-      });
-
-      final applied = min(discount, subtotal);
-      final message = discount > subtotal
-          ? "Voucher berhasil digunakan. Diskon disesuaikan menjadi Rp $applied."
-          : "Voucher berhasil digunakan.";
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-      return;
-    }
-
-    if (code == "GALON10") {
-      setState(() {
-        discount = 10000;
-      });
-
-      final applied = min(discount, subtotal);
-      final message = discount > subtotal
-          ? "Voucher berhasil digunakan. Diskon disesuaikan menjadi Rp $applied."
-          : "Voucher berhasil digunakan.";
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-      return;
-    }
-
     setState(() {
-      discount = 0;
+      discount = matchedDiscount;
     });
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Voucher tidak valid")));
   }
 
   Future<void> checkout() async {
@@ -495,40 +464,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  if (rewardVouchers.isNotEmpty)
-                    Card(
-                      color: Colors.green[50],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Voucher Reward",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Selamat! Transaksi ke-5 kamu mendapatkan voucher ${rewardVouchers.first["code"]} dengan potongan Rp ${rewardVouchers.first["discount"]}.",
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              "Masukkan kode tersebut di kolom voucher dan klik Apply.",
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
 
                   const SizedBox(height: 20),
 

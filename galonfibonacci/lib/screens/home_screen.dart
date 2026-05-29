@@ -215,44 +215,71 @@ class _ProductItemState extends State<ProductItem> {
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = Provider.of<CartProvider>(
-      context,
-      listen: false,
-    );
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 15),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // IMAGE
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
                 widget.product.image,
-                width: 80,
-                height: 80,
+                width: 70,
+                height: 70,
                 fit: BoxFit.cover,
+
+                // loading
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
+
+                  return Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
+
+                // ERROR IMAGE
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  );
+                },
               ),
             ),
 
-            const SizedBox(width: 15),
+            const SizedBox(width: 12),
 
+            // CONTENT
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.product.merk,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 15,
                     ),
                   ),
 
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 6),
 
-                  // SERVICE
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -267,7 +294,7 @@ class _ProductItemState extends State<ProductItem> {
                       style: TextStyle(
                         color: Colors.blue[700],
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -280,143 +307,145 @@ class _ProductItemState extends State<ProductItem> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.payments_rounded,
-                              size: 16,
-                              color: Colors.green[700],
-                            ),
-
-                            const SizedBox(width: 5),
-
-                            Text(
-                              "Rp ${widget.price}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: Colors.green[700],
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          "Rp ${widget.price}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Colors.green[700],
+                          ),
                         ),
                       ),
 
-                      // STOCK HANYA UNTUK BELI BARU
                       if (useStock)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 10,
+                            vertical: 5,
                           ),
                           decoration: BoxDecoration(
                             color: widget.product.stock <= 0
                                 ? Colors.red.shade50
                                 : Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.inventory_2_outlined,
-                                size: 16,
-                                color: widget.product.stock <= 0
-                                    ? Colors.red
-                                    : Colors.blue[700],
-                              ),
-
-                              const SizedBox(width: 5),
-
-                              Text(
-                                "Stock ${widget.product.stock}",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: widget.product.stock <= 0
-                                      ? Colors.red
-                                      : Colors.blue[700],
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            "Stock ${widget.product.stock}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              color: widget.product.stock <= 0
+                                  ? Colors.red
+                                  : Colors.blue[700],
+                            ),
                           ),
                         ),
                     ],
                   ),
+
+                  const SizedBox(height: 10),
+
+                  // QUANTITY
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          if (quantity > 1) {
+                            setState(() {
+                              quantity--;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.remove, size: 18),
+                        ),
+                      ),
+
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          "$quantity",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            quantity++;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.add, size: 18),
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      ElevatedButton(
+                        onPressed: isOutOfStock
+                            ? null
+                            : () {
+                                final updatedProduct = ProductModel(
+                                  id: widget.product.id,
+                                  categoryId: widget.product.categoryId,
+                                  merk:
+                                      "${widget.product.merk} (${widget.selectedService})",
+                                  price: widget.price,
+                                  stock: widget.product.stock,
+                                  image: widget.product.image,
+                                );
+
+                                cartProvider.addToCart(
+                                  updatedProduct,
+                                  widget.selectedService,
+                                  quantity,
+                                );
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "${widget.product.merk} ditambahkan",
+                                    ),
+                                  ),
+                                );
+                              },
+
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[700],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                        ),
+
+                        child: Text(
+                          isOutOfStock ? "Habis" : "Tambah",
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ),
-
-            Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        if (quantity > 1) {
-                          setState(() {
-                            quantity--;
-                          });
-                        }
-                      },
-                      icon: const Icon(Icons.remove),
-                    ),
-
-                    Text("$quantity"),
-
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          quantity++;
-                        });
-                      },
-                      icon: const Icon(Icons.add),
-                    ),
-                  ],
-                ),
-
-                ElevatedButton(
-                  onPressed: isOutOfStock
-                      ? null
-                      : () {
-                          final updatedProduct = ProductModel(
-                            id: widget.product.id,
-                            categoryId: widget.product.categoryId,
-                            merk:
-                                "${widget.product.merk} (${widget.selectedService})",
-                            price: widget.price,
-                            stock: widget.product.stock,
-                            image: widget.product.image,
-                          );
-
-                          cartProvider.addToCart(
-                            updatedProduct,
-                            widget.selectedService,
-                            quantity,
-                          );
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "${widget.product.merk} ditambahkan",
-                              ),
-                            ),
-                          );
-                        },
-
-                  child: Text(
-                    isOutOfStock ? "Habis" : "Tambah",
-                  ),
-                ),
-              ],
             ),
           ],
         ),
