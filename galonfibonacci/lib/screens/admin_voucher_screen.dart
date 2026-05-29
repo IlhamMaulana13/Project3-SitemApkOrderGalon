@@ -112,7 +112,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
       headers: {"Content-Type": "application/json"},
 
       body: jsonEncode({
-        "assign_to_all": assignToAllCustomers,
+        "assign_all": assignToAllCustomers,
 
         "email": assignToAllCustomers
             ? null

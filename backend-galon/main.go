@@ -35,15 +35,21 @@ type OrderItem struct {
 }
 
 type Order struct {
-	UserID          string      `json:"user_id"`
-	IdempotencyKey  string      `json:"idempotency_key"`
-	PaymentMethodID int         `json:"payment_method_id"`
-	PaymentChannel  string      `json:"payment_channel"`
-	MidtransOrderID string      `json:"midtrans_order_id"`
-	Total           int         `json:"total"`
-	Status          string      `json:"status"`
-	PaymentStatus   string      `json:"payment_status"`
-	Items           []OrderItem `json:"items"`
+	UserID          string `json:"user_id"`
+	IdempotencyKey  string `json:"idempotency_key"`
+	PaymentMethodID int    `json:"payment_method_id"`
+	PaymentChannel  string `json:"payment_channel"`
+	MidtransOrderID string `json:"midtrans_order_id"`
+
+	Total int `json:"total"`
+
+	VoucherCode     string `json:"voucher_code"`
+	VoucherDiscount int    `json:"voucher_discount"`
+
+	Status        string `json:"status"`
+	PaymentStatus string `json:"payment_status"`
+
+	Items []OrderItem `json:"items"`
 }
 
 type OrderResponse struct {
@@ -270,6 +276,53 @@ func main() {
 			return
 		}
 
+		if order.VoucherCode != "" {
+
+			var voucherDiscount int
+			var isUsed bool
+
+			err := database.DB.QueryRow(`
+	SELECT discount, is_used
+	FROM user_vouchers
+	WHERE user_id = ?
+	AND code = ?
+	LIMIT 1
+`,
+				order.UserID,
+				order.VoucherCode,
+			).Scan(
+				&voucherDiscount,
+				&isUsed,
+			)
+
+			if err != nil {
+
+				c.JSON(400, gin.H{
+					"error": "Voucher tidak ditemukan",
+				})
+
+				return
+			}
+
+			if isUsed {
+
+				c.JSON(400, gin.H{
+					"error": "Voucher sudah digunakan",
+				})
+
+				return
+			}
+
+			if voucherDiscount != order.VoucherDiscount {
+
+				c.JSON(400, gin.H{
+					"error": "Diskon voucher tidak valid",
+				})
+
+				return
+			}
+		}
+
 		// =========================
 		// BEGIN TX
 		// =========================
@@ -295,17 +348,21 @@ func main() {
 			payment_channel,
 			midtrans_order_id,
 			total,
+			voucher_code,
+			voucher_discount,
 			status,
 			payment_status,
 			idempotency_key
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			order.UserID,
 			order.PaymentMethodID,
 			order.PaymentChannel,
 			order.MidtransOrderID,
 			order.Total,
+			order.VoucherCode,
+			order.VoucherDiscount,
 			"Diproses",
 			"pending",
 			order.IdempotencyKey,
@@ -1637,6 +1694,55 @@ func main() {
 
 			rows, _ := result.RowsAffected()
 
+			var voucherCode string
+
+			err = tx.QueryRow(`
+	SELECT voucher_code
+	FROM orders
+	WHERE midtrans_order_id = ?
+`,
+				orderID,
+			).Scan(&voucherCode)
+
+			if err != nil && err != sql.ErrNoRows {
+
+				tx.Rollback()
+
+				log.Println("GET VOUCHER ERROR:", err)
+
+				c.JSON(500, gin.H{
+					"message": "Gagal mengambil voucher",
+				})
+
+				return
+			}
+
+			if voucherCode != "" {
+
+				_, err = tx.Exec(`
+	UPDATE user_vouchers
+	SET is_used = true
+	WHERE code = ?
+`,
+					voucherCode,
+				)
+
+				if err != nil {
+
+					tx.Rollback()
+
+					log.Println("UPDATE VOUCHER USED ERROR:", err)
+
+					c.JSON(500, gin.H{
+						"message": "Gagal update voucher",
+					})
+
+					return
+				}
+
+				log.Println("VOUCHER DIGUNAKAN:", voucherCode)
+			}
+
 			log.Println("ROWS UPDATED:", rows)
 
 			// CALLBACK DUPLICATE
@@ -1686,18 +1792,15 @@ func main() {
 				return
 			}
 
-			if paidCount == 5 {
-				suffix := userID
-				if len(suffix) > 4 {
-					suffix = suffix[len(suffix)-4:]
-				}
+			if paidCount%5 == 0 {
 
-				code := fmt.Sprintf("VOUCHER5X-%s", suffix)
+				code := generateVoucherCode()
+
 				_, err = tx.Exec(`
-				INSERT INTO user_vouchers (user_id, code, discount)
-				VALUES (?, ?, ?)
-				ON DUPLICATE KEY UPDATE code = code
-			`,
+	INSERT INTO user_vouchers
+	(user_id, code, discount, is_used)
+	VALUES (?, ?, ?, false)
+`,
 					userID,
 					code,
 					10000,
@@ -1705,10 +1808,13 @@ func main() {
 
 				if err != nil {
 					tx.Rollback()
+
 					log.Println("CREATE REWARD VOUCHER ERROR:", err)
+
 					c.JSON(500, gin.H{
 						"message": "Gagal membuat voucher reward",
 					})
+
 					return
 				}
 
