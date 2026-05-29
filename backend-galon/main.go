@@ -1776,7 +1776,7 @@ func main() {
 			}
 
 			// =========================
-			// HITUNG TOTAL ORDER PAID
+			// HITUNG TOTAL ORDER VALID
 			// =========================
 			var paidCount int
 
@@ -1785,6 +1785,7 @@ func main() {
 	FROM orders
 	WHERE user_id = ?
 	AND payment_status = 'paid'
+	AND status = 'Selesai'
 `, userID).Scan(&paidCount)
 
 			if err != nil {
@@ -1800,39 +1801,40 @@ func main() {
 				return
 			}
 
-			log.Println("TOTAL PAID ORDER:", paidCount)
+			log.Println("TOTAL ORDER SELESAI:", paidCount)
 
 			// =========================
-			// VOUCHER SETIAP 5 ORDER
+			// CEK TOTAL VOUCHER REWARD
 			// =========================
-			if paidCount > 0 && paidCount%5 == 0 {
+			var rewardCount int
 
-				// CEK APAKAH SUDAH PERNAH DAPAT
-				var existingVoucher int
+			err = tx.QueryRow(`
+	SELECT COUNT(*)
+	FROM user_vouchers
+	WHERE user_id = ?
+`, userID).Scan(&rewardCount)
 
-				err = tx.QueryRow(`
-		SELECT COUNT(*)
-		FROM user_vouchers
-		WHERE user_id = ?
-	`, userID).Scan(&existingVoucher)
+			if err != nil {
 
-				if err != nil {
+				tx.Rollback()
 
-					tx.Rollback()
+				log.Println("COUNT REWARD ERROR:", err)
 
-					log.Println("CHECK VOUCHER ERROR:", err)
+				c.JSON(500, gin.H{
+					"message": "Gagal cek reward",
+				})
 
-					c.JSON(500, gin.H{
-						"message": "Gagal cek voucher",
-					})
+				return
+			}
 
-					return
-				}
+			// =========================
+			// SETIAP 5 TRANSAKSI
+			// =========================
+			if paidCount >= 5 {
 
-				// HANYA BUAT JIKA BELUM ADA
-				expectedVoucher := paidCount / 5
+				expectedReward := paidCount / 5
 
-				if existingVoucher < expectedVoucher {
+				if rewardCount < expectedReward {
 
 					code := generateVoucherCode()
 
@@ -1850,16 +1852,16 @@ func main() {
 
 						tx.Rollback()
 
-						log.Println("CREATE REWARD VOUCHER ERROR:", err)
+						log.Println("CREATE REWARD ERROR:", err)
 
 						c.JSON(500, gin.H{
-							"message": "Gagal membuat voucher",
+							"message": "Gagal membuat reward",
 						})
 
 						return
 					}
 
-					log.Println("VOUCHER REWARD DIBUAT:", code)
+					log.Println("VOUCHER REWARD BERHASIL:", code)
 				}
 			}
 
