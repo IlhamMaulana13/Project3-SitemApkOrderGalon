@@ -1775,50 +1775,92 @@ func main() {
 				return
 			}
 
+			// =========================
+			// HITUNG TOTAL ORDER PAID
+			// =========================
 			var paidCount int
+
 			err = tx.QueryRow(`
-			SELECT COUNT(*)
-			FROM orders
-			WHERE user_id = ?
-			AND payment_status = 'paid'
-		`, userID).Scan(&paidCount)
+	SELECT COUNT(*)
+	FROM orders
+	WHERE user_id = ?
+	AND payment_status = 'paid'
+`, userID).Scan(&paidCount)
 
 			if err != nil {
+
 				tx.Rollback()
+
 				log.Println("COUNT PAID ORDERS ERROR:", err)
+
 				c.JSON(500, gin.H{
-					"message": "Gagal menghitung transaksi pengguna",
+					"message": "Gagal menghitung transaksi",
 				})
+
 				return
 			}
 
-			if paidCount%5 == 0 {
+			log.Println("TOTAL PAID ORDER:", paidCount)
 
-				code := generateVoucherCode()
+			// =========================
+			// VOUCHER SETIAP 5 ORDER
+			// =========================
+			if paidCount > 0 && paidCount%5 == 0 {
 
-				_, err = tx.Exec(`
-	INSERT INTO user_vouchers
-	(user_id, code, discount, is_used)
-	VALUES (?, ?, ?, false)
-`,
-					userID,
-					code,
-					10000,
-				)
+				// CEK APAKAH SUDAH PERNAH DAPAT
+				var existingVoucher int
+
+				err = tx.QueryRow(`
+		SELECT COUNT(*)
+		FROM user_vouchers
+		WHERE user_id = ?
+	`, userID).Scan(&existingVoucher)
 
 				if err != nil {
+
 					tx.Rollback()
 
-					log.Println("CREATE REWARD VOUCHER ERROR:", err)
+					log.Println("CHECK VOUCHER ERROR:", err)
 
 					c.JSON(500, gin.H{
-						"message": "Gagal membuat voucher reward",
+						"message": "Gagal cek voucher",
 					})
 
 					return
 				}
 
-				log.Println("VOUCHER REWARD DIBUAT:", code, "UNTUK", userID)
+				// HANYA BUAT JIKA BELUM ADA
+				expectedVoucher := paidCount / 5
+
+				if existingVoucher < expectedVoucher {
+
+					code := generateVoucherCode()
+
+					_, err = tx.Exec(`
+			INSERT INTO user_vouchers
+			(user_id, code, discount, is_used)
+			VALUES (?, ?, ?, false)
+		`,
+						userID,
+						code,
+						10000,
+					)
+
+					if err != nil {
+
+						tx.Rollback()
+
+						log.Println("CREATE REWARD VOUCHER ERROR:", err)
+
+						c.JSON(500, gin.H{
+							"message": "Gagal membuat voucher",
+						})
+
+						return
+					}
+
+					log.Println("VOUCHER REWARD DIBUAT:", code)
+				}
 			}
 
 			// REDUCE STOCK
