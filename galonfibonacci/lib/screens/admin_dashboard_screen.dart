@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
+import 'package:galonfibonacci/screens/admin_role_screen.dart';
 import 'package:galonfibonacci/screens/admin_voucher_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:galonfibonacci/screens/report_screen.dart';
@@ -24,7 +25,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
-
     fetchDashboard();
   }
 
@@ -32,7 +32,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final response = await http.get(
       Uri.parse("${ApiConfig.baseUrl}/dashboard"),
     );
-
     if (response.statusCode == 200) {
       setState(() {
         dashboard = jsonDecode(response.body);
@@ -40,7 +39,194 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Widget buildCard(String title, String value, IconData icon) {
+  // =========================
+  // SIDEBAR DRAWER
+  // =========================
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 24),
+            decoration: BoxDecoration(
+              color: Colors.blue[700],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Admin Panel',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Galon Rizzki Faras',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          _drawerItem(
+            context,
+            icon: Icons.dashboard_rounded,
+            title: 'Dashboard',
+            color: Colors.blue[700]!,
+            isActive: true,
+            screen: null,
+          ),
+          _drawerItem(
+            context,
+            icon: Icons.inventory_2_rounded,
+            title: 'Kelola Produk',
+            color: Colors.blue[600]!,
+            screen: const AdminProductScreen(),
+          ),
+          _drawerItem(
+            context,
+            icon: Icons.receipt_long_rounded,
+            title: 'Kelola Pesanan',
+            color: Colors.orange,
+            screen: const AdminOrderScreen(),
+          ),
+          _drawerItem(
+            context,
+            icon: Icons.print_rounded,
+            title: 'Cetak Laporan',
+            color: Colors.green,
+            screen: const ReportScreen(),
+          ),
+          _drawerItem(
+            context,
+            icon: Icons.local_offer_rounded,
+            title: 'Kelola Voucher',
+            color: Colors.purple,
+            screen: const AdminVoucherScreen(),
+          ),
+          _drawerItem(
+            context,
+            icon: Icons.manage_accounts_rounded,
+            title: 'Kelola Role',
+            color: Colors.teal,
+            screen: const AdminRoleScreen(),
+          ),
+          const Spacer(),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.logout_rounded, color: Colors.red[600], size: 20),
+            ),
+            title: Text(
+              'Logout',
+              style: TextStyle(
+                color: Colors.red[600],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _drawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Color color,
+    Widget? screen,
+    bool isActive = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.blue[50] : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha:0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            color: isActive ? Colors.blue[700] : Colors.grey[800],
+            fontSize: 14,
+          ),
+        ),
+        trailing: isActive
+            ? Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.blue[700],
+                  shape: BoxShape.circle,
+                ),
+              )
+            : null,
+        onTap: () {
+          Navigator.pop(context);
+          if (screen != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => screen),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  // =========================
+  // STAT CARD (POINT UTAMA)
+  // =========================
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -48,29 +234,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha:0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.blue[700], size: 30),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha:0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
           const SizedBox(height: 12),
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-          const SizedBox(height: 6),
+          Text(
+            title,
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+          const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
   }
 
-  Widget buildSalesChartSection() {
+  Widget _buildSalesChartSection() {
     final products = dashboard!['best_products'] as List<dynamic>;
     final colors = [Colors.blue, Colors.orange, Colors.green, Colors.purple];
     final chartItems = products.take(3).toList().asMap().entries.map((entry) {
@@ -87,11 +283,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ? 1
         : chartItems
               .map((item) => item['value'] as int)
-              .reduce((value, element) => value > element ? value : element);
+              .reduce((a, b) => a > b ? a : b);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      elevation: 3,
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 18),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -106,7 +302,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 color: Colors.grey[900],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               'Perbandingan penjualan 3 merk terbaik.',
               style: TextStyle(color: Colors.grey[600], fontSize: 13),
@@ -120,31 +316,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Row(
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          label,
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
+                    SizedBox(
+                      width: 90,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(4),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Container(
-                        height: 24,
+                        height: 22,
                         decoration: BoxDecoration(
                           color: Colors.grey[200],
                           borderRadius: BorderRadius.circular(12),
@@ -161,7 +362,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Text(
                       '$value',
                       style: GoogleFonts.inter(
@@ -172,27 +373,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                 ),
               );
-            }).toList(),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              children: chartItems.map((item) {
-                return Chip(
-                  backgroundColor: (item['color'] as Color).withOpacity(0.12),
-                  label: Text(
-                    item['label'] as String,
-                    style: TextStyle(color: item['color'] as Color),
-                  ),
-                );
-              }).toList(),
-            ),
+            }),
           ],
         ),
       ),
     );
   }
 
-  Widget buildMenuCard(
+  Widget _buildMenuCard(
     BuildContext context, {
     required IconData icon,
     required String title,
@@ -208,9 +396,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha:0.04),
               blurRadius: 12,
-              offset: const Offset(0, 8),
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -221,7 +409,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha:0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: color, size: 26),
@@ -232,7 +420,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                fontSize: 13,
               ),
             ),
           ],
@@ -245,320 +433,382 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
+      drawer: _buildDrawer(context),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Dashboard Admin",
-          style: TextStyle(color: Colors.white),
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-
         backgroundColor: Colors.blue[700],
-
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-
-              if (!context.mounted) return;
-
-              Navigator.pushAndRemoveUntil(
-                context,
-
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-
-                (route) => false,
-              );
-            },
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            onPressed: fetchDashboard,
+            tooltip: 'Refresh',
           ),
+          const SizedBox(width: 4),
         ],
       ),
-
       body: dashboard == null
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[800],
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.18),
-                          blurRadius: 22,
-                          offset: const Offset(0, 12),
+          : RefreshIndicator(
+              onRefresh: fetchDashboard,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // =====================
+                    // HEADER SELAMAT DATANG
+                    // =====================
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.blue[800]!, Colors.blue[600]!],
                         ),
-                      ],
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withValues(alpha:0.25),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.analytics_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Halo, Admin!',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Pantau performa bisnis galon dalam satu tampilan.',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    padding: const EdgeInsets.all(22),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                    const SizedBox(height: 20),
+
+                    // =====================
+                    // POINT UTAMA (4 KPI)
+                    // =====================
+                    Text(
+                      'Ringkasan Bisnis',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 1.1,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.18),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(
-                                Icons.analytics,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Halo, Admin',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Pantau performa bisnis galon kamu dalam satu tampilan.',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        _buildStatCard(
+                          title: 'Total Produk',
+                          value: dashboard!["total_products"].toString(),
+                          icon: Icons.inventory_2_rounded,
+                          color: Colors.blue[700]!,
                         ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white24,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Pendapatan',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Rp ${dashboard!["total_revenue"]}',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white24,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Order',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      dashboard!["total_orders"].toString(),
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                        _buildStatCard(
+                          title: 'Total Customer',
+                          value: dashboard!["total_customers"].toString(),
+                          icon: Icons.people_rounded,
+                          color: Colors.teal,
+                        ),
+                        _buildStatCard(
+                          title: 'Laba Bulan Ini',
+                          value: 'Rp ${dashboard!["monthly_profit"] ?? 0}',
+                          icon: Icons.trending_up_rounded,
+                          color: Colors.green,
+                        ),
+                        _buildStatCard(
+                          title: 'Order Diproses',
+                          value: '${dashboard!["pending_orders"] ?? 0}',
+                          icon: Icons.pending_actions_rounded,
+                          color: Colors.orange,
                         ),
                       ],
                     ),
-                  ),
 
-                  const SizedBox(height: 18),
+                    const SizedBox(height: 20),
 
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.05,
-                    children: [
-                      buildCard(
-                        "Produk",
-                        dashboard!["total_products"].toString(),
-                        Icons.inventory,
+                    // =====================
+                    // TOTAL PENDAPATAN
+                    // =====================
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha:0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      buildCard(
-                        "Customer",
-                        dashboard!["total_customers"].toString(),
-                        Icons.people,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Total Pendapatan',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Rp ${dashboard!["total_revenue"]}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Total Order',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${dashboard!["total_orders"]} order',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      buildCard(
-                        "Laba Bulan",
-                        "Rp ${dashboard!["monthly_profit"] ?? 0}",
-                        Icons.trending_up,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // =====================
+                    // MENU NAVIGASI CEPAT
+                    // =====================
+                    Text(
+                      'Menu Admin',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
-                      buildCard(
-                        "Order Baru",
-                        "${dashboard!["pending_orders"] ?? 0}",
-                        Icons.pending_actions,
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
 
-                  const SizedBox(height: 18),
-
-                  const Text(
-                    "Menu Admin",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.05,
-                    children: [
-                      buildMenuCard(
-                        context,
-                        icon: Icons.inventory,
-                        title: 'Kelola Produk',
-                        color: Colors.blue[700]!,
-                        onTap: () => Navigator.push(
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.95,
+                      children: [
+                        _buildMenuCard(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminProductScreen(),
+                          icon: Icons.inventory_2_rounded,
+                          title: 'Produk',
+                          color: Colors.blue[700]!,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminProductScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                      buildMenuCard(
-                        context,
-                        icon: Icons.receipt_long,
-                        title: 'Kelola Pesanan',
-                        color: Colors.orange,
-                        onTap: () => Navigator.push(
+                        _buildMenuCard(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminOrderScreen(),
+                          icon: Icons.receipt_long_rounded,
+                          title: 'Pesanan',
+                          color: Colors.orange,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminOrderScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                      buildMenuCard(
-                        context,
-                        icon: Icons.print,
-                        title: 'Cetak Laporan',
-                        color: Colors.green,
-                        onTap: () => Navigator.push(
+                        _buildMenuCard(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const ReportScreen(),
+                          icon: Icons.print_rounded,
+                          title: 'Laporan',
+                          color: Colors.green,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ReportScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                      buildMenuCard(
-                        context,
-                        icon: Icons.local_offer,
-                        title: 'Kelola Voucher',
-                        color: Colors.purple,
-                        onTap: () => Navigator.push(
+                        _buildMenuCard(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminVoucherScreen(),
+                          icon: Icons.local_offer_rounded,
+                          title: 'Voucher',
+                          color: Colors.purple,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminVoucherScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  buildSalesChartSection(),
-
-                  const SizedBox(height: 6),
-
-                  const Text(
-                    "Produk Terlaris",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ...dashboard!["best_products"].map<Widget>((item) {
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 0,
-                        vertical: 6,
-                      ),
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue[100],
-                          child: Icon(
-                            Icons.local_drink,
-                            color: Colors.blue[700],
+                        _buildMenuCard(
+                          context,
+                          icon: Icons.manage_accounts_rounded,
+                          title: 'Kelola Role',
+                          color: Colors.teal,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminRoleScreen(),
+                            ),
                           ),
                         ),
-                        title: Text(item["merk"]),
-                        trailing: Text(
-                          "${item["total"]} terjual",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // =====================
+                    // GRAFIK PENJUALAN
+                    // =====================
+                    _buildSalesChartSection(),
+
+                    // =====================
+                    // PRODUK TERLARIS
+                    // =====================
+                    Text(
+                      'Produk Terlaris',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
-                    );
-                  }).toList(),
-                ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    ...dashboard!["best_products"].map<Widget>((item) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.local_drink_rounded,
+                              color: Colors.blue[700],
+                              size: 22,
+                            ),
+                          ),
+                          title: Text(
+                            item["merk"],
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              "${item["total"]} terjual",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
     );

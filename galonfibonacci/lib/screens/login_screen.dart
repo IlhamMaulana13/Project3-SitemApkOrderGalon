@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_dashboard_screen.dart';
+import 'package:galonfibonacci/screens/kasir_screen.dart';
 import 'package:galonfibonacci/screens/kurir_screen.dart';
 import 'package:galonfibonacci/screens/main_screen.dart';
 import 'package:http/http.dart' as http;
@@ -115,6 +116,8 @@ class _LoginScreenState extends State<LoginScreen>
           nextScreen = const AdminDashboardScreen();
         } else if (role == "kurir") {
           nextScreen = const KurirScreen();
+        } else if (role == "kasir") {
+          nextScreen = const KasirScreen();
         } else {
           nextScreen = const MainScreen();
         }

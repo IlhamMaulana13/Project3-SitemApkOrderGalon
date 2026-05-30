@@ -18,9 +18,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<ProductModel> products = [];
 
-  // FILTER
   String selectedService = "Isi Ulang";
   String userName = "Pelanggan";
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -29,11 +31,15 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchUserName();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void fetchProducts() async {
     final result = await ApiService.getProducts();
-
     if (!mounted) return;
-
     setState(() {
       products = result;
     });
@@ -41,14 +47,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchUserName() async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) return;
-
     try {
       final response = await ApiService.getProfile(user.uid);
-
       if (!mounted) return;
-
       setState(() {
         userName = response["name"] ?? "Pelanggan";
       });
@@ -57,21 +59,23 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // HARGA BERDASARKAN FILTER
-  int getPrice() {
-    if (selectedService == "Isi Ulang") {
-      return 7000;
-    } else if (selectedService == "Beli Baru") {
-      return 45000;
-    } else {
-      return 2000;
-    }
+  List<ProductModel> get filteredProducts {
+    if (_searchQuery.isEmpty) return products;
+    return products
+        .where(
+          (p) => p.merk.toLowerCase().contains(_searchQuery.toLowerCase()),
+        )
+        .toList();
   }
 
-  // WIDGET FILTER
+  int getPrice() {
+    if (selectedService == "Isi Ulang") return 7000;
+    if (selectedService == "Beli Baru") return 45000;
+    return 2000;
+  }
+
   Widget buildFilter(String title) {
     final isSelected = selectedService == title;
-
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -84,6 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue : Colors.white,
           borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            if (isSelected)
+              BoxShadow(
+                color: Colors.blue.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+          ],
         ),
         child: Text(
           title,
@@ -100,58 +112,111 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       body: Column(
         children: [
+          // HEADER
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
             width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.blue[700],
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
               ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            child: Column(
               children: [
-                Image.asset(
-                  'assets/images/logo_galon.png',
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Halo $userName!',
-                        style: TextStyle(color: Colors.white70),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/logo_galon.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Halo $userName!',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Mau pesan galon apa hari ini?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 5),
-                      Text(
-                        'Mau pesan galon apa hari ini?',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // SEARCH BAR
+                Container(
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() => _searchQuery = value);
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama produk...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: Colors.blue[700],
+                      ),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: Colors.grey[500],
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // FILTER
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
 
+          // FILTER LAYANAN
           SizedBox(
-            height: 45,
+            height: 44,
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 15),
               scrollDirection: Axis.horizontal,
@@ -163,22 +228,68 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const SizedBox(height: 10),
-
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(15),
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                final product = products[index];
-
-                return ProductItem(
-                  product: product,
-                  selectedService: selectedService,
-                  price: getPrice(),
-                );
-              },
+          // LABEL HASIL PENCARIAN
+          if (_searchQuery.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Row(
+                children: [
+                  Icon(Icons.search_rounded,
+                      size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Hasil pencarian: "$_searchQuery"  •  ${filteredProducts.length} produk',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
             ),
+
+          const SizedBox(height: 8),
+
+          // DAFTAR PRODUK
+          Expanded(
+            child: filteredProducts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 60,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _searchQuery.isEmpty
+                              ? 'Belum ada produk'
+                              : 'Produk "$_searchQuery" tidak ditemukan',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 4,
+                    ),
+                    itemCount: filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = filteredProducts[index];
+                      return ProductItem(
+                        product: product,
+                        selectedService: selectedService,
+                        price: getPrice(),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -205,20 +316,16 @@ class ProductItem extends StatefulWidget {
 class _ProductItemState extends State<ProductItem> {
   int quantity = 1;
 
-  bool get useStock {
-    return widget.selectedService == "Beli Baru";
-  }
-
-  bool get isOutOfStock {
-    return useStock && widget.product.stock <= 0;
-  }
+  bool get useStock => widget.selectedService == "Beli Baru";
+  bool get isOutOfStock => useStock && widget.product.stock <= 0;
 
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -227,14 +334,19 @@ class _ProductItemState extends State<ProductItem> {
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
                 widget.product.image,
-                width: 65,
-                height: 65,
+                width: 80,
+                height: 80,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.blue[50],
+                  child: Icon(Icons.local_drink_rounded,
+                      color: Colors.blue[300], size: 36),
+                ),
               ),
             ),
-
-            const SizedBox(width: 15),
-
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,10 +358,7 @@ class _ProductItemState extends State<ProductItem> {
                       fontSize: 16,
                     ),
                   ),
-
                   const SizedBox(height: 5),
-
-                  // SERVICE
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -268,33 +377,26 @@ class _ProductItemState extends State<ProductItem> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Wrap(
                     spacing: 8,
-                    runSpacing: 8,
+                    runSpacing: 6,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.payments_rounded,
-                              size: 16,
-                              color: Colors.green[700],
-                            ),
-
-                            const SizedBox(width: 5),
-
+                            Icon(Icons.payments_rounded,
+                                size: 14, color: Colors.green[700]),
+                            const SizedBox(width: 4),
                             Text(
                               "Rp ${widget.price}",
                               style: TextStyle(
@@ -306,35 +408,31 @@ class _ProductItemState extends State<ProductItem> {
                           ],
                         ),
                       ),
-
-                      // STOCK HANYA UNTUK BELI BARU
                       if (useStock)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 10,
+                            vertical: 5,
                           ),
                           decoration: BoxDecoration(
                             color: widget.product.stock <= 0
                                 ? Colors.red.shade50
                                 : Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 Icons.inventory_2_outlined,
-                                size: 16,
+                                size: 14,
                                 color: widget.product.stock <= 0
                                     ? Colors.red
                                     : Colors.blue[700],
                               ),
-
-                              const SizedBox(width: 5),
-
+                              const SizedBox(width: 4),
                               Text(
-                                "Stock ${widget.product.stock}",
+                                "Stok ${widget.product.stock}",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
@@ -351,36 +449,47 @@ class _ProductItemState extends State<ProductItem> {
                 ],
               ),
             ),
-
             Column(
               children: [
                 Row(
                   children: [
                     IconButton(
                       onPressed: () {
-                        if (quantity > 1) {
-                          setState(() {
-                            quantity--;
-                          });
-                        }
+                        if (quantity > 1) setState(() => quantity--);
                       },
-                      icon: const Icon(Icons.remove),
+                      icon: const Icon(Icons.remove_circle_outline),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
-
-                    Text("$quantity"),
-
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Text(
+                        "$quantity",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                     IconButton(
-                      onPressed: () {
-                        setState(() {
-                          quantity++;
-                        });
-                      },
-                      icon: const Icon(Icons.add),
+                      onPressed: () => setState(() => quantity++),
+                      icon: const Icon(Icons.add_circle_outline),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
-
+                const SizedBox(height: 6),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isOutOfStock ? Colors.grey[300] : Colors.blue[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   onPressed: isOutOfStock
                       ? null
                       : () {
@@ -393,13 +502,11 @@ class _ProductItemState extends State<ProductItem> {
                             stock: widget.product.stock,
                             image: widget.product.image,
                           );
-
                           cartProvider.addToCart(
                             updatedProduct,
                             widget.selectedService,
                             quantity,
                           );
-
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -408,8 +515,10 @@ class _ProductItemState extends State<ProductItem> {
                             ),
                           );
                         },
-
-                  child: Text(isOutOfStock ? "Habis" : "Tambah"),
+                  child: Text(
+                    isOutOfStock ? "Habis" : "Tambah",
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
               ],
             ),

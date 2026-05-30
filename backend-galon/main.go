@@ -131,6 +131,33 @@ func main() {
 		log.Fatal("Gagal memeriksa kolom service pada order_items:", err)
 	}
 
+	// =========================
+	// MIGRASI KOLOM ORDERS UNTUK TRANSAKSI KASIR (OFFLINE)
+	// =========================
+	ensureOrderColumn := func(column string, definition string) {
+		var existing string
+		errCol := database.DB.QueryRow(`
+			SELECT COLUMN_NAME
+			FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+			AND TABLE_NAME = 'orders'
+			AND COLUMN_NAME = ?
+		`, column).Scan(&existing)
+
+		if errCol == sql.ErrNoRows {
+			_, errCol = database.DB.Exec(fmt.Sprintf("ALTER TABLE orders ADD COLUMN %s %s", column, definition))
+			if errCol != nil {
+				log.Fatalf("Gagal menambahkan kolom %s ke orders: %v", column, errCol)
+			}
+		} else if errCol != nil {
+			log.Fatalf("Gagal memeriksa kolom %s pada orders: %v", column, errCol)
+		}
+	}
+
+	ensureOrderColumn("customer_name", "VARCHAR(255) NOT NULL DEFAULT ''")
+	ensureOrderColumn("customer_phone", "VARCHAR(50) NOT NULL DEFAULT ''")
+	ensureOrderColumn("is_offline", "TINYINT NOT NULL DEFAULT 0")
+
 	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS user_vouchers (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1054,6 +1081,301 @@ func main() {
 		c.JSON(200, user)
 	})
 
+	// =========================
+	// LIST SEMUA USER (KELOLA ROLE)
+	// =========================
+	r.GET("/users", func(c *gin.Context) {
+
+		rows, err := database.DB.Query(`
+			SELECT firebase_uid, email, name, phone, role
+			FROM users
+			ORDER BY
+				FIELD(role, 'admin', 'kasir', 'kurir', 'customer'),
+				name ASC
+		`)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		defer rows.Close()
+
+		var users []gin.H
+
+		for rows.Next() {
+			var uid, email, name, phone, role string
+
+			rows.Scan(&uid, &email, &name, &phone, &role)
+
+			users = append(users, gin.H{
+				"firebase_uid": uid,
+				"email":        email,
+				"name":         name,
+				"phone":        phone,
+				"role":         role,
+			})
+		}
+
+		c.JSON(200, users)
+	})
+
+	// =========================
+	// UPDATE ROLE USER (KELOLA ROLE)
+	// =========================
+	r.PUT("/users/:uid/role", func(c *gin.Context) {
+
+		uid := c.Param("uid")
+
+		var body struct {
+			Role string `json:"role"`
+		}
+
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
+		allowedRoles := map[string]bool{
+			"customer": true,
+			"kurir":    true,
+			"kasir":    true,
+			"admin":    true,
+		}
+
+		if !allowedRoles[body.Role] {
+			c.JSON(400, gin.H{"error": "Role tidak valid"})
+			return
+		}
+
+		result, err := database.DB.Exec(`
+			UPDATE users
+			SET role = ?
+			WHERE firebase_uid = ?
+		`, body.Role, uid)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		affected, _ := result.RowsAffected()
+		if affected == 0 {
+			c.JSON(404, gin.H{"error": "User tidak ditemukan"})
+			return
+		}
+
+		c.JSON(200, gin.H{"message": "Role berhasil diperbarui"})
+	})
+
+	// =========================
+	// TRANSAKSI KASIR (OFFLINE / TUNAI)
+	// =========================
+	r.POST("/kasir/orders", func(c *gin.Context) {
+
+		var body struct {
+			KasirUID      string      `json:"kasir_uid"`
+			CustomerName  string      `json:"customer_name"`
+			CustomerPhone string      `json:"customer_phone"`
+			Total         int         `json:"total"`
+			Items         []OrderItem `json:"items"`
+		}
+
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
+		if body.KasirUID == "" {
+			c.JSON(400, gin.H{"error": "Kasir tidak dikenali"})
+			return
+		}
+
+		if len(body.Items) == 0 {
+			c.JSON(400, gin.H{"error": "Keranjang masih kosong"})
+			return
+		}
+
+		tx, err := database.DB.Begin()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Gagal begin transaction"})
+			return
+		}
+
+		// Kunci idempotency unik agar tidak bentrok dengan order online
+		keyBuf := make([]byte, 8)
+		rand.Read(keyBuf)
+		offlineKey := "KASIR-" + hex.EncodeToString(keyBuf)
+
+		// INSERT ORDER (langsung Selesai & lunas tunai)
+		result, err := tx.Exec(`
+			INSERT INTO orders
+			(
+				user_id,
+				payment_method_id,
+				payment_channel,
+				midtrans_order_id,
+				total,
+				voucher_code,
+				voucher_discount,
+				status,
+				payment_status,
+				idempotency_key,
+				customer_name,
+				customer_phone,
+				is_offline
+			)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`,
+			body.KasirUID,
+			0,
+			"cash",
+			"",
+			body.Total,
+			"",
+			0,
+			"Selesai",
+			"paid",
+			offlineKey,
+			body.CustomerName,
+			body.CustomerPhone,
+			1,
+		)
+
+		if err != nil {
+			tx.Rollback()
+			log.Println("INSERT KASIR ORDER ERROR:", err)
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		orderID, _ := result.LastInsertId()
+
+		// INSERT ITEMS + KURANGI STOK LANGSUNG
+		for _, item := range body.Items {
+
+			_, err = tx.Exec(`
+				INSERT INTO order_items
+				(order_id, product_id, qty, subtotal, service)
+				VALUES (?, ?, ?, ?, ?)
+			`,
+				orderID,
+				item.ProductID,
+				item.Qty,
+				item.Subtotal,
+				item.Service,
+			)
+
+			if err != nil {
+				tx.Rollback()
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Isi Ulang tidak mengurangi stok galon
+			if item.Service != "Isi Ulang" {
+
+				var stock int
+				err = tx.QueryRow(`
+					SELECT stock FROM products WHERE id = ? FOR UPDATE
+				`, item.ProductID).Scan(&stock)
+
+				if err != nil {
+					tx.Rollback()
+					c.JSON(500, gin.H{"error": err.Error()})
+					return
+				}
+
+				if stock < item.Qty {
+					tx.Rollback()
+					c.JSON(400, gin.H{"error": "Stok tidak cukup"})
+					return
+				}
+
+				_, err = tx.Exec(`
+					UPDATE products
+					SET stock = stock - ?
+					WHERE id = ?
+				`, item.Qty, item.ProductID)
+
+				if err != nil {
+					tx.Rollback()
+					c.JSON(500, gin.H{"error": err.Error()})
+					return
+				}
+			}
+		}
+
+		if err = tx.Commit(); err != nil {
+			c.JSON(500, gin.H{"error": "Gagal commit transaction"})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message":  "Transaksi tunai berhasil",
+			"order_id": orderID,
+		})
+	})
+
+	// =========================
+	// RIWAYAT TRANSAKSI KASIR + RINGKASAN HARI INI
+	// =========================
+	r.GET("/kasir/transactions/:uid", func(c *gin.Context) {
+
+		uid := c.Param("uid")
+
+		var todayTotal int
+		var todayCount int
+
+		database.DB.QueryRow(`
+			SELECT IFNULL(SUM(total), 0), COUNT(*)
+			FROM orders
+			WHERE is_offline = 1
+			AND user_id = ?
+			AND DATE(created_at) = CURDATE()
+		`, uid).Scan(&todayTotal, &todayCount)
+
+		rows, err := database.DB.Query(`
+			SELECT id, total, customer_name, customer_phone, status, created_at
+			FROM orders
+			WHERE is_offline = 1
+			AND user_id = ?
+			ORDER BY id DESC
+			LIMIT 50
+		`, uid)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		defer rows.Close()
+
+		var transactions []gin.H
+
+		for rows.Next() {
+			var id, total int
+			var customerName, customerPhone, status, createdAt string
+
+			rows.Scan(&id, &total, &customerName, &customerPhone, &status, &createdAt)
+
+			transactions = append(transactions, gin.H{
+				"id":             id,
+				"total":          total,
+				"customer_name":  customerName,
+				"customer_phone": customerPhone,
+				"status":         status,
+				"created_at":     createdAt,
+			})
+		}
+
+		c.JSON(200, gin.H{
+			"today_total":  todayTotal,
+			"today_count":  todayCount,
+			"transactions": transactions,
+		})
+	})
+
 	// CREATE PRODUCT
 	r.POST("/products", func(c *gin.Context) {
 
@@ -1265,6 +1587,23 @@ func main() {
 		WHERE role = 'customer'
 	`).Scan(&totalCustomers)
 
+		var monthlyProfit int
+		var pendingOrders int
+
+		database.DB.QueryRow(`
+		SELECT IFNULL(SUM(total), 0)
+		FROM orders
+		WHERE status != 'Dibatalkan'
+		AND MONTH(created_at) = MONTH(CURDATE())
+		AND YEAR(created_at) = YEAR(CURDATE())
+	`).Scan(&monthlyProfit)
+
+		database.DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM orders
+		WHERE status = 'Diproses'
+	`).Scan(&pendingOrders)
+
 		// PRODUK TERLARIS
 		rows, err := database.DB.Query(`
 		SELECT p.merk, SUM(oi.qty) as total_terjual
@@ -1309,6 +1648,8 @@ func main() {
 			"total_revenue":   totalRevenue,
 			"total_products":  totalProducts,
 			"total_customers": totalCustomers,
+			"monthly_profit":  monthlyProfit,
+			"pending_orders":  pendingOrders,
 			"best_products":   bestProducts,
 		})
 	})
@@ -1618,12 +1959,13 @@ func main() {
 		rows, err := database.DB.Query(`
 		SELECT
 			o.id,
-			u.name,
+			COALESCE(NULLIF(o.customer_name, ''), u.name, 'Pelanggan Offline') AS name,
 			o.total,
 			o.status,
-			o.created_at
+			o.created_at,
+			o.is_offline
 		FROM orders o
-		JOIN users u
+		LEFT JOIN users u
 		ON u.firebase_uid = o.user_id
 		ORDER BY o.id DESC
 	`)
@@ -1648,6 +1990,7 @@ func main() {
 			var total int
 			var status string
 			var createdAt string
+			var isOffline int
 
 			rows.Scan(
 				&id,
@@ -1655,6 +1998,7 @@ func main() {
 				&total,
 				&status,
 				&createdAt,
+				&isOffline,
 			)
 
 			reports = append(reports, gin.H{
@@ -1663,6 +2007,7 @@ func main() {
 				"total":      total,
 				"status":     status,
 				"created_at": createdAt,
+				"is_offline": isOffline,
 			})
 		}
 

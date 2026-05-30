@@ -14,7 +14,10 @@ class AdminOrderScreen extends StatefulWidget {
 class _AdminOrderScreenState extends State<AdminOrderScreen> {
   List orders = [];
 
-  final String baseUrl = "${ApiConfig.baseUrl}";
+  final String baseUrl = ApiConfig.baseUrl;
+
+  // Pilihan status yang valid untuk dropdown
+  static const List<String> statusOptions = ["Diproses", "Dikirim", "Selesai"];
 
   @override
   void initState() {
@@ -47,6 +50,8 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
     if (response.statusCode == 200) {
       fetchOrders();
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Status berhasil diupdate")));
@@ -54,7 +59,7 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
   }
 
   // STATUS COLOR
-  Color getStatusColor(String status) {
+  Color getStatusColor(String? status) {
     switch (status) {
       case "Diproses":
         return Colors.orange;
@@ -94,6 +99,15 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
         itemBuilder: (context, index) {
           final order = orders[index];
 
+          // Status mentah dari server, bisa null / nilai di luar daftar
+          final String status = (order["status"] ?? "").toString();
+
+          // Item dropdown selalu memuat status saat ini agar tidak crash
+          final List<String> dropdownItems = [
+            ...statusOptions,
+            if (status.isNotEmpty && !statusOptions.contains(status)) status,
+          ];
+
           return Card(
             margin: const EdgeInsets.only(bottom: 15),
 
@@ -127,13 +141,13 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                         ),
 
                         decoration: BoxDecoration(
-                          color: getStatusColor(order["status"]),
+                          color: getStatusColor(status),
 
                           borderRadius: BorderRadius.circular(20),
                         ),
 
                         child: Text(
-                          order["status"],
+                          status.isEmpty ? "-" : status,
 
                           style: const TextStyle(
                             color: Colors.white,
@@ -154,14 +168,14 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                   const SizedBox(height: 5),
 
                   Text(
-                    order["created_at"],
+                    (order["created_at"] ?? "").toString(),
                     style: TextStyle(color: Colors.grey[600]),
                   ),
 
                   const SizedBox(height: 15),
 
                   DropdownButtonFormField<String>(
-                    value: order["status"],
+                    value: status.isEmpty ? null : status,
 
                     decoration: InputDecoration(
                       filled: true,
@@ -173,25 +187,11 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                       ),
                     ),
 
-                    items: const [
-                      DropdownMenuItem(
-                        value: "Diproses",
-
-                        child: Text("Diproses"),
-                      ),
-
-                      DropdownMenuItem(
-                        value: "Dikirim",
-
-                        child: Text("Dikirim"),
-                      ),
-
-                      DropdownMenuItem(
-                        value: "Selesai",
-
-                        child: Text("Selesai"),
-                      ),
-                    ],
+                    items: dropdownItems
+                        .map(
+                          (s) => DropdownMenuItem(value: s, child: Text(s)),
+                        )
+                        .toList(),
 
                     onChanged: (value) {
                       if (value != null) {
