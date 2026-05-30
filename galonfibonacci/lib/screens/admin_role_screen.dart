@@ -198,7 +198,7 @@ class _AdminRoleScreenState extends State<AdminRoleScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -259,6 +259,7 @@ class _AdminRoleScreenState extends State<AdminRoleScreen> {
                                 const SizedBox(height: 12),
                                 Wrap(
                                   spacing: 8,
+                                  runSpacing: 8,
                                   children: roles.map((r) {
                                     final selected = r == role;
                                     return ChoiceChip(

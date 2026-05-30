@@ -23,8 +23,15 @@ type Product struct {
 	CategoryID int    `json:"category_id"`
 	Merk       string `json:"merk"`
 	Price      int    `json:"price"`
+	Modal      int    `json:"modal"`
 	Stock      int    `json:"stock"`
 	Image      string `json:"image"`
+	SupplierID int    `json:"supplier_id"`
+}
+
+type Supplier struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 type OrderItem struct {
@@ -158,6 +165,43 @@ func main() {
 	ensureOrderColumn("customer_phone", "VARCHAR(50) NOT NULL DEFAULT ''")
 	ensureOrderColumn("is_offline", "TINYINT NOT NULL DEFAULT 0")
 
+	// =========================
+	// MIGRASI TABEL SUPPLIERS
+	// =========================
+	_, err = database.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS suppliers (
+			id   INT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(255) NOT NULL
+		)
+	`)
+	if err != nil {
+		log.Fatal("Gagal buat tabel suppliers:", err)
+	}
+
+	// =========================
+	// MIGRASI KOLOM PRODUCTS (MODAL & SUPPLIER_ID)
+	// =========================
+	ensureProductColumn := func(column string, definition string) {
+		var existing string
+		errCol := database.DB.QueryRow(`
+			SELECT COLUMN_NAME
+			FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+			AND TABLE_NAME = 'products'
+			AND COLUMN_NAME = ?
+		`, column).Scan(&existing)
+		if errCol == sql.ErrNoRows {
+			_, errCol = database.DB.Exec(fmt.Sprintf("ALTER TABLE products ADD COLUMN %s %s", column, definition))
+			if errCol != nil {
+				log.Fatalf("Gagal menambahkan kolom %s ke products: %v", column, errCol)
+			}
+		} else if errCol != nil {
+			log.Fatalf("Gagal memeriksa kolom %s pada products: %v", column, errCol)
+		}
+	}
+	ensureProductColumn("modal", "INT NOT NULL DEFAULT 0")
+	ensureProductColumn("supplier_id", "INT NOT NULL DEFAULT 0")
+
 	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS user_vouchers (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -180,33 +224,38 @@ func main() {
 	r.GET("/products", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-			SELECT id, category_id, merk, price, stock, image
-			FROM products
+			SELECT p.id, p.category_id, p.merk, p.price, p.modal, p.stock, p.image,
+			       p.supplier_id, IFNULL(s.name, '') AS supplier_name
+			FROM products p
+			LEFT JOIN suppliers s ON s.id = p.supplier_id
 		`)
 
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
+			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
-		var products []Product
+		defer rows.Close()
+
+		var products []gin.H
 
 		for rows.Next() {
+			var id, categoryID, price, modal, stock, supplierID int
+			var merk, image, supplierName string
 
-			var product Product
+			rows.Scan(&id, &categoryID, &merk, &price, &modal, &stock, &image, &supplierID, &supplierName)
 
-			rows.Scan(
-				&product.ID,
-				&product.CategoryID,
-				&product.Merk,
-				&product.Price,
-				&product.Stock,
-				&product.Image,
-			)
-
-			products = append(products, product)
+			products = append(products, gin.H{
+				"id":            id,
+				"category_id":   categoryID,
+				"merk":          merk,
+				"price":         price,
+				"modal":         modal,
+				"stock":         stock,
+				"image":         image,
+				"supplier_id":   supplierID,
+				"supplier_name": supplierName,
+			})
 		}
 
 		c.JSON(http.StatusOK, products)
@@ -1382,38 +1431,30 @@ func main() {
 		var product Product
 
 		if err := c.ShouldBindJSON(&product); err != nil {
-
-			c.JSON(400, gin.H{
-				"error": err.Error(),
-			})
-
+			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 
 		_, err := database.DB.Exec(`
 		INSERT INTO products
-		(category_id, merk, price, stock, image)
-		VALUES (?, ?, ?, ?, ?)
+		(category_id, merk, price, modal, stock, image, supplier_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`,
 			product.CategoryID,
 			product.Merk,
 			product.Price,
+			product.Modal,
 			product.Stock,
 			product.Image,
+			product.SupplierID,
 		)
 
 		if err != nil {
-
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-
+			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(200, gin.H{
-			"message": "Produk berhasil ditambahkan",
-		})
+		c.JSON(200, gin.H{"message": "Produk berhasil ditambahkan"})
 	})
 
 	// UPDATE PRODUCT
@@ -1424,11 +1465,7 @@ func main() {
 		var product Product
 
 		if err := c.ShouldBindJSON(&product); err != nil {
-
-			c.JSON(400, gin.H{
-				"error": err.Error(),
-			})
-
+			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -1438,30 +1475,28 @@ func main() {
 			category_id = ?,
 			merk = ?,
 			price = ?,
+			modal = ?,
 			stock = ?,
-			image = ?
+			image = ?,
+			supplier_id = ?
 		WHERE id = ?
 	`,
 			product.CategoryID,
 			product.Merk,
 			product.Price,
+			product.Modal,
 			product.Stock,
 			product.Image,
+			product.SupplierID,
 			id,
 		)
 
 		if err != nil {
-
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-
+			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(200, gin.H{
-			"message": "Produk berhasil diupdate",
-		})
+		c.JSON(200, gin.H{"message": "Produk berhasil diupdate"})
 	})
 
 	// DELETE PRODUCT
@@ -2500,6 +2535,49 @@ func main() {
 				"payment_status":    order.PaymentStatus,
 			},
 		})
+	})
+
+	// =========================
+	// GET SEMUA SUPPLIER
+	// =========================
+	r.GET("/suppliers", func(c *gin.Context) {
+		rows, err := database.DB.Query(`SELECT id, name FROM suppliers ORDER BY name ASC`)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var suppliers []Supplier
+		for rows.Next() {
+			var s Supplier
+			rows.Scan(&s.ID, &s.Name)
+			suppliers = append(suppliers, s)
+		}
+
+		c.JSON(200, suppliers)
+	})
+
+	// =========================
+	// TAMBAH SUPPLIER
+	// =========================
+	r.POST("/suppliers", func(c *gin.Context) {
+		var body struct {
+			Name string `json:"name"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
+			c.JSON(400, gin.H{"error": "Nama supplier wajib diisi"})
+			return
+		}
+
+		result, err := database.DB.Exec(`INSERT INTO suppliers (name) VALUES (?)`, body.Name)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		id, _ := result.LastInsertId()
+		c.JSON(200, gin.H{"id": id, "name": body.Name})
 	})
 
 	r.Run(":8080")
