@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
 
 import '../api_config.dart';
 
@@ -18,271 +16,355 @@ class PaymentWaitingScreen extends StatefulWidget {
 }
 
 class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> {
-  Timer? countdownTimer;
-
-  Timer? pollingTimer;
+  Timer? _countdownTimer;
+  Timer? _pollingTimer;
 
   String paymentStatus = "pending";
+  int remainingSeconds = 900; // 15 menit
+  bool _dialogShown = false;
 
-  int remainingSeconds = 900;
+  static const Set<String> _successStatuses = {'paid', 'settlement', 'capture'};
+  static const Set<String> _failedStatuses = {
+    'expired', 'expire', 'cancelled', 'cancel', 'failed', 'deny', 'denied'
+  };
 
   @override
   void initState() {
     super.initState();
-
-    startTimer();
-
-    startAutoCheck();
+    _startCountdown();
+    _startPolling();
   }
 
-  void startTimer() {
-    countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
       if (remainingSeconds > 0) {
-        setState(() {
-          remainingSeconds--;
-        });
+        setState(() => remainingSeconds--);
+      } else {
+        _countdownTimer?.cancel();
+        _pollingTimer?.cancel();
+        _showFailedDialog("Waktu pembayaran habis");
       }
     });
   }
 
-  void startAutoCheck() {
-    pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      await checkPaymentStatus();
-
-      if (paymentStatus == "paid") {
-        timer.cancel();
-
-        if (!mounted) return;
-        
-        Provider.of<CartProvider>(context, listen: false).clearCart();
-
-        showSuccessDialog();
-      }
-
-      if (paymentStatus == "expire" || paymentStatus == "cancel") {
-        timer.cancel();
-
-        if (!mounted) return;
-
-        showFailedDialog();
-      }
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      await _checkStatus();
     });
   }
 
-  void showFailedDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return AlertDialog(
-          title: const Text("Pembayaran Gagal"),
-
-          content: const Text("Pembayaran expired atau dibatalkan"),
-
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-
-                Navigator.pop(context);
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> checkPaymentStatus() async {
+  Future<void> _checkStatus() async {
     try {
       final response = await http.get(
         Uri.parse("${ApiConfig.baseUrl}/payment-status/${widget.orderId}"),
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final status = (data["status"] ?? "pending").toString().toLowerCase();
 
-        if (!mounted) return;
+        setState(() => paymentStatus = status);
 
-        setState(() {
-          paymentStatus = data["payment_status"] ?? "pending";
-        });
+        if (_successStatuses.contains(status)) {
+          _countdownTimer?.cancel();
+          _pollingTimer?.cancel();
+          _showSuccessDialog();
+        } else if (_failedStatuses.contains(status)) {
+          _countdownTimer?.cancel();
+          _pollingTimer?.cancel();
+          _showFailedDialog("Pembayaran gagal atau dibatalkan");
+        }
       }
     } catch (e) {
-      debugPrint(e.toString());
+      debugPrint("checkStatus error: $e");
     }
   }
 
-  void showSuccessDialog() {
+  void _showSuccessDialog() {
+    if (_dialogShown || !mounted) return;
+    _dialogShown = true;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-
-          title: const Text("Pembayaran Berhasil"),
-
-          content: const Text("Pesanan kamu berhasil dibayar."),
-
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-
-                Navigator.pop(context);
-              },
-
-              child: const Text("OK"),
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: Colors.green[100],
+              child: Icon(Icons.check_rounded, color: Colors.green[700], size: 50),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Pembayaran Berhasil!",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Pesanan kamu sedang diproses oleh tim kami.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                },
+                child: const Text("Kembali ke Beranda"),
+              ),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
-  String formatTime(int seconds) {
-    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+  void _showFailedDialog(String reason) {
+    if (_dialogShown || !mounted) return;
+    _dialogShown = true;
 
-    final secs = (seconds % 60).toString().padLeft(2, '0');
-
-    return "$minutes:$secs";
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: Colors.red[100],
+              child: Icon(Icons.close_rounded, color: Colors.red[700], size: 50),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Pembayaran Gagal",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              reason,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                },
+                child: const Text("Kembali ke Beranda"),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  @override
-  void dispose() {
-    countdownTimer?.cancel();
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return "$m:$s";
+  }
 
-    pollingTimer?.cancel();
+  String _statusLabel(String status) {
+    if (_successStatuses.contains(status)) return "LUNAS";
+    if (_failedStatuses.contains(status)) return "GAGAL";
+    return "MENUNGGU";
+  }
 
-    super.dispose();
+  Color _statusColor(String status) {
+    if (_successStatuses.contains(status)) return Colors.green;
+    if (_failedStatuses.contains(status)) return Colors.red;
+    return Colors.orange;
   }
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = _statusColor(paymentStatus);
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       appBar: AppBar(
         title: const Text(
-          "Menunggu Pembayaran",
+          "Status Pembayaran",
           style: TextStyle(color: Colors.white),
         ),
-
         backgroundColor: Colors.blue[700],
-
         iconTheme: const IconThemeData(color: Colors.white),
+        automaticallyImplyLeading: false,
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(20),
-
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 30),
-
             Container(
-              padding: const EdgeInsets.all(30),
-
+              width: double.infinity,
+              padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
                 color: Colors.white,
-
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-
               child: Column(
                 children: [
                   Icon(
-                    Icons.access_time_filled,
-                    size: 80,
-                    color: Colors.orange[700],
+                    Icons.access_time_filled_rounded,
+                    size: 70,
+                    color: Colors.orange[600],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Menunggu Pembayaran",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Selesaikan pembayaran sebelum waktu habis",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Countdown
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _formatTime(remainingSeconds),
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[700],
+                        letterSpacing: 2,
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  const Text(
-                    "Menunggu Pembayaran",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  // Status chip
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Text(
+                      _statusLabel(paymentStatus),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Order ID info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_outlined,
+                            size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "ID: ${widget.orderId}",
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[700],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: _checkStatus,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text("Perbarui Status"),
+                    ),
                   ),
 
                   const SizedBox(height: 10),
 
-                  Text(
-                    "Selesaikan pembayaran sebelum waktu habis",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 15,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.popUntil(context, (r) => r.isFirst),
                     child: Text(
-                      formatTime(remainingSeconds),
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange[700],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: paymentStatus == "paid"
-                          ? Colors.green.shade50
-                          : Colors.orange.shade50,
-
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-
-                    child: Text(
-                      paymentStatus.toUpperCase(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: paymentStatus == "paid"
-                            ? Colors.green
-                            : Colors.orange,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  SizedBox(
-                    width: double.infinity,
-
-                    child: ElevatedButton.icon(
-                      onPressed: checkPaymentStatus,
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[700],
-                        foregroundColor: Colors.white,
-                      ),
-
-                      icon: const Icon(Icons.refresh),
-
-                      label: const Text("Cek Status Pembayaran"),
+                      "Kembali ke Beranda",
+                      style: TextStyle(color: Colors.grey[600]),
                     ),
                   ),
                 ],

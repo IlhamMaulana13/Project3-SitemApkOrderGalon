@@ -135,72 +135,94 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       int appliedDiscount = min(discount, subtotal);
       int total = subtotal - appliedDiscount;
 
+      // ─── COD ───────────────────────────────────────────────
       if (selectedPayment == "COD") {
+        final codKey = "${user.uid}_COD_${DateTime.now().millisecondsSinceEpoch}";
         final codResponse = await http.post(
           Uri.parse("${ApiConfig.baseUrl}/orders"),
-
           headers: {"Content-Type": "application/json"},
-
           body: jsonEncode({
             "user_id": user.uid,
             "payment_method_id": 2,
             "payment_channel": "COD",
-            "midtrans_order_id": null,
+            "midtrans_order_id": "COD-${DateTime.now().millisecondsSinceEpoch}",
+            "idempotency_key": codKey,
             "total": total,
-
-            "items": cartProvider.items.map((item) {
-              return {
-                "product_id": item.product.id,
-                "qty": item.quantity,
-                "subtotal": item.product.price * item.quantity,
-                "service": item.service,
-              };
+            "voucher_code": voucherController.text.trim(),
+            "voucher_discount": appliedDiscount,
+            "items": cartProvider.items.map((item) => {
+              "product_id": item.product.id,
+              "qty": item.quantity,
+              "subtotal": item.product.price * item.quantity,
+              "service": item.service,
             }).toList(),
           }),
         );
 
+        if (!mounted) return;
+
         if (codResponse.statusCode == 200) {
           cartProvider.clearCart();
-
-          if (!mounted) return;
-
           showDialog(
             context: context,
-            builder: (_) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-
-                title: const Text("Pesanan Berhasil"),
-
-                content: const Text("Pesanan COD berhasil dibuat."),
-
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-
-                    child: const Text("OK"),
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Colors.green[100],
+                    child: Icon(Icons.check_rounded, color: Colors.green[700], size: 44),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    "Pesanan Berhasil!",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Pesanan COD kamu sudah masuk.\nTim kami akan segera menghubungi kamu.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.popUntil(context, (r) => r.isFirst);
+                      },
+                      child: const Text("Kembali ke Beranda"),
+                    ),
                   ),
                 ],
-              );
-            },
+              ),
+            ),
+          );
+        } else {
+          final err = jsonDecode(codResponse.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err["error"] ?? "Gagal membuat pesanan COD")),
           );
         }
 
-        setState(() {
-          isLoading = false;
-        });
-
+        setState(() => isLoading = false);
         return;
       }
 
+      // ─── PEMBAYARAN ONLINE (Midtrans) ──────────────────────
       final orderId = "ORDER-${DateTime.now().millisecondsSinceEpoch}";
 
-      final response = await http.post(
+      final paymentResponse = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/payment"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
@@ -212,51 +234,79 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final paymentUrl = data["redirect_url"];
-        final idempotencyKey =
-            "${user.uid}_${DateTime.now().millisecondsSinceEpoch}";
-
-        await http.post(
-          Uri.parse("${ApiConfig.baseUrl}/orders"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({
-            "user_id": user.uid,
-            "payment_method_id": 1,
-            "payment_channel": selectedPayment,
-            "midtrans_order_id": orderId,
-            "idempotency_key": idempotencyKey,
-            "total": total,
-            "items": cartProvider.items.map((item) {
-              return {
-                "product_id": item.product.id,
-                "qty": item.quantity,
-                "subtotal": item.product.price * item.quantity,
-                "service": item.service,
-              };
-            }).toList(),
-          }),
-        );
-
-        cartProvider.clearCart();
-
+      if (paymentResponse.statusCode != 200) {
         if (!mounted) return;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentWebviewScreen(paymentUrl: paymentUrl),
-          ),
-        );
-      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Gagal membuat pembayaran (${response.statusCode})"),
+            content: Text(
+              "Gagal membuat pembayaran (${paymentResponse.statusCode})"),
           ),
         );
+        setState(() => isLoading = false);
+        return;
       }
+
+      final payData = jsonDecode(paymentResponse.body);
+      final paymentUrl = payData["redirect_url"] as String?;
+
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("URL pembayaran tidak valid")),
+        );
+        setState(() => isLoading = false);
+        return;
+      }
+
+      // Simpan order ke database
+      final idempotencyKey =
+          "${user.uid}_${DateTime.now().millisecondsSinceEpoch}";
+
+      final orderResponse = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/orders"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "user_id": user.uid,
+          "payment_method_id": 1,
+          "payment_channel": selectedPayment,
+          "midtrans_order_id": orderId,
+          "idempotency_key": idempotencyKey,
+          "total": total,
+          "voucher_code": voucherController.text.trim(),
+          "voucher_discount": appliedDiscount,
+          "items": cartProvider.items.map((item) => {
+            "product_id": item.product.id,
+            "qty": item.quantity,
+            "subtotal": item.product.price * item.quantity,
+            "service": item.service,
+          }).toList(),
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (orderResponse.statusCode != 200) {
+        final err = jsonDecode(orderResponse.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err["error"] ?? "Gagal menyimpan pesanan")),
+        );
+        setState(() => isLoading = false);
+        return;
+      }
+
+      cartProvider.clearCart();
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentWebviewScreen(
+            paymentUrl: paymentUrl,
+            orderId: orderId,
+          ),
+        ),
+      );
     } catch (e) {
       debugPrint(e.toString());
 

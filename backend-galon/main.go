@@ -299,6 +299,7 @@ func main() {
 	})
 
 	r.POST("/payment", handler.CreatePayment)
+	r.GET("/payment-status/:orderId", handler.GetPaymentStatus)
 
 	r.POST("/orders", func(c *gin.Context) {
 
