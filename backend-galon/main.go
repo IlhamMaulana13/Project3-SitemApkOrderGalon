@@ -103,6 +103,7 @@ type User struct {
 
 type Voucher struct {
 	ID       int    `json:"id"`
+	Name     string `json:"name"`
 	Code     string `json:"code"`
 	Discount int    `json:"discount"`
 	IsActive bool   `json:"is_active"`
@@ -245,13 +246,46 @@ func main() {
 			code VARCHAR(100) NOT NULL,
 			discount INT NOT NULL,
 			is_used BOOLEAN NOT NULL DEFAULT FALSE,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE KEY unique_user_reward (user_id)
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 
 	if err != nil {
 		log.Fatal("Gagal buat tabel user_vouchers:", err)
+	}
+
+	// =========================
+	// HAPUS UNIQUE KEY user_id PADA user_vouchers (jika masih ada)
+	// Agar satu user bisa punya banyak voucher reward
+	// =========================
+	var ukName string
+	errUK := database.DB.QueryRow(`
+		SELECT CONSTRAINT_NAME
+		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+		WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'user_vouchers'
+		AND CONSTRAINT_TYPE = 'UNIQUE'
+		AND CONSTRAINT_NAME = 'unique_user_reward'
+	`).Scan(&ukName)
+	if errUK == nil {
+		database.DB.Exec(`ALTER TABLE user_vouchers DROP INDEX unique_user_reward`)
+	}
+
+	// =========================
+	// MIGRASI KOLOM name PADA TABEL vouchers
+	// =========================
+	var voucherNameCol string
+	errVN := database.DB.QueryRow(`
+		SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'vouchers'
+		AND COLUMN_NAME = 'name'
+	`).Scan(&voucherNameCol)
+	if errVN == sql.ErrNoRows {
+		_, errVN = database.DB.Exec(`ALTER TABLE vouchers ADD COLUMN name VARCHAR(100) NOT NULL DEFAULT ''`)
+		if errVN != nil {
+			log.Fatal("Gagal menambahkan kolom name ke vouchers:", errVN)
+		}
 	}
 
 	r := gin.Default()
@@ -1769,38 +1803,28 @@ func main() {
 	r.GET("/vouchers", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-		SELECT id, code, discount, is_active
-		FROM vouchers
-		ORDER BY id DESC
-	`)
+			SELECT id, IFNULL(name,''), code, discount, is_active
+			FROM vouchers
+			ORDER BY id DESC
+		`)
 
 		if err != nil {
-
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-
+			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
 		defer rows.Close()
 
 		var vouchers []Voucher
-
 		for rows.Next() {
-
 			var voucher Voucher
-
-			rows.Scan(
-				&voucher.ID,
-				&voucher.Code,
-				&voucher.Discount,
-				&voucher.IsActive,
-			)
-
+			rows.Scan(&voucher.ID, &voucher.Name, &voucher.Code, &voucher.Discount, &voucher.IsActive)
 			vouchers = append(vouchers, voucher)
 		}
 
+		if vouchers == nil {
+			vouchers = []Voucher{}
+		}
 		c.JSON(200, vouchers)
 	})
 
@@ -1810,11 +1834,12 @@ func main() {
 		var voucher Voucher
 
 		if err := c.ShouldBindJSON(&voucher); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
 
-			c.JSON(400, gin.H{
-				"error": err.Error(),
-			})
-
+		if voucher.Discount <= 0 {
+			c.JSON(400, gin.H{"error": "Nominal diskon harus lebih dari 0"})
 			return
 		}
 
@@ -1823,14 +1848,9 @@ func main() {
 		}
 
 		_, err := database.DB.Exec(`
-		INSERT INTO vouchers
-		(code, discount, is_active)
-		VALUES (?, ?, ?)
-	`,
-			voucher.Code,
-			voucher.Discount,
-			true,
-		)
+			INSERT INTO vouchers (name, code, discount, is_active)
+			VALUES (?, ?, ?, true)
+		`, voucher.Name, voucher.Code, voucher.Discount)
 
 		if err != nil {
 
@@ -1843,6 +1863,7 @@ func main() {
 
 		c.JSON(200, gin.H{
 			"message": "Voucher berhasil dibuat",
+			"name":    voucher.Name,
 			"code":    voucher.Code,
 		})
 	})
