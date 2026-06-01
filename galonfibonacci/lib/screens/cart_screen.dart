@@ -41,7 +41,7 @@ class CartScreen extends StatelessWidget {
 
                     title: Text(item.product.merk),
 
-                    subtitle: Text("Qty: ${item.quantity}"),
+                    subtitle: Text("Jumlah: ${item.quantity}"),
 
                     trailing: SizedBox(
                       width: 80,
@@ -114,7 +114,7 @@ class CartScreen extends StatelessWidget {
                         ),
                       );
                     },
-                    child: const Text("Checkout"),
+                    child: const Text("Lanjut Pembayaran"),
                   ),
                 ),
               ],

@@ -303,12 +303,14 @@ class _LoginScreenState extends State<LoginScreen>
     Widget? suffixIcon,
     int maxLines = 1,
     TextInputType keyboard = TextInputType.text,
+    TextCapitalization capitalization = TextCapitalization.none,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
       maxLines: maxLines,
       keyboardType: keyboard,
+      textCapitalization: capitalization,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: Colors.blue[800]),
@@ -535,6 +537,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       controller: nameController,
                                       label: 'Nama Lengkap',
                                       icon: Icons.person,
+                                      capitalization: TextCapitalization.words,
                                     ),
                                     const SizedBox(height: 16),
                                     buildTextField(
@@ -549,6 +552,8 @@ class _LoginScreenState extends State<LoginScreen>
                                       label: 'Alamat',
                                       icon: Icons.location_on,
                                       maxLines: 3,
+                                      capitalization:
+                                          TextCapitalization.sentences,
                                     ),
                                     const SizedBox(height: 16),
                                     buildTextField(

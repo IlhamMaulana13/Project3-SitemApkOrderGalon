@@ -34,6 +34,20 @@ type Supplier struct {
 	Name string `json:"name"`
 }
 
+type Rental struct {
+	ID           int    `json:"id"`
+	OrderID      int    `json:"order_id"`
+	ProductID    int    `json:"product_id"`
+	UserID       string `json:"user_id"`
+	Merk         string `json:"merk"`
+	Qty          int    `json:"qty"`
+	Status       string `json:"status"`
+	RentedAt     string `json:"rented_at"`
+	ReturnedAt   string `json:"returned_at"`
+	CustomerName string `json:"customer_name"`
+	Notes        string `json:"notes"`
+}
+
 type OrderItem struct {
 	ProductID int    `json:"product_id"`
 	Qty       int    `json:"qty"`
@@ -201,6 +215,28 @@ func main() {
 	}
 	ensureProductColumn("modal", "INT NOT NULL DEFAULT 0")
 	ensureProductColumn("supplier_id", "INT NOT NULL DEFAULT 0")
+
+	// =========================
+	// MIGRASI TABEL RENTALS (PENCATATAN GALON SEWA)
+	// =========================
+	_, err = database.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS rentals (
+			id          INT AUTO_INCREMENT PRIMARY KEY,
+			order_id    INT NOT NULL,
+			product_id  INT NOT NULL,
+			user_id     VARCHAR(255) NOT NULL DEFAULT '',
+			merk        VARCHAR(255) NOT NULL DEFAULT '',
+			qty         INT NOT NULL DEFAULT 1,
+			status      VARCHAR(50) NOT NULL DEFAULT 'active',
+			rented_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			returned_at DATETIME NULL,
+			notes       TEXT DEFAULT '',
+			UNIQUE KEY unique_rental_item (order_id, product_id)
+		)
+	`)
+	if err != nil {
+		log.Fatal("Gagal buat tabel rentals:", err)
+	}
 
 	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS user_vouchers (
@@ -889,6 +925,31 @@ func main() {
 		}
 
 		// =========================
+		// AUTO-CATAT GALON SEWA (ONLINE ORDER SELESAI)
+		// =========================
+		if body.Status == "Selesai" {
+			sewaRows, sewaErr := database.DB.Query(`
+				SELECT oi.product_id, oi.qty, p.merk, o.user_id
+				FROM order_items oi
+				JOIN products p ON p.id = oi.product_id
+				JOIN orders o ON o.id = oi.order_id
+				WHERE oi.order_id = ? AND oi.service = 'Sewa'
+			`, id)
+			if sewaErr == nil {
+				for sewaRows.Next() {
+					var pID, qty int
+					var merk, uID string
+					sewaRows.Scan(&pID, &qty, &merk, &uID)
+					database.DB.Exec(`
+						INSERT IGNORE INTO rentals (order_id, product_id, user_id, merk, qty, status)
+						VALUES (?, ?, ?, ?, ?, 'active')
+					`, id, pID, uID, merk, qty)
+				}
+				sewaRows.Close()
+			}
+		}
+
+		// =========================
 		// NOTIFIKASI FIREBASE
 		// =========================
 
@@ -1279,7 +1340,7 @@ func main() {
 			body.KasirUID,
 			0,
 			"cash",
-			"",
+			offlineKey,
 			body.Total,
 			"",
 			0,
@@ -1358,6 +1419,20 @@ func main() {
 		if err = tx.Commit(); err != nil {
 			c.JSON(500, gin.H{"error": "Gagal commit transaction"})
 			return
+		}
+
+		// =========================
+		// AUTO-CATAT GALON SEWA (KASIR OFFLINE)
+		// =========================
+		for _, item := range body.Items {
+			if item.Service == "Sewa" {
+				var merk string
+				database.DB.QueryRow(`SELECT merk FROM products WHERE id = ?`, item.ProductID).Scan(&merk)
+				database.DB.Exec(`
+					INSERT IGNORE INTO rentals (order_id, product_id, user_id, merk, qty, status)
+					VALUES (?, ?, ?, ?, ?, 'active')
+				`, orderID, item.ProductID, body.KasirUID, merk, item.Qty)
+			}
 		}
 
 		c.JSON(200, gin.H{
@@ -2534,6 +2609,188 @@ func main() {
 				"total":             order.Total,
 				"payment_status":    order.PaymentStatus,
 			},
+		})
+	})
+
+	// =========================
+	// GET DAFTAR SEWA GALON
+	// =========================
+	r.GET("/rentals", func(c *gin.Context) {
+		rows, err := database.DB.Query(`
+			SELECT
+				r.id, r.order_id, r.product_id, r.merk, r.qty,
+				r.status, r.rented_at,
+				COALESCE(r.returned_at, '') AS returned_at,
+				COALESCE(r.notes, '')       AS notes,
+				o.is_offline,
+				CASE WHEN o.is_offline = 1
+					THEN IFNULL(NULLIF(o.customer_name,''), 'Pelanggan Umum')
+					ELSE IFNULL(u.name, 'Pelanggan')
+				END AS customer_name,
+				CASE WHEN o.is_offline = 1
+					THEN IFNULL(o.customer_phone, '')
+					ELSE IFNULL(u.phone, '')
+				END AS customer_phone
+			FROM rentals r
+			JOIN orders o ON o.id = r.order_id
+			LEFT JOIN users u ON u.firebase_uid = r.user_id
+			ORDER BY r.rented_at DESC
+		`)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var rentals []gin.H
+		for rows.Next() {
+			var id, orderID, productID, qty, isOffline int
+			var merk, status, rentedAt, returnedAt, notes, customerName, customerPhone string
+			rows.Scan(&id, &orderID, &productID, &merk, &qty, &status, &rentedAt, &returnedAt, &notes, &isOffline, &customerName, &customerPhone)
+			rentals = append(rentals, gin.H{
+				"id":             id,
+				"order_id":       orderID,
+				"product_id":     productID,
+				"merk":           merk,
+				"qty":            qty,
+				"status":         status,
+				"rented_at":      rentedAt,
+				"returned_at":    returnedAt,
+				"notes":          notes,
+				"customer_name":  customerName,
+				"customer_phone": customerPhone,
+			})
+		}
+
+		if rentals == nil {
+			rentals = []gin.H{}
+		}
+		c.JSON(200, rentals)
+	})
+
+	// =========================
+	// TANDAI GALON DIKEMBALIKAN
+	// =========================
+	r.POST("/rentals/:id/return", func(c *gin.Context) {
+		id := c.Param("id")
+		result, err := database.DB.Exec(`
+			UPDATE rentals
+			SET status = 'returned', returned_at = NOW()
+			WHERE id = ? AND status = 'active'
+		`, id)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		affected, _ := result.RowsAffected()
+		if affected == 0 {
+			c.JSON(400, gin.H{"error": "Data sewa tidak ditemukan atau sudah tidak aktif"})
+			return
+		}
+		c.JSON(200, gin.H{"message": "Galon berhasil dicatat dikembalikan"})
+	})
+
+	// =========================
+	// KONVERSI SEWA → BELI BARU (GALON RUSAK)
+	// =========================
+	r.POST("/rentals/:id/convert-damage", func(c *gin.Context) {
+		id := c.Param("id")
+
+		var rentalOrderID, rentalProductID, rentalQty int
+		var rentalUserID, rentalMerk string
+
+		err := database.DB.QueryRow(`
+			SELECT order_id, product_id, user_id, merk, qty
+			FROM rentals
+			WHERE id = ? AND status = 'active'
+		`, id).Scan(&rentalOrderID, &rentalProductID, &rentalUserID, &rentalMerk, &rentalQty)
+		if err != nil {
+			c.JSON(404, gin.H{"error": "Data sewa tidak ditemukan atau sudah tidak aktif"})
+			return
+		}
+
+		var productPrice int
+		database.DB.QueryRow(`SELECT price FROM products WHERE id = ?`, rentalProductID).Scan(&productPrice)
+		total := productPrice * rentalQty
+
+		// Ambil info pelanggan dari pesanan asli
+		var oriCustomerName, oriCustomerPhone string
+		var isOffline int
+		database.DB.QueryRow(`
+			SELECT IFNULL(customer_name,''), IFNULL(customer_phone,''), is_offline
+			FROM orders WHERE id = ?
+		`, rentalOrderID).Scan(&oriCustomerName, &oriCustomerPhone, &isOffline)
+
+		if isOffline == 0 {
+			database.DB.QueryRow(`SELECT IFNULL(name,''), IFNULL(phone,'') FROM users WHERE firebase_uid = ?`, rentalUserID).Scan(&oriCustomerName, &oriCustomerPhone)
+		}
+
+		tx, err := database.DB.Begin()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Gagal begin transaction"})
+			return
+		}
+
+		keyBuf := make([]byte, 8)
+		rand.Read(keyBuf)
+		damageKey := "DAMAGE-" + hex.EncodeToString(keyBuf)
+
+		// INSERT ORDER GANTI GALON RUSAK
+		result, err := tx.Exec(`
+			INSERT INTO orders
+			(user_id, payment_method_id, payment_channel, midtrans_order_id, total,
+			 voucher_code, voucher_discount, status, payment_status, idempotency_key,
+			 customer_name, customer_phone, is_offline)
+			VALUES (?, 0, 'damage-convert', ?, ?, '', 0, 'Selesai', 'pending', ?, ?, ?, 1)
+		`, rentalUserID, damageKey, total, damageKey, oriCustomerName, oriCustomerPhone)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		newOrderID, _ := result.LastInsertId()
+
+		_, err = tx.Exec(`
+			INSERT INTO order_items (order_id, product_id, qty, subtotal, service)
+			VALUES (?, ?, ?, ?, 'Beli Baru')
+		`, newOrderID, rentalProductID, rentalQty, total)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		_, err = tx.Exec(`UPDATE products SET stock = stock - ? WHERE id = ?`, rentalQty, rentalProductID)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		_, err = tx.Exec(`
+			UPDATE rentals
+			SET status = 'damaged', returned_at = NOW(),
+			    notes = CONCAT('Galon rusak — dikonversi ke Beli Baru. Tagihan: Rp ', ?)
+			WHERE id = ?
+		`, total, id)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err = tx.Commit(); err != nil {
+			c.JSON(500, gin.H{"error": "Gagal commit"})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message":        "Galon rusak dicatat, pesanan Beli Baru dibuat",
+			"new_order_id":   newOrderID,
+			"total_tagihan":  total,
+			"merk":           rentalMerk,
+			"customer":       oriCustomerName,
 		})
 	})
 

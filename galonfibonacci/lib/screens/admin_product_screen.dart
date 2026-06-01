@@ -201,6 +201,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                       textCapitalization: TextCapitalization.words,
                       decoration: InputDecoration(
                         labelText: "Nama / Merk Produk",
+                        hintText: "Contoh: Aqua, Club, Le Minerale",
                         prefixIcon: const Icon(Icons.local_drink_rounded),
                         filled: true,
                         fillColor: Colors.grey[50],
@@ -332,50 +333,55 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     const SizedBox(height: 14),
 
                     // DROPDOWN SUPPLIER
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            initialValue: selectedSupplierId,
-                            decoration: InputDecoration(
-                              labelText: "Supplier",
-                              prefixIcon: const Icon(Icons.business_rounded),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            items: suppliers.map((s) {
-                              return DropdownMenuItem<int>(
-                                value: s["id"] as int,
-                                child: Text(s["name"].toString()),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setModalState(
-                                () => selectedSupplierId = value,
-                              );
-                            },
-                            hint: suppliers.isEmpty
-                                ? const Text("Belum ada supplier")
-                                : const Text("Pilih supplier"),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedSupplierId,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: "Supplier",
+                        prefixIcon: const Icon(Icons.business_rounded),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: suppliers.map((s) {
+                        return DropdownMenuItem<int>(
+                          value: s["id"] as int,
+                          child: Text(
+                            s["name"].toString(),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() => selectedSupplierId = value);
+                      },
+                      hint: suppliers.isEmpty
+                          ? const Text("Belum ada supplier")
+                          : const Text("Pilih supplier"),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.blue[700],
+                          textStyle: const TextStyle(fontSize: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          tooltip: "Tambah Supplier",
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.blue[50],
-                            foregroundColor: Colors.blue[700],
-                          ),
-                          icon: const Icon(Icons.add_business_rounded),
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            showAddSupplierDialog();
-                          },
+                        icon: const Icon(
+                          Icons.add_business_rounded,
+                          size: 16,
                         ),
-                      ],
+                        label: const Text("Tambah Supplier"),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          showAddSupplierDialog();
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 14),

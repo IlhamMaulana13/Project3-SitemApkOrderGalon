@@ -127,7 +127,7 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
 
                     children: [
                       Text(
-                        "Order #${order["id"]}",
+                        "Pesanan #${order["id"]}",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,

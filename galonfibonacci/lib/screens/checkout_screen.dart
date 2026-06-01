@@ -285,7 +285,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
-        title: const Text("Checkout", style: TextStyle(color: Colors.white)),
+        title: const Text("Konfirmasi Pesanan", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue[700],
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -317,7 +317,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                             children: [
                               const Text(
-                                "Informasi Customer",
+                                "Informasi Pelanggan",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -338,7 +338,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                                 icon: const Icon(Icons.edit, size: 18),
 
-                                label: const Text("Edit"),
+                                label: const Text("Ubah"),
                               ),
                             ],
                           ),
@@ -494,7 +494,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 applyVoucher(subtotal);
                               },
 
-                              child: const Text("Apply"),
+                              child: const Text("Terapkan"),
                             ),
                           ),
                         ),

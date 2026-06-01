@@ -456,6 +456,7 @@ class _KasirScreenState extends State<KasirScreen> {
                     decoration: const InputDecoration(
                       labelText: "Nama Pelanggan (opsional)",
                       prefixIcon: Icon(Icons.person_outline),
+                      hintText: "Contoh: Budi Santoso",
                     ),
                   ),
                   const SizedBox(height: 10),

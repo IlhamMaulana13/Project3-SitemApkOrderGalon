@@ -377,75 +377,44 @@ class _ProductItemState extends State<ProductItem> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.payments_rounded,
-                                size: 14, color: Colors.green[700]),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Rp ${widget.price}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: Colors.green[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (useStock)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: widget.product.stock <= 0
-                                ? Colors.red.shade50
-                                : Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.inventory_2_outlined,
-                                size: 14,
-                                color: widget.product.stock <= 0
-                                    ? Colors.red
-                                    : Colors.blue[700],
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Stok ${widget.product.stock}",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: widget.product.stock <= 0
-                                      ? Colors.red
-                                      : Colors.blue[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
+                  const SizedBox(height: 6),
+                  // HARGA — terpampang jelas
+                  Text(
+                    "Rp ${widget.price}",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      color: Colors.green[700],
+                    ),
                   ),
+                  if (useStock) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 13,
+                          color: widget.product.stock <= 0
+                              ? Colors.red
+                              : Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Stok: ${widget.product.stock}",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: widget.product.stock <= 0
+                                ? Colors.red
+                                : Colors.grey[600],
+                            fontWeight: widget.product.stock <= 0
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

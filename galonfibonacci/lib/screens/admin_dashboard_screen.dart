@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
+import 'package:galonfibonacci/screens/admin_rental_screen.dart';
 import 'package:galonfibonacci/screens/admin_role_screen.dart';
 import 'package:galonfibonacci/screens/admin_voucher_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
@@ -120,6 +121,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title: 'Kelola Voucher',
             color: Colors.purple,
             screen: const AdminVoucherScreen(),
+          ),
+          _drawerItem(
+            context,
+            icon: Icons.water_drop_rounded,
+            title: 'Pencatatan Sewa',
+            color: Colors.indigo,
+            screen: const AdminRentalScreen(),
           ),
           _drawerItem(
             context,
@@ -669,10 +677,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
+                      crossAxisCount: 2,
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: 0.95,
+                      childAspectRatio: 1.15,
                       children: [
                         _buildMenuCard(
                           context,
@@ -719,6 +727,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const AdminVoucherScreen(),
+                            ),
+                          ),
+                        ),
+                        _buildMenuCard(
+                          context,
+                          icon: Icons.water_drop_rounded,
+                          title: 'Sewa Galon',
+                          color: Colors.indigo,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminRentalScreen(),
                             ),
                           ),
                         ),

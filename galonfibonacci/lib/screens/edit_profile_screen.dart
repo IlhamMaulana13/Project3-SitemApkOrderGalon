@@ -100,7 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 20),
 
                 const Text(
-                  "PROFILE BERHASIL DIUPDATE",
+                  "PROFIL BERHASIL DIPERBARUI",
                   textAlign: TextAlign.center,
 
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -138,7 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "Edit Profile",
+          "Ubah Profil",
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.blue[700],
@@ -154,7 +154,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   TextField(
                     controller: nameController,
-
+                    textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: "Nama Lengkap",
                     ),
@@ -174,7 +174,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextField(
                     controller: addressController,
                     maxLines: 3,
-
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(labelText: "Alamat"),
                   ),
 
@@ -191,7 +191,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         foregroundColor: Colors.white,
                       ),
 
-                      child: const Text("Simpan Profile"),
+                      child: const Text("Simpan Profil"),
                     ),
                   ),
                 ],
