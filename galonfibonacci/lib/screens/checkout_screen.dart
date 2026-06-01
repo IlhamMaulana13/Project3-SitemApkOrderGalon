@@ -135,6 +135,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       int appliedDiscount = min(discount, subtotal);
       int total = subtotal - appliedDiscount;
 
+      // Guard: total Rp 0 tidak bisa diproses Midtrans
+      if (total <= 0 && selectedPayment != "COD") {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Total Rp 0 tidak dapat dibayar via Midtrans. Silakan gunakan COD.",
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() => isLoading = false);
+        return;
+      }
+
       // ─── COD ───────────────────────────────────────────────
       if (selectedPayment == "COD") {
         final codKey = "${user.uid}_COD_${DateTime.now().millisecondsSinceEpoch}";

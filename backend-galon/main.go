@@ -1086,7 +1086,7 @@ func main() {
 					`,
 									userID,
 									code,
-									10000,
+									2000,
 								)
 
 								if err == nil {

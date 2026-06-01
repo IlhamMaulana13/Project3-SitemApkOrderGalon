@@ -297,7 +297,8 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                 const Text("Bagikan Voucher"),
               ],
             ),
-            content: Column(
+            content: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -373,6 +374,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                 ],
               ],
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -725,7 +727,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "Pelanggan mendapat voucher diskon Rp 10.000 setiap kelipatan 5 transaksi selesai — berjalan otomatis.",
+                                "Pelanggan mendapat voucher diskon Rp 2.000 setiap kelipatan 5 transaksi selesai — berjalan otomatis.",
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
