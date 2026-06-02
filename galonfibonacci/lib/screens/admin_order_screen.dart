@@ -174,6 +174,60 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
 
                   const SizedBox(height: 15),
 
+                  if (order["items"] != null &&
+                      (order["items"] as List).isNotEmpty) ...[
+                    const Text(
+                      "Detail Item:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...((order["items"] as List).map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item["product_name"] ?? item["merk"] ?? "-",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Qty: ${item["qty"] ?? 0} | Harga: Rp ${item["price"] ?? 0}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              if (item["subtotal"] != null)
+                                Text(
+                                  'Subtotal: Rp ${item["subtotal"]}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green[700],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    })),
+                    const SizedBox(height: 15),
+                  ],
+
                   DropdownButtonFormField<String>(
                     value: status.isEmpty ? null : status,
 
@@ -188,9 +242,7 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                     ),
 
                     items: dropdownItems
-                        .map(
-                          (s) => DropdownMenuItem(value: s, child: Text(s)),
-                        )
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
 
                     onChanged: (value) {

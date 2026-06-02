@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -125,40 +129,220 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> printPdf() async {
-    final pdf = pw.Document();
+    final doc = pw.Document();
 
-    pdf.addPage(
+    final Uint8List logoBytes = (await rootBundle.load(
+      'assets/images/logo_galon.png',
+    )).buffer.asUint8List();
+
+    final logoImage = pw.MemoryImage(logoBytes);
+
+    final primaryColor = pdf.PdfColor.fromHex('#1976D2');
+    final lightBlue = pdf.PdfColor.fromHex('#E3F2FD');
+    final darkText = pdf.PdfColor.fromHex('#212121');
+
+    doc.addPage(
       pw.MultiPage(
+        margin: const pw.EdgeInsets.all(24),
+
+        footer: (context) {
+          return pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 10),
+            child: pw.Text(
+              "Dicetak pada ${DateTime.now().toString().substring(0, 16)}",
+              style: const pw.TextStyle(fontSize: 8),
+            ),
+          );
+        },
+
         build: (context) => [
-          pw.Text(
-            "Laporan Penjualan Galon",
-            style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+          // HEADER
+          pw.Container(
+            padding: const pw.EdgeInsets.all(15),
+            decoration: pw.BoxDecoration(
+              color: primaryColor,
+              borderRadius: pw.BorderRadius.circular(10),
+            ),
+            child: pw.Row(
+              children: [
+                pw.Container(
+                  width: 70,
+                  height: 70,
+                  decoration: pw.BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: pw.BorderRadius.circular(8),
+                    border: pw.Border.all(color: pdf.PdfColors.white, width: 1),
+                  ),
+                  padding: const pw.EdgeInsets.all(5),
+                  child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                ),
+
+                pw.SizedBox(width: 15),
+
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        "GALON RIZZKI FARAS",
+                        style: pw.TextStyle(
+                          color: pdf.PdfColors.white,
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+
+                      pw.SizedBox(height: 5),
+
+                      pw.Text(
+                        "Alamat: 6°08'20.7\"S 106°31'51.0\"E",
+                        style: const pw.TextStyle(
+                          color: pdf.PdfColors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+
+                      pw.SizedBox(height: 3),
+
+                      pw.Text(
+                        "+62 895 1574 9884",
+                        style: const pw.TextStyle(
+                          color: pdf.PdfColors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+
+                      pw.Text(
+                        "galonrizzkifaras@gmail.com",
+                        style: const pw.TextStyle(
+                          color: pdf.PdfColors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
 
           pw.SizedBox(height: 20),
 
-          pw.Text(filterLabel),
-          pw.SizedBox(height: 15),
+          // JUDUL
+          pw.Center(
+            child: pw.Text(
+              "LAPORAN PENJUALAN",
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
 
+          pw.SizedBox(height: 5),
+
+          pw.Center(
+            child: pw.Text(
+              filterLabel,
+              style: pw.TextStyle(color: pdf.PdfColors.grey700, fontSize: 11),
+            ),
+          ),
+
+          pw.SizedBox(height: 20),
+
+          // TOTAL PENDAPATAN
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: lightBlue,
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: primaryColor),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  "Total Pendapatan",
+                  style: pw.TextStyle(
+                    color: darkText,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+
+                pw.Text(
+                  "Rp ${getTotalRevenue()}",
+                  style: pw.TextStyle(
+                    color: primaryColor,
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          pw.SizedBox(height: 20),
+
+          // TABEL
           pw.Table.fromTextArray(
-            headers: ["ID", "Customer", "Total", "Status", "Tanggal"],
-            data: filteredReports
-                .map(
-                  (e) => [
-                    e.id.toString(),
-                    e.name,
-                    "Rp ${e.total}",
-                    e.status,
-                    e.createdAt.substring(0, 10),
-                  ],
-                )
-                .toList(),
+            headers: const ["ID", "Customer", "Total", "Status", "Tanggal"],
+
+            headerDecoration: pw.BoxDecoration(color: primaryColor),
+
+            headerStyle: pw.TextStyle(
+              color: pdf.PdfColors.white,
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 11,
+            ),
+
+            cellStyle: pw.TextStyle(color: darkText, fontSize: 10),
+
+            oddRowDecoration: pw.BoxDecoration(color: lightBlue),
+
+            border: pw.TableBorder.all(
+              color: pdf.PdfColors.grey400,
+              width: 0.5,
+            ),
+
+            cellAlignment: pw.Alignment.centerLeft,
+
+            data: filteredReports.map((e) {
+              return [
+                e.id.toString(),
+                e.name,
+                "Rp ${e.total}",
+                e.status,
+                e.createdAt.substring(0, 10),
+              ];
+            }).toList(),
+          ),
+
+          pw.SizedBox(height: 20),
+
+          // SUMMARY
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  "Jumlah Transaksi",
+                  style: pw.TextStyle(color: pdf.PdfColors.grey700),
+                ),
+
+                pw.Text(
+                  "${filteredReports.length}",
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+    await Printing.layoutPdf(onLayout: (format) async => doc.save());
   }
 
   int getTotalRevenue() {

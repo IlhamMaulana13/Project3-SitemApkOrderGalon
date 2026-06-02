@@ -86,7 +86,7 @@ class _MainScreenState extends State<MainScreen> {
             items: [
               const BottomNavigationBarItem(
                 icon: Icon(Icons.home),
-                label: "Home",
+                label: "Beranda",
               ),
               BottomNavigationBarItem(
                 icon: Stack(
@@ -120,7 +120,7 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                   ],
                 ),
-                label: "Cart",
+                label: "Keranjang",
               ),
               const BottomNavigationBarItem(
                 icon: Icon(Icons.receipt_long),
@@ -128,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
               ),
               const BottomNavigationBarItem(
                 icon: Icon(Icons.person),
-                label: "Profile",
+                label: "Profil",
               ),
             ],
           );

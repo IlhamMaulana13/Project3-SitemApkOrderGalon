@@ -213,51 +213,80 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
 
                     const SizedBox(height: 14),
 
-                    // HARGA JUAL & HARGA MODAL (berdampingan)
+                    // ── HARGA JUAL ──────────────────────────────
                     Row(
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: hargaJualController,
-                            keyboardType: TextInputType.number,
-                            onChanged: (_) => setModalState(() {}),
-                            decoration: InputDecoration(
-                              labelText: "Harga Jual",
-                              prefixText: "Rp ",
-                              prefixIcon: const Icon(
-                                Icons.sell_rounded,
-                                color: Colors.green,
-                              ),
-                              filled: true,
-                              fillColor: Colors.green[50],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: hargaModalController,
-                            keyboardType: TextInputType.number,
-                            onChanged: (_) => setModalState(() {}),
-                            decoration: InputDecoration(
-                              labelText: "Harga Modal",
-                              prefixText: "Rp ",
-                              prefixIcon: const Icon(
-                                Icons.price_change_rounded,
-                                color: Colors.orange,
-                              ),
-                              filled: true,
-                              fillColor: Colors.orange[50],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                        Icon(Icons.sell_rounded,
+                            size: 16, color: Colors.green[700]),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Harga Jual",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.green[700],
+                            fontSize: 13,
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: hargaJualController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: InputDecoration(
+                        hintText: "Contoh: 45000",
+                        prefixText: "Rp ",
+                        filled: true,
+                        fillColor: Colors.green[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                              color: Colors.green.shade400, width: 1.5),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── HARGA MODAL ─────────────────────────────
+                    Row(
+                      children: [
+                        Icon(Icons.price_change_rounded,
+                            size: 16, color: Colors.orange[700]),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Harga Modal",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange[700],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: hargaModalController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: InputDecoration(
+                        hintText: "Contoh: 30000",
+                        prefixText: "Rp ",
+                        filled: true,
+                        fillColor: Colors.orange[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                              color: Colors.orange.shade400, width: 1.5),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 10),

@@ -117,7 +117,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) return;
+    // GUARD: Redirect ke login jika user null (guest checkout)
+    if (user == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Silakan login terlebih dahulu untuk checkout"),
+        ),
+      );
+      if (!context.mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
 
     if (cartProvider.items.isEmpty) {
       ScaffoldMessenger.of(
@@ -152,7 +163,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // ─── COD ───────────────────────────────────────────────
       if (selectedPayment == "COD") {
-        final codKey = "${user.uid}_COD_${DateTime.now().millisecondsSinceEpoch}";
+        final codKey =
+            "${user.uid}_COD_${DateTime.now().millisecondsSinceEpoch}";
         final codResponse = await http.post(
           Uri.parse("${ApiConfig.baseUrl}/orders"),
           headers: {"Content-Type": "application/json"},
@@ -165,12 +177,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             "total": total,
             "voucher_code": voucherController.text.trim(),
             "voucher_discount": appliedDiscount,
-            "items": cartProvider.items.map((item) => {
-              "product_id": item.product.id,
-              "qty": item.quantity,
-              "subtotal": item.product.price * item.quantity,
-              "service": item.service,
-            }).toList(),
+            "items": cartProvider.items
+                .map(
+                  (item) => {
+                    "product_id": item.product.id,
+                    "qty": item.quantity,
+                    "subtotal": item.product.price * item.quantity,
+                    "service": item.service,
+                  },
+                )
+                .toList(),
           }),
         );
 
@@ -182,7 +198,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             context: context,
             barrierDismissible: false,
             builder: (_) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -190,7 +208,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   CircleAvatar(
                     radius: 36,
                     backgroundColor: Colors.green[100],
-                    child: Icon(Icons.check_rounded, color: Colors.green[700], size: 44),
+                    child: Icon(
+                      Icons.check_rounded,
+                      color: Colors.green[700],
+                      size: 44,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   const Text(
@@ -210,7 +232,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.pop(context);
@@ -226,7 +250,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         } else {
           final err = jsonDecode(codResponse.body);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(err["error"] ?? "Gagal membuat pesanan COD")),
+            SnackBar(
+              content: Text(err["error"] ?? "Gagal membuat pesanan COD"),
+            ),
           );
         }
 
@@ -254,7 +280,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Gagal membuat pembayaran (${paymentResponse.statusCode})"),
+              "Gagal membuat pembayaran (${paymentResponse.statusCode})",
+            ),
           ),
         );
         setState(() => isLoading = false);
@@ -289,12 +316,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           "total": total,
           "voucher_code": voucherController.text.trim(),
           "voucher_discount": appliedDiscount,
-          "items": cartProvider.items.map((item) => {
-            "product_id": item.product.id,
-            "qty": item.quantity,
-            "subtotal": item.product.price * item.quantity,
-            "service": item.service,
-          }).toList(),
+          "items": cartProvider.items
+              .map(
+                (item) => {
+                  "product_id": item.product.id,
+                  "qty": item.quantity,
+                  "subtotal": item.product.price * item.quantity,
+                  "service": item.service,
+                },
+              )
+              .toList(),
         }),
       );
 
@@ -316,10 +347,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => PaymentWebviewScreen(
-            paymentUrl: paymentUrl,
-            orderId: orderId,
-          ),
+          builder: (_) =>
+              PaymentWebviewScreen(paymentUrl: paymentUrl, orderId: orderId),
         ),
       );
     } catch (e) {
@@ -350,7 +379,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
-        title: const Text("Konfirmasi Pesanan", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Konfirmasi Pesanan",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue[700],
         iconTheme: const IconThemeData(color: Colors.white),
       ),

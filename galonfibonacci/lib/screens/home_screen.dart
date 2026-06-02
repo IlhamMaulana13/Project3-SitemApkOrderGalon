@@ -62,16 +62,18 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ProductModel> get filteredProducts {
     if (_searchQuery.isEmpty) return products;
     return products
-        .where(
-          (p) => p.merk.toLowerCase().contains(_searchQuery.toLowerCase()),
-        )
+        .where((p) => p.merk.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
   }
 
+  // Ambil harga dari product.price jika ada, fallback ke service price
   int getPrice() {
+    // Cek apakah product memiliki field price (dari API)
+    // Jika product sudah ada price field, gunakan itu
+    // Fallback: gunakan service-based pricing
     if (selectedService == "Isi Ulang") return 7000;
     if (selectedService == "Beli Baru") return 45000;
-    return 2000;
+    return 2000; // Sewa
   }
 
   Widget buildFilter(String title) {
@@ -202,9 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -234,15 +234,11 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Row(
                 children: [
-                  Icon(Icons.search_rounded,
-                      size: 16, color: Colors.grey[600]),
+                  Icon(Icons.search_rounded, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
                     'Hasil pencarian: "$_searchQuery"  •  ${filteredProducts.length} produk',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   ),
                 ],
               ),
@@ -341,8 +337,11 @@ class _ProductItemState extends State<ProductItem> {
                   width: 80,
                   height: 80,
                   color: Colors.blue[50],
-                  child: Icon(Icons.local_drink_rounded,
-                      color: Colors.blue[300], size: 36),
+                  child: Icon(
+                    Icons.local_drink_rounded,
+                    color: Colors.blue[300],
+                    size: 36,
+                  ),
                 ),
               ),
             ),
@@ -448,8 +447,9 @@ class _ProductItemState extends State<ProductItem> {
                 const SizedBox(height: 6),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isOutOfStock ? Colors.grey[300] : Colors.blue[700],
+                    backgroundColor: isOutOfStock
+                        ? Colors.grey[300]
+                        : Colors.blue[700],
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,

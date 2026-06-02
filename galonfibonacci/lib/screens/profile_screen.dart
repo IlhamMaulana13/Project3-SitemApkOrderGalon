@@ -134,7 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         foregroundColor: Colors.white,
                       ),
 
-                      child: const Text("Edit Profile"),
+                      child: const Text("Ubah Profil"),
                     ),
                   ),
                 ],

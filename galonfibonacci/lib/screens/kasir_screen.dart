@@ -187,9 +187,7 @@ class _KasirScreenState extends State<KasirScreen> {
                       ),
                     ),
                     items: services
-                        .map(
-                          (s) => DropdownMenuItem(value: s, child: Text(s)),
-                        )
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
                     onChanged: (value) {
                       if (value != null) {
@@ -272,15 +270,17 @@ class _KasirScreenState extends State<KasirScreen> {
     final uid = kasirUid;
     if (uid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Sesi kasir tidak valid, silakan login ulang")),
+        const SnackBar(
+          content: Text("Sesi kasir tidak valid, silakan login ulang"),
+        ),
       );
       return;
     }
 
     if (cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Keranjang masih kosong")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Keranjang masih kosong")));
       return;
     }
 
@@ -337,9 +337,9 @@ class _KasirScreenState extends State<KasirScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Terjadi kesalahan: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Terjadi kesalahan: $e")));
     } finally {
       if (mounted) setState(() => isProcessing = false);
     }
@@ -410,7 +410,9 @@ class _KasirScreenState extends State<KasirScreen> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            subtitle: Text("Rp ${item["price"]} x ${item["qty"]}"),
+                            subtitle: Text(
+                              "Rp ${item["price"]} x ${item["qty"]}",
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -530,117 +532,164 @@ class _KasirScreenState extends State<KasirScreen> {
   // TAB: KASIR (POS)
   // =========================
   Widget buildPosTab() {
-    return Column(
-      children: [
-        Expanded(
-          child: products.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                  padding: const EdgeInsets.all(15),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final product = products[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: ListTile(
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            (product["image"] ?? "").toString(),
-                            width: 55,
-                            height: 55,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 55,
-                              height: 55,
-                              color: Colors.blue[50],
-                              child: Icon(
-                                Icons.local_drink,
-                                color: Colors.blue[300],
-                              ),
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          (product["merk"] ?? "-").toString(),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text("Stok: ${product["stock"] ?? 0}"),
-                        trailing: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[700],
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () => showAddItemDialog(product),
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text("Tambah"),
-                        ),
-                      ),
-                    );
-                  },
+    final searchController = TextEditingController();
+    List filteredProducts = products;
+
+    return StatefulBuilder(
+      builder: (context, setStatePos) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(15),
+              child: TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: 'Cari produk...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            searchController.clear();
+                            setStatePos(() {
+                              filteredProducts = products;
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-        ),
-        if (cart.isNotEmpty)
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text("${cart.length} item"),
-                        Text(
-                          "Rp $cartTotal",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: showCartSheet,
-                    icon: const Icon(Icons.shopping_cart_checkout),
-                    label: const Text("Lihat Keranjang"),
-                  ),
-                ],
+                onChanged: (value) {
+                  setStatePos(() {
+                    filteredProducts = products
+                        .where(
+                          (p) => (p['merk'] ?? '')
+                              .toString()
+                              .toLowerCase()
+                              .contains(value.toLowerCase()),
+                        )
+                        .toList();
+                  });
+                },
               ),
             ),
-          ),
-      ],
+            Expanded(
+              child: products.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredProducts.isEmpty
+                  ? const Center(child: Text('Produk tidak ditemukan'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
+                      itemCount: filteredProducts.length,
+                      itemBuilder: (context, index) {
+                        final product = filteredProducts[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: ListTile(
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                (product["image"] ?? "").toString(),
+                                width: 55,
+                                height: 55,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 55,
+                                  height: 55,
+                                  color: Colors.blue[50],
+                                  child: Icon(
+                                    Icons.local_drink,
+                                    color: Colors.blue[300],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              (product["merk"] ?? "-").toString(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text("Stok: ${product["stock"] ?? 0}"),
+                            trailing: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[700],
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => showAddItemDialog(product),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text("Tambah"),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            if (cart.isNotEmpty)
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text("${cart.length} item"),
+                            Text(
+                              "Rp $cartTotal",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        onPressed: showCartSheet,
+                        icon: const Icon(Icons.shopping_cart_checkout),
+                        label: const Text("Lihat Keranjang"),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
-  // =========================
-  // TAB: RIWAYAT
-  // =========================
   Widget buildHistoryTab() {
     return RefreshIndicator(
       onRefresh: fetchTransactions,

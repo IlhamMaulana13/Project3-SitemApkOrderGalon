@@ -124,130 +124,126 @@ class _KurirScreenState extends State<KurirScreen> {
         ],
       ),
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
+      body: RefreshIndicator(
+        onRefresh: fetchOrders,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            final order = orders[index] as Map<String, dynamic>;
 
-        itemCount: orders.length,
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
 
-        itemBuilder: (context, index) {
-          final order = orders[index] as Map<String, dynamic>;
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16),
-
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-                  Text(
-                    "Order #${order["id"]}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Text("Nama: ${order["name"] ?? "-"}"),
-                  Text("No HP: ${order["phone"] ?? "-"}"),
-                  Text("Alamat: ${order["address"] ?? "-"}"),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    "Total: Rp ${order["total"]}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-
-                    child: Text(order["status"] ?? "-"),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  DropdownButton<String>(
-                    value: order["status"],
-
-                    isExpanded: true,
-
-                    items: const [
-                      DropdownMenuItem(
-                        value: "Diproses",
-                        child: Text("Diproses"),
-                      ),
-
-                      DropdownMenuItem(
-                        value: "Siap Dikirim",
-                        child: Text("Siap Dikirim"),
-                      ),
-
-                      DropdownMenuItem(
-                        value: "Dikirim",
-                        child: Text("Dikirim"),
-                      ),
-
-                      DropdownMenuItem(
-                        value: "Selesai",
-                        child: Text("Selesai"),
-                      ),
-                    ],
-
-                    onChanged: (value) {
-                      if (value != null) {
-                        updateStatus(order["id"], value);
-                      }
-                    },
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  SizedBox(
-                    width: double.infinity,
-
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        openWhatsApp(
-                          order["phone"],
-                          order["name"],
-                          order["id"],
-                        );
-                      },
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-
-                      icon: const Icon(Icons.chat),
-
-                      label: const Text("Hubungi Customer"),
-                    ),
-                  ),
-                ],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-            ),
-          );
-        },
+
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+
+                  children: [
+                    Text(
+                      "Pesanan #${order["id"]}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Text("Nama: ${order["name"] ?? "-"}"),
+                    Text("No HP: ${order["phone"] ?? "-"}"),
+                    Text("Alamat: ${order["address"] ?? "-"}"),
+
+                    const SizedBox(height: 10),
+
+                    Text(
+                      "Total: Rp ${order["total"]}",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+
+                      child: Text(order["status"] ?? "-"),
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    DropdownButton<String>(
+                      value: order["status"],
+
+                      isExpanded: true,
+
+                      items: const [
+                        DropdownMenuItem(
+                          value: "Diproses",
+                          child: Text("Diproses"),
+                        ),
+
+                        DropdownMenuItem(
+                          value: "Dikirim",
+                          child: Text("Dikirim"),
+                        ),
+
+                        DropdownMenuItem(
+                          value: "Selesai",
+                          child: Text("Selesai"),
+                        ),
+                      ],
+
+                      onChanged: (value) {
+                        if (value != null) {
+                          updateStatus(order["id"], value);
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    SizedBox(
+                      width: double.infinity,
+
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          openWhatsApp(
+                            order["phone"],
+                            order["name"],
+                            order["id"],
+                          );
+                        },
+
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+
+                        icon: const Icon(Icons.chat),
+
+                        label: const Text("Hubungi Customer"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
