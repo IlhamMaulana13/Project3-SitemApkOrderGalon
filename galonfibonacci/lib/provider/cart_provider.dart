@@ -1,9 +1,30 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/cart_model.dart';
 import '../models/product_model.dart';
 
 class CartProvider extends ChangeNotifier {
   final List<CartModel> _items = [];
+  String? _currentUserId;
+  late final StreamSubscription<User?> _authSub;
+
+  CartProvider() {
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user?.uid != _currentUserId) {
+        _items.clear();
+        _currentUserId = user?.uid;
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub.cancel();
+    super.dispose();
+  }
 
   List<CartModel> get items => _items;
 

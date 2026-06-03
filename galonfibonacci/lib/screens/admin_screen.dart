@@ -1,11 +1,62 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 
-class AdminScreen extends StatelessWidget {
+class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
+
+  @override
+  State<AdminScreen> createState() => _AdminScreenState();
+}
+
+class _AdminScreenState extends State<AdminScreen> {
+  final String baseUrl = ApiConfig.baseUrl;
+  int newOrderCount = 0;
+  bool isLoadingOrders = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchNewOrderCount();
+  }
+
+  Future<void> fetchNewOrderCount() async {
+    setState(() {
+      isLoadingOrders = true;
+    });
+
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/orders"));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          final count = data.where((order) {
+            final status = (order["status"] ?? "").toString();
+            return status == "Diproses";
+          }).length;
+          if (mounted) {
+            setState(() {
+              newOrderCount = count;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("fetchNewOrderCount error: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingOrders = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,19 +142,50 @@ class AdminScreen extends StatelessWidget {
                 ),
 
                 title: const Text(
-                  "Kelola Pesanan",
+                  "Orderan Baru",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
 
-                subtitle: const Text("Update status pesanan"),
+                subtitle: Text(
+                  isLoadingOrders
+                      ? "Memuat order baru..."
+                      : (newOrderCount > 0
+                            ? "$newOrderCount orderan baru menunggu"
+                            : "Belum ada orderan baru"),
+                ),
 
-                trailing: const Icon(Icons.arrow_forward_ios),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isLoadingOrders && newOrderCount > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red[600],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          newOrderCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    const Icon(Icons.arrow_forward_ios),
+                  ],
+                ),
 
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const AdminOrderScreen()),
-                  );
+                  ).then((_) => fetchNewOrderCount());
                 },
               ),
             ),

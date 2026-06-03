@@ -1,0 +1,67 @@
+@startuml Role_Based_Navigation
+!theme plain
+title Role-Based Screen Navigation - Galon Rizzki Faras
+skinparam backgroundColor #f5f5f5
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:User Login Successful;
+:Fetch User Data from Backend;
+:Get user.role field;
+
+switch (User Role)
+    case (CUSTOMER)
+        :Initialize MainScreen;
+        :Setup BottomNavBar with 4 tabs;
+        :- Beranda (Home);
+        :- Keranjang (Cart);
+        :- Pesanan (Orders);
+        :- Profil (Profile);
+        :Set Home Screen as default;
+        :Enable all Customer features;
+        
+    case (KASIR)
+        :Initialize KasirScreen;
+        :No BottomNavBar needed;
+        :Setup TabBar with 2 tabs;
+        :- Tab 1: Kasir (POS);
+        :- Tab 2: Riwayat (History);
+        :Load Products List;
+        :Fetch Today Transactions;
+        :Enable POS Functionality;
+        
+    case (KURIR)
+        :Initialize KurirScreen;
+        :No BottomNavBar needed;
+        :Load Orders for Delivery;
+        :Filter by Status (Diproses);
+        :Setup Pull-to-Refresh;
+        :Enable Status Update;
+        :Enable Photo Upload;
+        
+    case (ADMIN)
+        :Initialize AdminScreen;
+        :No BottomNavBar needed;
+        :Setup Navigation Drawer;
+        :- Kelola Pesanan;
+        :- Kelola Voucher;
+        :- Kelola Produk;
+        :- Lihat Laporan;
+        :Load Admin Dashboard;
+        :Enable Admin Features;
+        
+endswitch
+
+:Check User Permission;
+if (Has Valid Role?) then (Ya)
+    :Display Appropriate Screen;
+else (Tidak)
+    :Show Error Message;
+    :Force Logout;
+    :Redirect to LoginScreen;
+endif
+
+stop
+@enduml

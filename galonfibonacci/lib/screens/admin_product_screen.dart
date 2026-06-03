@@ -653,11 +653,14 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                       Icon(Icons.business_rounded,
                                           size: 13, color: Colors.grey[500]),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        supplierName,
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
+                                      Flexible(
+                                        child: Text(
+                                          supplierName,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:galonfibonacci/screens/edit_profile_screen.dart';
+import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:galonfibonacci/screens/payment_webview_screen.dart';
 import 'package:galonfibonacci/services/api_service.dart';
 import 'package:http/http.dart' as http;
@@ -112,21 +113,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
+  // Buat rental record untuk setiap item "Sewa" setelah order sukses
+  Future<void> _createRentalRecords(String userId, List cartItems) async {
+    final sewaItems = cartItems.where((item) => item.service == "Sewa").toList();
+    if (sewaItems.isEmpty) return;
+
+    for (final item in sewaItems) {
+      try {
+        await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/rentals"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "user_id": userId,
+            "product_id": item.product.id,
+            "qty": item.quantity,
+            "customer_name": profile?["name"] ?? "",
+            "customer_phone": profile?["phone"] ?? "",
+          }),
+        );
+      } catch (e) {
+        debugPrint("createRental error: $e");
+      }
+    }
+  }
+
   Future<void> checkout() async {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
     final user = FirebaseAuth.instance.currentUser;
 
-    // GUARD: Redirect ke login jika user null (guest checkout)
+    // GUARD: Show dialog ke login jika user null (guest checkout)
     if (user == null) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Silakan login terlebih dahulu untuk checkout"),
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Login Diperlukan"),
+          content: const Text(
+            "Silakan login terlebih dahulu untuk melanjutkan checkout.",
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text("Login"),
+            ),
+          ],
         ),
       );
-      if (!context.mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
@@ -193,7 +234,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         if (!mounted) return;
 
         if (codResponse.statusCode == 200) {
+          final itemsSnapshot = List.from(cartProvider.items);
           cartProvider.clearCart();
+          _createRentalRecords(user.uid, itemsSnapshot);
           showDialog(
             context: context,
             barrierDismissible: false,
@@ -340,7 +383,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
+      final itemsSnapshot = List.from(cartProvider.items);
       cartProvider.clearCart();
+      _createRentalRecords(user.uid, itemsSnapshot);
 
       if (!mounted) return;
 

@@ -106,7 +106,42 @@ class CartScreen extends StatelessWidget {
                   height: 50,
 
                   child: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: () {
+                      final user = FirebaseAuth.instance.currentUser;
+
+                      // GUARD: Show dialog ke login jika guest coba checkout
+                      if (user == null) {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text("Login Diperlukan"),
+                            content: const Text(
+                              "Silakan login terlebih dahulu untuk melanjutkan pembayaran.",
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text("Batal"),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                },
+                                child: const Text("Login"),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(

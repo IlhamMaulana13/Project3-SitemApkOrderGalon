@@ -1,0 +1,128 @@
+@startuml App_Main_Flow
+!theme plain
+title Application Main Flow - Galon Rizzki Faras
+skinparam backgroundColor #f5f5f5
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Aplikasi Dimulai;
+:Check Firebase Auth;
+
+if (User Sudah Login?) then (Ya)
+    :Get User UID;
+    :Fetch User Role dari Backend;
+    
+    if (User Role?) then (Customer)
+        :Tampilkan Main Screen;
+        :Bottom Nav: Beranda | Keranjang | Pesanan | Profil;
+        :Mulai User Flow;
+        
+        if (User Action?) then (Lihat Produk)
+            :Fetch Produk dari API;
+            :Display Daftar Produk;
+            :Filter by Service (Isi Ulang/Beli Baru/Sewa);
+            :User bisa Add to Cart;
+        elseif (Lihat Keranjang) then
+            :Display Cart Items;
+            if (Pesanan Kosong?) then (Ya)
+                :Show "Keranjang Kosong";
+            else (Tidak)
+                :Show Items dengan Total;
+                :User bisa Remove/Edit Qty;
+                if (Klik Lanjut Pembayaran?) then (Ya)
+                    :Cek Guest Mode;
+                    if (Guest?) then (Ya)
+                        :Show Dialog Login;
+                    else (Tidak)
+                        :Go to Checkout;
+                    endif
+                endif
+            endif
+        elseif (Lihat Pesanan) then
+            :Cek Guest Mode;
+            if (Guest?) then (Ya)
+                :Show Dialog Login;
+            else (Tidak)
+                :Display Pesanan List;
+                :Show Status (Diproses/Dikirim/Selesai);
+                :Display Voucher Reward;
+            endif
+        elseif (Lihat Profil) then
+            :Cek Guest Mode;
+            if (Guest?) then (Ya)
+                :Show Dialog Login;
+            else (Tidak)
+                :Display User Data;
+                :Show Edit Profile Button;
+                :Show Logout Button;
+            endif
+        endif
+        
+    elseif (Kasir) then
+        :Tampilkan Kasir Screen;
+        :Tab 1: POS System;
+        :Tab 2: Transaction History;
+        :Search Products;
+        :Add to Cart POS;
+        :Input Customer Name/Phone;
+        :Process Payment;
+        
+    elseif (Kurir) then
+        :Tampilkan Kurir Screen;
+        :Fetch Pesanan dengan Status Tertentu;
+        :Pull to Refresh;
+        :Display Order List;
+        :Update Status (Diproses -> Dikirim -> Selesai);
+        :Upload Photo Bukti;
+        
+    elseif (Admin) then
+        :Tampilkan Admin Screen;
+        :Menu: Orders | Vouchers | Products | Reports;
+        if (Admin Action?) then (Kelola Pesanan)
+            :View All Orders;
+            :Update Order Status;
+            :See Order Details;
+        elseif (Kelola Voucher) then
+            :Create/Edit Voucher;
+            :Set Discount Amount;
+        elseif (Kelola Produk) then
+            :Create/Edit Products;
+        elseif (Lihat Laporan) then
+            :Generate Sales Report;
+            :Export PDF;
+        endif
+    endif
+    
+else (Tidak)
+    :Tampilkan Auth Screen;
+    :Button: Login | Register;
+    
+    if (User Action?) then (Klik Login)
+        :Show Login Form;
+        :Input Email & Password;
+        :Call Backend /login;
+        if (Login Success?) then (Ya)
+            :Save Token & UID;
+            :Set User Role;
+            :Redirect to Main Screen;
+        else (Tidak)
+            :Show Error Message;
+        endif
+        
+    elseif (Klik Register) then
+        :Show Register Form;
+        :Input Email, Password, Name;
+        :Call Backend /register;
+        if (Register Success?) then (Ya)
+            :Account Created;
+            :Auto Redirect to Login;
+        else (Tidak)
+            :Show Error Message;
+        endif
+    endif
+endif
+
+stop
+@enduml

@@ -41,11 +41,14 @@ class _MainScreenState extends State<MainScreen> {
               fit: BoxFit.contain,
             ),
             const SizedBox(width: 12),
-            const Text(
-              "Galon Rizzki Faras",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                "Galon Rizzki Faras",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -56,6 +59,7 @@ class _MainScreenState extends State<MainScreen> {
             icon: const Icon(Icons.logout, color: Colors.white),
 
             onPressed: () async {
+              Provider.of<CartProvider>(context, listen: false).clearCart();
               await FirebaseAuth.instance.signOut();
 
               Navigator.pushAndRemoveUntil(

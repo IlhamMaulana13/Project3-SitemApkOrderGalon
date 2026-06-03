@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../api_config.dart';
+import 'main_screen.dart';
 
 class PaymentWaitingScreen extends StatefulWidget {
   final String orderId;
@@ -132,8 +133,11 @@ class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> {
                   ),
                 ),
                 onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                    (route) => false,
+                  );
                 },
                 child: const Text("Kembali ke Beranda"),
               ),
@@ -186,8 +190,11 @@ class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> {
                   ),
                 ),
                 onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                    (route) => false,
+                  );
                 },
                 child: const Text("Kembali ke Beranda"),
               ),
@@ -361,7 +368,11 @@ class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> {
 
                   TextButton(
                     onPressed: () =>
-                        Navigator.popUntil(context, (r) => r.isFirst),
+                        Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MainScreen()),
+                        (route) => false,
+                      ),
                     child: Text(
                       "Kembali ke Beranda",
                       style: TextStyle(color: Colors.grey[600]),

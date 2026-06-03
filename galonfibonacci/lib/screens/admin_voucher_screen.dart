@@ -31,9 +31,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          vouchers = data is List
-              ? List<Map<String, dynamic>>.from(data)
-              : [];
+          vouchers = data is List ? List<Map<String, dynamic>>.from(data) : [];
         });
       }
     } catch (e) {
@@ -108,7 +106,12 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
               children: [
                 Icon(Icons.local_offer_rounded, color: Colors.purple[700]),
                 const SizedBox(width: 8),
-                const Text("Buat Voucher Promo"),
+                Expanded(
+                  child: Text(
+                    "Buat Voucher Promo",
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
               ],
             ),
             content: SingleChildScrollView(
@@ -217,8 +220,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                   ),
                 ),
                 onPressed: () async {
-                  final discount =
-                      int.tryParse(discountController.text) ?? 0;
+                  final discount = int.tryParse(discountController.text) ?? 0;
                   if (discount <= 0) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       const SnackBar(
@@ -259,9 +261,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                     final err = jsonDecode(response.body);
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text(
-                          err["error"] ?? "Gagal membuat voucher",
-                        ),
+                        content: Text(err["error"] ?? "Gagal membuat voucher"),
                       ),
                     );
                   }
@@ -299,82 +299,86 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
             ),
             content: SingleChildScrollView(
               child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Info voucher
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.purple[50],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.local_offer_rounded,
-                          color: Colors.purple[700], size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              (v["name"]?.toString().isNotEmpty == true
-                                  ? v["name"]
-                                  : v["code"]) as String,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              "Diskon Rp ${v["discount"]}  •  ${v["code"]}",
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Info voucher
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_offer_rounded,
+                          color: Colors.purple[700],
+                          size: 20,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  "Kirim kepada:",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                _radioTile(
-                  label: "Semua Pelanggan",
-                  subtitle: "Voucher dikirim ke seluruh akun customer",
-                  selected: toAll,
-                  onTap: () => setModal(() => toAll = true),
-                ),
-                const SizedBox(height: 4),
-                _radioTile(
-                  label: "Pelanggan Tertentu",
-                  subtitle: "Masukkan email pelanggan",
-                  selected: !toAll,
-                  onTap: () => setModal(() => toAll = false),
-                ),
-                if (!toAll) ...[
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: "Email Pelanggan",
-                      hintText: "pelanggan@email.com",
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (v["name"]?.toString().isNotEmpty == true
+                                        ? v["name"]
+                                        : v["code"])
+                                    as String,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                "Diskon Rp ${v["discount"]}  •  ${v["code"]}",
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    "Kirim kepada:",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  _radioTile(
+                    label: "Semua Pelanggan",
+                    subtitle: "Voucher dikirim ke seluruh akun customer",
+                    selected: toAll,
+                    onTap: () => setModal(() => toAll = true),
+                  ),
+                  const SizedBox(height: 4),
+                  _radioTile(
+                    label: "Pelanggan Tertentu",
+                    subtitle: "Masukkan email pelanggan",
+                    selected: !toAll,
+                    onTap: () => setModal(() => toAll = false),
+                  ),
+                  if (!toAll) ...[
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: "Email Pelanggan",
+                        hintText: "pelanggan@email.com",
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -391,9 +395,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                 onPressed: () async {
                   if (!toAll && emailController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(
-                        content: Text("Masukkan email pelanggan"),
-                      ),
+                      const SnackBar(content: Text("Masukkan email pelanggan")),
                     );
                     return;
                   }
@@ -406,9 +408,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                     headers: {"Content-Type": "application/json"},
                     body: jsonEncode({
                       "assign_all": toAll,
-                      "email": toAll
-                          ? null
-                          : emailController.text.trim(),
+                      "email": toAll ? null : emailController.text.trim(),
                       "voucher_codes": [v["code"]],
                     }),
                   );
@@ -431,9 +431,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                     final err = jsonDecode(response.body);
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text(
-                          err["error"] ?? "Gagal mengirim voucher",
-                        ),
+                        content: Text(err["error"] ?? "Gagal mengirim voucher"),
                       ),
                     );
                   }
@@ -479,8 +477,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                   Text(label, style: const TextStyle(fontSize: 14)),
                   Text(
                     subtitle,
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -551,9 +548,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                             decoration: BoxDecoration(
                               color: Colors.blue[50],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.blue.shade200,
-                              ),
+                              border: Border.all(color: Colors.blue.shade200),
                             ),
                             child: Text(
                               code,
@@ -777,10 +772,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                       const Spacer(),
                       Text(
                         "Tekan + untuk tambah",
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
                       ),
                     ],
                   ),

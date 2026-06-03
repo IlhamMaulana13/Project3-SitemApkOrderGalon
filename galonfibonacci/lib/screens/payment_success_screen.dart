@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'main_screen.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({super.key});
@@ -43,12 +44,11 @@ class PaymentSuccessScreen extends StatelessWidget {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-
-                    Navigator.popUntil(
+                    Navigator.pushAndRemoveUntil(
                       context,
-                      (route) => route.isFirst,
+                      MaterialPageRoute(builder: (_) => const MainScreen()),
+                      (route) => false,
                     );
-
                   },
                   child: const Text("Kembali ke Home"),
                 ),

@@ -17,6 +17,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
   final String baseUrl = ApiConfig.baseUrl;
 
   List<Map<String, dynamic>> rentals = [];
+  List<Map<String, dynamic>> appSewa = [];
   bool isLoading = true;
 
   late TabController _tabController;
@@ -27,7 +28,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    fetchRentals();
+    _fetchAll();
   }
 
   @override
@@ -36,27 +37,79 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
     super.dispose();
   }
 
-  Future<void> fetchRentals() async {
+  Future<void> _fetchAll() async {
     setState(() => isLoading = true);
+    await Future.wait([fetchRentals(), fetchAppSewa()]);
+    if (mounted) setState(() => isLoading = false);
+  }
+
+  Future<void> fetchRentals() async {
     try {
       final response = await http.get(Uri.parse("$baseUrl/rentals"));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          rentals = data is List
-              ? List<Map<String, dynamic>>.from(data)
-              : [];
-        });
+        if (mounted) {
+          setState(() {
+            rentals = data is List
+                ? List<Map<String, dynamic>>.from(data)
+                : [];
+          });
+        }
       }
     } catch (e) {
       debugPrint("fetchRentals error: $e");
     }
-    if (mounted) setState(() => isLoading = false);
   }
 
+  Future<void> fetchAppSewa() async {
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/orders"));
+      if (response.statusCode != 200) return;
+
+      final data = jsonDecode(response.body);
+      if (data is! List) return;
+
+      final List<Map<String, dynamic>> sewaList = [];
+      for (final order in data) {
+        final items = order["items"];
+        if (items is! List) continue;
+
+        for (final item in items) {
+          final service = (item["service"] ?? "").toString();
+          if (service != "Sewa") continue;
+
+          final orderStatus = (order["status"] ?? "").toString();
+          sewaList.add({
+            "id": order["id"],
+            "merk": (item["product_name"] ?? item["merk"] ?? "-").toString(),
+            "qty": item["qty"] ?? 1,
+            "customer_name": (order["customer_name"] ?? "Pelanggan App").toString(),
+            "customer_phone": (order["customer_phone"] ?? "").toString(),
+            "rented_at": (order["created_at"] ?? "").toString(),
+            "returned_at": orderStatus == "Selesai" ? (order["updated_at"] ?? order["created_at"] ?? "").toString() : "",
+            "status": orderStatus == "Selesai" ? "returned" : "active",
+            "notes": "",
+            "source": "app",
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          appSewa = sewaList;
+        });
+      }
+    } catch (e) {
+      debugPrint("fetchAppSewa error: $e");
+    }
+  }
+
+  List<Map<String, dynamic>> _allRentals() => [...rentals, ...appSewa];
+
   List<Map<String, dynamic>> _filtered(String statusKey) {
-    if (statusKey.isEmpty) return rentals;
-    return rentals.where((r) => r['status'] == statusKey).toList();
+    final combined = _allRentals();
+    if (statusKey.isEmpty) return combined;
+    return combined.where((r) => r['status'] == statusKey).toList();
   }
 
   // =====================
@@ -312,6 +365,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
   Widget _rentalCard(Map<String, dynamic> r) {
     final status = r['status'] ?? 'active';
     final isActive = status == 'active';
+    final isFromApp = (r['source'] ?? '') == 'app';
     final id = r['id'] as int;
     final merk = r['merk'] ?? '-';
     final qty = r['qty'] ?? 1;
@@ -368,7 +422,37 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
                     ],
                   ),
                 ),
-                _statusChip(status),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _statusChip(status),
+                    if (isFromApp) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.purple[50],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.smartphone_rounded, size: 11, color: Colors.purple[600]),
+                            const SizedBox(width: 3),
+                            Text(
+                              "Dari App",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
 
@@ -449,8 +533,8 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
               ),
             ],
 
-            // Action buttons (hanya jika masih aktif)
-            if (isActive) ...[
+            // Action buttons hanya untuk kasir rentals yang masih aktif
+            if (isActive && !isFromApp) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -522,7 +606,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
       );
     }
     return RefreshIndicator(
-      onRefresh: fetchRentals,
+      onRefresh: _fetchAll,
       child: ListView.builder(
         padding: const EdgeInsets.all(14),
         itemCount: list.length,
@@ -534,7 +618,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
   @override
   Widget build(BuildContext context) {
     final activeCount =
-        rentals.where((r) => r['status'] == 'active').length;
+        _allRentals().where((r) => r['status'] == 'active').length;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -567,7 +651,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
             ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            onPressed: fetchRentals,
+            onPressed: _fetchAll,
           ),
         ],
         bottom: TabBar(

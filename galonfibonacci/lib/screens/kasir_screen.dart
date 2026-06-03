@@ -721,6 +721,8 @@ class _KasirScreenState extends State<KasirScreen> {
                       const Text(
                         "Pendapatan Tunai Hari Ini",
                         style: TextStyle(color: Colors.white70, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -730,10 +732,14 @@ class _KasirScreenState extends State<KasirScreen> {
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         "$todayCount transaksi",
                         style: const TextStyle(color: Colors.white70),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

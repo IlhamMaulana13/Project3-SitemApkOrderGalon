@@ -1,0 +1,46 @@
+@startuml Use_Case_Diagram_Galon_App
+!theme plain
+title Use Case Diagram Aplikasi Pemesanan Galon
+skinparam backgroundColor #f5f5f5
+skinparam actorStyle awesome
+
+actor Customer
+actor Kasir
+actor Kurir
+actor Admin
+
+Customer --> (Lihat Produk)
+Customer --> (Tambah ke Keranjang)
+Customer --> (Checkout / Transaksi)
+Customer --> (Lihat Pesanan)
+Customer --> (Lihat Status Pesanan)
+Customer --> (Login / Register)
+Customer --> (Logout)
+Customer --> (Gunakan Kode Voucher)
+
+Kasir --> (Akses Kasir POS)
+Kasir --> (Cari Produk)
+Kasir --> (Tambah Item ke Keranjang Kasir)
+Kasir --> (Proses Pembayaran Kasir)
+Kasir --> (Lihat Riwayat Transaksi Kasir)
+
+Kurir --> (Lihat Pesanan)
+Kurir --> (Update Status Pengiriman)
+Kurir --> (Upload Foto Bukti)
+Kurir --> (Logout)
+
+Admin --> (Kelola Produk)
+Admin --> (Kelola Pesanan)
+Admin --> (Kelola Voucher)
+Admin --> (Lihat Laporan)
+Admin --> (Logout)
+
+(Lihat Produk) .> (Login / Register) : <<include>>
+(Tambah ke Keranjang) .> (Login / Register) : <<include>>
+(Checkout / Transaksi) .> (Login / Register) : <<include>>
+(Lihat Pesanan) .> (Login / Register) : <<include>>
+(Lihat Status Pesanan) .> (Login / Register) : <<include>>
+
+(Checkout / Transaksi) .> (Gunakan Kode Voucher) : <<extends>>
+
+@enduml

@@ -50,9 +50,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 50, 20, 24),
-            decoration: BoxDecoration(
-              color: Colors.blue[700],
-            ),
+            decoration: BoxDecoration(color: Colors.blue[700]),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -145,7 +143,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 color: Colors.red[50],
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.logout_rounded, color: Colors.red[600], size: 20),
+              child: Icon(
+                Icons.logout_rounded,
+                color: Colors.red[600],
+                size: 20,
+              ),
             ),
             title: Text(
               'Logout',
@@ -190,7 +192,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withValues(alpha:0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -216,10 +218,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         onTap: () {
           Navigator.pop(context);
           if (screen != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => screen),
-            );
+            Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
           }
         },
       ),
@@ -242,7 +241,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -254,16 +253,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha:0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-          ),
+          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
           const SizedBox(height: 4),
           Text(
             value,
@@ -404,7 +400,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -417,7 +413,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withValues(alpha:0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: color, size: 26),
@@ -488,7 +484,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withValues(alpha:0.25),
+                            color: Colors.blue.withValues(alpha: 0.25),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
@@ -601,7 +597,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha:0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -763,70 +759,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     // GRAFIK PENJUALAN
                     // =====================
                     _buildSalesChartSection(),
-
-                    // =====================
-                    // PRODUK TERLARIS
-                    // =====================
-                    Text(
-                      'Produk Terlaris',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    ...dashboard!["best_products"].map<Widget>((item) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          leading: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.local_drink_rounded,
-                              color: Colors.blue[700],
-                              size: 22,
-                            ),
-                          ),
-                          title: Text(
-                            item["merk"],
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green[50],
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "${item["total"]} terjual",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
