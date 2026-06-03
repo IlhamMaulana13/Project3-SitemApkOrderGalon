@@ -730,7 +730,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           context,
                           icon: Icons.water_drop_rounded,
                           title: 'Sewa Galon',
-                          color: Colors.indigo,
+                          color: Colors.igfjndigo,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
