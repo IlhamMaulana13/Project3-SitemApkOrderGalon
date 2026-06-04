@@ -279,25 +279,30 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                   ],
 
                   if (dropdownItems.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      value: null,
-                      hint: Text(
-                        "Ubah status (saat ini: $status)",
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
                       ),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      child: DropdownButton<String>(
+                        value: null,
+                        hint: Text(
+                          "Ubah status (saat ini: $status)",
+                          style: TextStyle(
+                              color: Colors.grey[600], fontSize: 13),
                         ),
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items: dropdownItems
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) updateStatus(order["id"], value);
+                        },
                       ),
-                      items: dropdownItems
-                          .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) updateStatus(order["id"], value);
-                      },
                     )
                   else
                     Container(

@@ -312,7 +312,9 @@ class ProductItem extends StatefulWidget {
 class _ProductItemState extends State<ProductItem> {
   int quantity = 1;
 
-  bool get useStock => widget.selectedService == "Beli Baru";
+  bool get useStock =>
+      widget.selectedService == "Beli Baru" ||
+      widget.selectedService == "Sewa";
   bool get isOutOfStock => useStock && widget.product.stock <= 0;
 
   @override
@@ -392,7 +394,9 @@ class _ProductItemState extends State<ProductItem> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.inventory_2_outlined,
+                          widget.selectedService == "Sewa"
+                              ? Icons.swap_horiz_rounded
+                              : Icons.inventory_2_outlined,
                           size: 13,
                           color: widget.product.stock <= 0
                               ? Colors.red
@@ -400,7 +404,9 @@ class _ProductItemState extends State<ProductItem> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          "Stok: ${widget.product.stock}",
+                          widget.selectedService == "Sewa"
+                              ? "Tersedia: ${widget.product.stock} unit"
+                              : "Stok: ${widget.product.stock}",
                           style: TextStyle(
                             fontSize: 12,
                             color: widget.product.stock <= 0
