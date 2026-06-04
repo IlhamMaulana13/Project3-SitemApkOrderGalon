@@ -30,8 +30,15 @@ type Product struct {
 }
 
 type Supplier struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Phone   string `json:"phone"`
+	Address string `json:"address"`
+}
+
+type RewardSettings struct {
+	Multiplier int `json:"multiplier"`
+	Discount   int `json:"discount"`
 }
 
 type Rental struct {
@@ -67,6 +74,7 @@ type Order struct {
 	VoucherCode     string `json:"voucher_code"`
 	VoucherDiscount int    `json:"voucher_discount"`
 
+	Notes         string `json:"notes"`
 	Status        string `json:"status"`
 	PaymentStatus string `json:"payment_status"`
 
@@ -179,19 +187,51 @@ func main() {
 	ensureOrderColumn("customer_name", "VARCHAR(255) NOT NULL DEFAULT ''")
 	ensureOrderColumn("customer_phone", "VARCHAR(50) NOT NULL DEFAULT ''")
 	ensureOrderColumn("is_offline", "TINYINT NOT NULL DEFAULT 0")
+	ensureOrderColumn("notes", "TEXT")
 
 	// =========================
 	// MIGRASI TABEL SUPPLIERS
 	// =========================
 	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS suppliers (
-			id   INT AUTO_INCREMENT PRIMARY KEY,
-			name VARCHAR(255) NOT NULL
+			id      INT AUTO_INCREMENT PRIMARY KEY,
+			name    VARCHAR(255) NOT NULL,
+			phone   VARCHAR(50)  NOT NULL DEFAULT '',
+			address TEXT
 		)
 	`)
 	if err != nil {
 		log.Fatal("Gagal buat tabel suppliers:", err)
 	}
+
+	// Tambah kolom phone/address jika belum ada (migrasi backward-compat)
+	ensureSupplierColumn := func(column string, definition string) {
+		var existing string
+		_ = database.DB.QueryRow(`
+			SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'suppliers' AND COLUMN_NAME = ?
+		`, column).Scan(&existing)
+		if existing == "" {
+			database.DB.Exec(fmt.Sprintf("ALTER TABLE suppliers ADD COLUMN %s %s", column, definition))
+		}
+	}
+	ensureSupplierColumn("phone", "VARCHAR(50) NOT NULL DEFAULT ''")
+	ensureSupplierColumn("address", "TEXT")
+
+	// =========================
+	// MIGRASI TABEL REWARD_SETTINGS
+	// =========================
+	_, err = database.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS reward_settings (
+			id         INT PRIMARY KEY DEFAULT 1,
+			multiplier INT NOT NULL DEFAULT 5,
+			discount   INT NOT NULL DEFAULT 2000
+		)
+	`)
+	if err != nil {
+		log.Fatal("Gagal buat tabel reward_settings:", err)
+	}
+	database.DB.Exec(`INSERT IGNORE INTO reward_settings (id, multiplier, discount) VALUES (1, 5, 2000)`)
 
 	// =========================
 	// MIGRASI KOLOM PRODUCTS (MODAL & SUPPLIER_ID)
@@ -497,11 +537,12 @@ func main() {
 			total,
 			voucher_code,
 			voucher_discount,
+			notes,
 			status,
 			payment_status,
 			idempotency_key
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			order.UserID,
 			order.PaymentMethodID,
@@ -510,6 +551,7 @@ func main() {
 			order.Total,
 			order.VoucherCode,
 			order.VoucherDiscount,
+			order.Notes,
 			"Diproses",
 			"pending",
 			order.IdempotencyKey,
@@ -808,15 +850,22 @@ func main() {
 	r.GET("/orders", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-		SELECT id, total, status, created_at
-		FROM orders
-		ORDER BY id DESC
-	`)
+			SELECT
+				o.id,
+				o.total,
+				o.status,
+				o.created_at,
+				COALESCE(NULLIF(o.customer_name,''), u.name, 'Pelanggan') AS customer_name,
+				COALESCE(NULLIF(o.customer_phone,''), u.phone, '')         AS customer_phone,
+				IFNULL(o.notes, '')                                        AS notes,
+				o.is_offline
+			FROM orders o
+			LEFT JOIN users u ON u.firebase_uid = o.user_id
+			ORDER BY o.id DESC
+		`)
 
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
+			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -825,27 +874,56 @@ func main() {
 		var orders []gin.H
 
 		for rows.Next() {
+			var id, total, isOffline int
+			var status, createdAt, customerName, customerPhone, notes string
 
-			var id int
-			var total int
-			var status string
-			var createdAt string
+			rows.Scan(&id, &total, &status, &createdAt, &customerName, &customerPhone, &notes, &isOffline)
 
-			rows.Scan(
-				&id,
-				&total,
-				&status,
-				&createdAt,
-			)
+			// Ambil items untuk order ini
+			itemRows, _ := database.DB.Query(`
+				SELECT p.merk, oi.qty, oi.subtotal, oi.service, p.price
+				FROM order_items oi
+				JOIN products p ON p.id = oi.product_id
+				WHERE oi.order_id = ?
+			`, id)
+
+			var items []gin.H
+			if itemRows != nil {
+				for itemRows.Next() {
+					var merk, service string
+					var qty, subtotal, price int
+					itemRows.Scan(&merk, &qty, &subtotal, &service, &price)
+					items = append(items, gin.H{
+						"product_name": merk,
+						"merk":         merk,
+						"qty":          qty,
+						"subtotal":     subtotal,
+						"service":      service,
+						"price":        price,
+					})
+				}
+				itemRows.Close()
+			}
+			if items == nil {
+				items = []gin.H{}
+			}
 
 			orders = append(orders, gin.H{
-				"id":         id,
-				"total":      total,
-				"status":     status,
-				"created_at": createdAt,
+				"id":             id,
+				"total":          total,
+				"status":         status,
+				"created_at":     createdAt,
+				"customer_name":  customerName,
+				"customer_phone": customerPhone,
+				"notes":          notes,
+				"is_offline":     isOffline,
+				"items":          items,
 			})
 		}
 
+		if orders == nil {
+			orders = []gin.H{}
+		}
 		c.JSON(200, orders)
 	})
 
@@ -1072,8 +1150,14 @@ func main() {
 			`, userID).Scan(&rewardCount)
 
 						if err == nil {
+							// Ambil pengaturan reward dari tabel
+							var rewardMultiplier, rewardDiscount int
+							if rErr := database.DB.QueryRow(`SELECT multiplier, discount FROM reward_settings WHERE id = 1`).Scan(&rewardMultiplier, &rewardDiscount); rErr != nil {
+								rewardMultiplier = 5
+								rewardDiscount = 2000
+							}
 
-							expectedReward := selesaiCount / 5
+							expectedReward := selesaiCount / rewardMultiplier
 
 							if rewardCount < expectedReward {
 
@@ -1086,7 +1170,7 @@ func main() {
 					`,
 									userID,
 									code,
-									2000,
+									rewardDiscount,
 								)
 
 								if err == nil {
@@ -2820,7 +2904,9 @@ func main() {
 	// GET SEMUA SUPPLIER
 	// =========================
 	r.GET("/suppliers", func(c *gin.Context) {
-		rows, err := database.DB.Query(`SELECT id, name FROM suppliers ORDER BY name ASC`)
+		rows, err := database.DB.Query(`
+			SELECT id, name, IFNULL(phone,''), IFNULL(address,'')
+			FROM suppliers ORDER BY name ASC`)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
@@ -2830,10 +2916,12 @@ func main() {
 		var suppliers []Supplier
 		for rows.Next() {
 			var s Supplier
-			rows.Scan(&s.ID, &s.Name)
+			rows.Scan(&s.ID, &s.Name, &s.Phone, &s.Address)
 			suppliers = append(suppliers, s)
 		}
-
+		if suppliers == nil {
+			suppliers = []Supplier{}
+		}
 		c.JSON(200, suppliers)
 	})
 
@@ -2842,21 +2930,158 @@ func main() {
 	// =========================
 	r.POST("/suppliers", func(c *gin.Context) {
 		var body struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Phone   string `json:"phone"`
+			Address string `json:"address"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
 			c.JSON(400, gin.H{"error": "Nama supplier wajib diisi"})
 			return
 		}
 
-		result, err := database.DB.Exec(`INSERT INTO suppliers (name) VALUES (?)`, body.Name)
+		result, err := database.DB.Exec(
+			`INSERT INTO suppliers (name, phone, address) VALUES (?, ?, ?)`,
+			body.Name, body.Phone, body.Address,
+		)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
 		id, _ := result.LastInsertId()
-		c.JSON(200, gin.H{"id": id, "name": body.Name})
+		c.JSON(200, gin.H{"id": id, "name": body.Name, "phone": body.Phone, "address": body.Address})
+	})
+
+	// =========================
+	// HAPUS SUPPLIER
+	// =========================
+	r.DELETE("/suppliers/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		_, err := database.DB.Exec(`DELETE FROM suppliers WHERE id = ?`, id)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"message": "Supplier berhasil dihapus"})
+	})
+
+	// =========================
+	// UPDATE VOUCHER (edit nama/kode/diskon, atau toggle is_active)
+	// =========================
+	r.PUT("/vouchers/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		var body struct {
+			Name     string `json:"name"`
+			Code     string `json:"code"`
+			Discount int    `json:"discount"`
+			IsActive *bool  `json:"is_active"`
+		}
+
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
+		if body.IsActive != nil {
+			// Toggle aktif/nonaktif
+			_, err := database.DB.Exec(`UPDATE vouchers SET is_active = ? WHERE id = ?`, *body.IsActive, id)
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+		} else {
+			// Edit detail voucher
+			if body.Discount <= 0 {
+				c.JSON(400, gin.H{"error": "Nominal diskon harus lebih dari 0"})
+				return
+			}
+			_, err := database.DB.Exec(
+				`UPDATE vouchers SET name = ?, code = ?, discount = ? WHERE id = ?`,
+				body.Name, body.Code, body.Discount, id,
+			)
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		c.JSON(200, gin.H{"message": "Voucher berhasil diupdate"})
+	})
+
+	// =========================
+	// GET PENERIMA VOUCHER
+	// =========================
+	r.GET("/vouchers/:id/recipients", func(c *gin.Context) {
+		id := c.Param("id")
+
+		var voucherCode string
+		err := database.DB.QueryRow(`SELECT code FROM vouchers WHERE id = ?`, id).Scan(&voucherCode)
+		if err != nil {
+			c.JSON(404, gin.H{"error": "Voucher tidak ditemukan"})
+			return
+		}
+
+		rows, err := database.DB.Query(`
+			SELECT IFNULL(u.name,''), u.email
+			FROM user_vouchers uv
+			JOIN users u ON u.firebase_uid = uv.user_id
+			WHERE uv.code = ?
+			ORDER BY uv.created_at DESC
+		`, voucherCode)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var recipients []gin.H
+		for rows.Next() {
+			var name, email string
+			rows.Scan(&name, &email)
+			recipients = append(recipients, gin.H{"name": name, "email": email})
+		}
+		if recipients == nil {
+			recipients = []gin.H{}
+		}
+		c.JSON(200, recipients)
+	})
+
+	// =========================
+	// GET PENGATURAN REWARD OTOMATIS
+	// =========================
+	r.GET("/reward-settings", func(c *gin.Context) {
+		var multiplier, discount int
+		err := database.DB.QueryRow(`SELECT multiplier, discount FROM reward_settings WHERE id = 1`).Scan(&multiplier, &discount)
+		if err != nil {
+			c.JSON(200, gin.H{"multiplier": 5, "discount": 2000})
+			return
+		}
+		c.JSON(200, gin.H{"multiplier": multiplier, "discount": discount})
+	})
+
+	// =========================
+	// UPDATE PENGATURAN REWARD OTOMATIS
+	// =========================
+	r.PUT("/reward-settings", func(c *gin.Context) {
+		var body RewardSettings
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if body.Multiplier <= 0 || body.Discount <= 0 {
+			c.JSON(400, gin.H{"error": "Nilai harus lebih dari 0"})
+			return
+		}
+		_, err := database.DB.Exec(
+			`UPDATE reward_settings SET multiplier = ?, discount = ? WHERE id = 1`,
+			body.Multiplier, body.Discount,
+		)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"message": "Pengaturan reward berhasil disimpan", "multiplier": body.Multiplier, "discount": body.Discount})
 	})
 
 	r.Run(":8080")

@@ -171,6 +171,57 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                     style: TextStyle(color: Colors.grey[600]),
                   ),
 
+                  // Info pelanggan
+                  if ((order["customer_name"] ?? "").toString().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.person_rounded, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          (order["customer_name"] ?? "").toString(),
+                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                        ),
+                        if ((order["customer_phone"] ?? "").toString().isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.phone_rounded, size: 13, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text(
+                            (order["customer_phone"] ?? "").toString(),
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+
+                  // Catatan customer
+                  if ((order["notes"] ?? "").toString().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.sticky_note_2_rounded, size: 15, color: Colors.amber[700]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              (order["notes"] ?? "").toString(),
+                              style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 15),
 
                   if (order["items"] != null &&

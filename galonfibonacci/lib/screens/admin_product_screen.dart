@@ -211,15 +211,6 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
             Icon(Icons.table_chart_rounded, color: Colors.blue[700]),
             const SizedBox(width: 8),
             const Text("Daftar Supplier"),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                showAddSupplierDialog();
-              },
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text("Tambah"),
-            ),
           ],
         ),
         contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -354,6 +345,14 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                 ),
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              showAddSupplierDialog();
+            },
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text("Tambah"),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue[700],

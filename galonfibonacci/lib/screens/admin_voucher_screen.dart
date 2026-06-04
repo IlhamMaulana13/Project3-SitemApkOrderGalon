@@ -247,11 +247,10 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   // =========================
   // LIHAT PENERIMA VOUCHER
   // =========================
-  Future<List<Map<String, dynamic>>> _fetchRecipients(
-      String voucherCode) async {
+  Future<List<Map<String, dynamic>>> _fetchRecipients(int voucherId) async {
     try {
       final response = await http.get(
-          Uri.parse("$baseUrl/user-vouchers/recipients/$voucherCode"));
+          Uri.parse("$baseUrl/vouchers/$voucherId/recipients"));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) return List<Map<String, dynamic>>.from(data);
@@ -263,7 +262,10 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   }
 
   void showRecipientsDialog(Map<String, dynamic> v) {
-    final voucherCode = v["code"]?.toString() ?? "";
+    final voucherId = v["id"] as int;
+    final label = (v["name"]?.toString().isNotEmpty == true
+        ? v["name"].toString()
+        : v["code"]?.toString() ?? "Voucher");
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -275,7 +277,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                "Penerima ${voucherCode.isNotEmpty ? voucherCode : "Voucher"}",
+                "Penerima $label",
                 style: const TextStyle(fontSize: 16),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -283,7 +285,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
           ],
         ),
         content: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchRecipients(voucherCode),
+          future: _fetchRecipients(voucherId),
           builder: (ctx, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
