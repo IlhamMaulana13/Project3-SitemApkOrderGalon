@@ -86,20 +86,72 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
     }
   }
 
-  // DIALOG TAMBAH SUPPLIER
+  // DIALOG TAMBAH SUPPLIER (dengan alamat & no HP)
   void showAddSupplierDialog() {
     final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final addressController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text("Tambah Supplier"),
-        content: TextField(
-          controller: nameController,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: "Nama Supplier",
-            prefixIcon: Icon(Icons.business),
+        title: Row(
+          children: [
+            Icon(Icons.add_business_rounded, color: Colors.blue[700]),
+            const SizedBox(width: 8),
+            const Text("Tambah Supplier"),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: "Nama Supplier",
+                  prefixIcon: const Icon(Icons.business),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: "No HP Supplier",
+                  hintText: "Contoh: 08123456789",
+                  prefixIcon: const Icon(Icons.phone_rounded),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: addressController,
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: "Alamat Supplier",
+                  hintText: "Contoh: Jl. Merdeka No.5, Jakarta",
+                  prefixIcon: const Icon(Icons.location_on_rounded),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -111,6 +163,9 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue[700],
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () async {
               if (nameController.text.trim().isEmpty) return;
@@ -119,7 +174,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
               final response = await http.post(
                 Uri.parse("$baseUrl/suppliers"),
                 headers: {"Content-Type": "application/json"},
-                body: jsonEncode({"name": nameController.text.trim()}),
+                body: jsonEncode({
+                  "name": nameController.text.trim(),
+                  "phone": phoneController.text.trim(),
+                  "address": addressController.text.trim(),
+                }),
               );
               if (!mounted) return;
               if (response.statusCode == 200) {
@@ -135,6 +194,173 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
               }
             },
             child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // DIALOG TABEL SUPPLIER
+  void showSupplierTableDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Icon(Icons.table_chart_rounded, color: Colors.blue[700]),
+            const SizedBox(width: 8),
+            const Text("Daftar Supplier"),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                showAddSupplierDialog();
+              },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text("Tambah"),
+            ),
+          ],
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 350,
+          child: suppliers.isEmpty
+              ? const Center(child: Text("Belum ada supplier"))
+              : ListView.builder(
+                  itemCount: suppliers.length,
+                  itemBuilder: (ctx, i) {
+                    final s = suppliers[i];
+                    final phone = (s["phone"] ?? "").toString();
+                    final address = (s["address"] ?? "").toString();
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.business_rounded,
+                                  color: Colors.blue[700], size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    (s["name"] ?? "-").toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if (phone.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.phone_rounded,
+                                            size: 12, color: Colors.grey[500]),
+                                        const SizedBox(width: 4),
+                                        Text(phone,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600])),
+                                      ],
+                                    ),
+                                  ],
+                                  if (address.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(Icons.location_on_rounded,
+                                            size: 12, color: Colors.grey[500]),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(address,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600])),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                              onPressed: () async {
+                                final nav = Navigator.of(context);
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text("Hapus Supplier"),
+                                    content: Text(
+                                        'Hapus supplier "${s["name"]}"?'),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text("Batal")),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white),
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text("Hapus"),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm != true) return;
+                                final response = await http.delete(
+                                    Uri.parse("$baseUrl/suppliers/${s["id"]}"));
+                                if (!mounted) return;
+                                if (response.statusCode == 200) {
+                                  await fetchSuppliers();
+                                  nav.pop();
+                                  showSupplierTableDialog();
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text("Supplier berhasil dihapus"),
+                                          backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[700],
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Tutup"),
           ),
         ],
       ),
@@ -569,8 +795,8 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           TextButton.icon(
-            onPressed: showAddSupplierDialog,
-            icon: const Icon(Icons.add_business_rounded, color: Colors.white),
+            onPressed: showSupplierTableDialog,
+            icon: const Icon(Icons.table_chart_rounded, color: Colors.white),
             label: const Text(
               "Supplier",
               style: TextStyle(color: Colors.white),

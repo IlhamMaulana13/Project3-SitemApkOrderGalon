@@ -18,6 +18,7 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
 
   List<Map<String, dynamic>> rentals = [];
   List<Map<String, dynamic>> appSewa = [];
+  List<Map<String, dynamic>> products = [];
   bool isLoading = true;
 
   late TabController _tabController;
@@ -39,8 +40,38 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
 
   Future<void> _fetchAll() async {
     setState(() => isLoading = true);
-    await Future.wait([fetchRentals(), fetchAppSewa()]);
+    await Future.wait([fetchRentals(), fetchAppSewa(), fetchProducts()]);
     if (mounted) setState(() => isLoading = false);
+  }
+
+  Future<void> fetchProducts() async {
+    try {
+      final response =
+          await http.get(Uri.parse("$baseUrl/products"));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            products = data is List
+                ? List<Map<String, dynamic>>.from(data)
+                : [];
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("fetchProducts error: $e");
+    }
+  }
+
+  // Hitung jumlah unit aktif disewa per produk
+  Map<String, int> _activeRentalCountByProduct() {
+    final active = _allRentals().where((r) => r['status'] == 'active');
+    final Map<String, int> counts = {};
+    for (final r in active) {
+      final merk = (r['merk'] ?? '-').toString();
+      counts[merk] = (counts[merk] ?? 0) + ((r['qty'] as num?)?.toInt() ?? 1);
+    }
+    return counts;
   }
 
   Future<void> fetchRentals() async {
@@ -588,6 +619,111 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
     );
   }
 
+  // =====================
+  // RINGKASAN STOK SEWA
+  // =====================
+  Widget _buildStockSummary() {
+    if (products.isEmpty) return const SizedBox();
+
+    final rentalCounts = _activeRentalCountByProduct();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.inventory_2_rounded,
+                  color: Colors.indigo[700], size: 18),
+              const SizedBox(width: 6),
+              Text(
+                "Stok Sewa per Produk",
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...products.map((p) {
+            final merk = (p['merk'] ?? '-').toString();
+            final totalStock = (p['stock'] as num?)?.toInt() ?? 0;
+            final rented = rentalCounts[merk] ?? 0;
+            final available = (totalStock - rented).clamp(0, totalStock);
+            final pct = totalStock == 0 ? 0.0 : rented / totalStock;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      merk,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct.toDouble(),
+                            minHeight: 8,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              rented == 0
+                                  ? Colors.green
+                                  : (available == 0
+                                      ? Colors.red
+                                      : Colors.orange),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "$rented disewa  •  $available tersedia",
+                          style: TextStyle(
+                              fontSize: 10, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "$totalStock",
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTabContent(String statusKey) {
     final list = _filtered(statusKey);
     if (list.isEmpty) {
@@ -695,11 +831,18 @@ class _AdminRentalScreenState extends State<AdminRentalScreen>
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: _statusKeys
-                  .map((key) => _buildTabContent(key))
-                  .toList(),
+          : Column(
+              children: [
+                _buildStockSummary(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: _statusKeys
+                        .map((key) => _buildTabContent(key))
+                        .toList(),
+                  ),
+                ),
+              ],
             ),
     );
   }

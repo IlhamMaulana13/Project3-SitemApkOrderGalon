@@ -21,6 +21,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final voucherController = TextEditingController();
+  final noteController = TextEditingController();
 
   Map<String, dynamic>? profile;
 
@@ -36,6 +37,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     fetchProfile();
+  }
+
+  @override
+  void dispose() {
+    voucherController.dispose();
+    noteController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchProfile() async {
@@ -218,6 +226,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             "total": total,
             "voucher_code": voucherController.text.trim(),
             "voucher_discount": appliedDiscount,
+            "notes": noteController.text.trim(),
             "items": cartProvider.items
                 .map(
                   (item) => {
@@ -359,6 +368,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           "total": total,
           "voucher_code": voucherController.text.trim(),
           "voucher_discount": appliedDiscount,
+          "notes": noteController.text.trim(),
           "items": cartProvider.items
               .map(
                 (item) => {
@@ -640,6 +650,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // CATATAN UNTUK ADMIN
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Catatan untuk Admin",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "Sampaikan permintaan khusus, misalnya jam pengiriman atau instruksi lainnya.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: noteController,
+                            maxLines: 3,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              hintText: "Contoh: tolong antar pagi sebelum jam 9...",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

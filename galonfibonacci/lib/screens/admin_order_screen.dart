@@ -102,11 +102,10 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
           // Status mentah dari server, bisa null / nilai di luar daftar
           final String status = (order["status"] ?? "").toString();
 
-          // Item dropdown selalu memuat status saat ini agar tidak crash
-          final List<String> dropdownItems = [
-            ...statusOptions,
-            if (status.isNotEmpty && !statusOptions.contains(status)) status,
-          ];
+          // Hanya tampilkan status yang belum dipilih (exclude current status)
+          final List<String> dropdownItems = statusOptions
+              .where((s) => s != status)
+              .toList();
 
           return Card(
             margin: const EdgeInsets.only(bottom: 15),
@@ -228,29 +227,46 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                     const SizedBox(height: 15),
                   ],
 
-                  DropdownButtonFormField<String>(
-                    value: status.isEmpty ? null : status,
-
-                    decoration: InputDecoration(
-                      filled: true,
-
-                      fillColor: Colors.grey[100],
-
-                      border: OutlineInputBorder(
+                  if (dropdownItems.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      value: null,
+                      hint: Text(
+                        "Ubah status (saat ini: $status)",
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: dropdownItems
+                          .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) updateStatus(order["id"], value);
+                      },
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_rounded, color: Colors.green[700], size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Pesanan sudah selesai",
+                            style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
-
-                    items: dropdownItems
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-
-                    onChanged: (value) {
-                      if (value != null) {
-                        updateStatus(order["id"], value);
-                      }
-                    },
-                  ),
                 ],
               ),
             ),

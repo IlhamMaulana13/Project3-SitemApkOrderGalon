@@ -185,34 +185,57 @@ class _KurirScreenState extends State<KurirScreen> {
 
                     const SizedBox(height: 15),
 
-                    DropdownButton<String>(
-                      value: order["status"],
+                    Builder(builder: (context) {
+                      final currentStatus = (order["status"] ?? "").toString();
+                      final nextStatuses = ["Diproses", "Dikirim", "Selesai"]
+                          .where((s) => s != currentStatus)
+                          .toList();
 
-                      isExpanded: true,
+                      if (nextStatuses.isEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded,
+                                  color: Colors.green[700], size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Pesanan sudah selesai",
+                                style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                      items: const [
-                        DropdownMenuItem(
-                          value: "Diproses",
-                          child: Text("Diproses"),
+                      return DropdownButton<String>(
+                        value: null,
+                        hint: Text(
+                          "Ubah status...",
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
-
-                        DropdownMenuItem(
-                          value: "Dikirim",
-                          child: Text("Dikirim"),
-                        ),
-
-                        DropdownMenuItem(
-                          value: "Selesai",
-                          child: Text("Selesai"),
-                        ),
-                      ],
-
-                      onChanged: (value) {
-                        if (value != null) {
-                          updateStatus(order["id"], value);
-                        }
-                      },
-                    ),
+                        isExpanded: true,
+                        items: nextStatuses
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            updateStatus(order["id"], value);
+                          }
+                        },
+                      );
+                    }),
 
                     const SizedBox(height: 10),
 

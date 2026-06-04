@@ -19,6 +19,7 @@ class _AdminRoleScreenState extends State<AdminRoleScreen> {
   List users = [];
   bool isLoading = true;
   String search = "";
+  String? _filterRole;
 
   @override
   void initState() {
@@ -139,13 +140,40 @@ class _AdminRoleScreenState extends State<AdminRoleScreen> {
   }
 
   List get filteredUsers {
-    if (search.isEmpty) return users;
-    final q = search.toLowerCase();
-    return users.where((u) {
-      final name = (u["name"] ?? "").toString().toLowerCase();
-      final email = (u["email"] ?? "").toString().toLowerCase();
-      return name.contains(q) || email.contains(q);
-    }).toList();
+    var result = users;
+    if (_filterRole != null) {
+      result = result.where((u) => (u["role"] ?? "customer").toString() == _filterRole).toList();
+    }
+    if (search.isNotEmpty) {
+      final q = search.toLowerCase();
+      result = result.where((u) {
+        final name = (u["name"] ?? "").toString().toLowerCase();
+        final email = (u["email"] ?? "").toString().toLowerCase();
+        return name.contains(q) || email.contains(q);
+      }).toList();
+    }
+    return result;
+  }
+
+  Widget _roleFilterChip(String label, String? role) {
+    final selected = _filterRole == role;
+    final color = role == null ? Colors.blue[700]! : roleColor(role);
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      selectedColor: color.withValues(alpha: 0.18),
+      checkmarkColor: color,
+      labelStyle: TextStyle(
+        color: selected ? color : Colors.grey[700],
+        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+      ),
+      side: BorderSide(
+        color: selected ? color : Colors.grey[300]!,
+      ),
+      backgroundColor: Colors.white,
+      onSelected: (_) => setState(() => _filterRole = role),
+    );
   }
 
   @override
@@ -163,7 +191,7 @@ class _AdminRoleScreenState extends State<AdminRoleScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
             child: TextField(
               onChanged: (value) => setState(() => search = value),
               decoration: InputDecoration(
@@ -177,6 +205,24 @@ class _AdminRoleScreenState extends State<AdminRoleScreen> {
                   borderSide: BorderSide.none,
                 ),
               ),
+            ),
+          ),
+          // Filter chips per role
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Row(
+              children: [
+                _roleFilterChip("Semua", null),
+                const SizedBox(width: 8),
+                _roleFilterChip("Customer", "customer"),
+                const SizedBox(width: 8),
+                _roleFilterChip("Kurir", "kurir"),
+                const SizedBox(width: 8),
+                _roleFilterChip("Kasir", "kasir"),
+                const SizedBox(width: 8),
+                _roleFilterChip("Admin", "admin"),
+              ],
             ),
           ),
           Expanded(
