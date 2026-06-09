@@ -1,0 +1,235 @@
+@startuml CD_Flutter_Screens
+!theme plain
+title Class Diagram: Flutter Screens & Navigation
+skinparam classBackgroundColor #F3E5F5
+skinparam classBorderColor #7B1FA2
+skinparam arrowColor #333333
+skinparam classHeaderBackgroundColor #7B1FA2
+skinparam classHeaderFontColor #FFFFFF
+
+abstract class StatefulWidget <<abstract>> {
+  + createState() : State
+}
+
+abstract class StatelessWidget <<abstract>> {
+  + build(context) : Widget
+}
+
+' ─────────────────────────────────────────
+' AUTH SCREENS
+' ─────────────────────────────────────────
+
+class AuthScreen {
+  + build() : Widget
+}
+
+class LoginScreen {
+  - emailController : TextEditingController
+  - passwordController : TextEditingController
+  --
+  + login() : Future<void>
+  + build() : Widget
+}
+
+' ─────────────────────────────────────────
+' CUSTOMER SCREENS
+' ─────────────────────────────────────────
+
+class MainScreen {
+  - _currentIndex : int
+  --
+  + build() : Widget
+}
+
+class HomeScreen {
+  - products : List<ProductModel>
+  - selectedService : String
+  --
+  + fetchProducts() : void
+  + build() : Widget
+}
+
+class CartScreen {
+  + build() : Widget
+}
+
+class CheckoutScreen {
+  - profile : Map
+  - rewardVouchers : List
+  - discount : int
+  - selectedPayment : String
+  - noteController : TextEditingController
+  --
+  + fetchProfile() : Future<void>
+  + fetchUserVouchers() : Future<void>
+  + applyVoucher(subtotal) : void
+  + checkout() : Future<void>
+  + build() : Widget
+}
+
+class OrderScreen {
+  - orders : List<OrderModel>
+  - rewardVouchers : List
+  - timer : Timer
+  --
+  + fetchOrders() : Future<void>
+  + fetchUserVouchers() : Future<void>
+  + build() : Widget
+}
+
+class ProfileScreen {
+  + build() : Widget
+}
+
+class InvoiceScreen {
+  + orderId : int
+  --
+  + build() : Widget
+}
+
+' ─────────────────────────────────────────
+' ADMIN SCREENS
+' ─────────────────────────────────────────
+
+class AdminDashboardScreen {
+  - dashboard : Map
+  --
+  + fetchDashboard() : Future<void>
+  + build() : Widget
+}
+
+class AdminOrderScreen {
+  - orders : List
+  --
+  + fetchOrders() : Future<void>
+  + updateStatus(orderId, status) : Future<void>
+  + build() : Widget
+}
+
+class AdminProductScreen {
+  - products : List
+  - suppliers : List
+  --
+  + fetchProducts() : Future<void>
+  + fetchSuppliers() : Future<void>
+  + showProductDialog() : void
+  + showAddSupplierDialog() : void
+  + showSupplierTableDialog() : void
+  + build() : Widget
+}
+
+class AdminVoucherScreen {
+  - vouchers : List
+  --
+  + fetchVouchers() : Future<void>
+  + showCreateVoucherDialog() : void
+  + showEditVoucherDialog(v) : void
+  + showAssignDialog(v) : Future<void>
+  + showRecipientsDialog(v) : void
+  + showRewardSettingsDialog() : Future<void>
+  + toggleVoucherStatus(id, isActive) : Future<void>
+  + deleteVoucher(id, name) : Future<void>
+  + build() : Widget
+}
+
+class AdminRoleScreen {
+  - users : List
+  - search : String
+  - filterRole : String?
+  --
+  + fetchUsers() : Future<void>
+  + updateRole(uid, role) : Future<void>
+  + build() : Widget
+}
+
+class AdminRentalScreen {
+  - rentals : List
+  - appSewa : List
+  - products : List
+  --
+  + fetchRentals() : Future<void>
+  + fetchAppSewa() : Future<void>
+  + fetchProducts() : Future<void>
+  + markReturned(id, merk) : Future<void>
+  + convertDamage(id, merk, qty, customer) : Future<void>
+  + build() : Widget
+}
+
+class ReportScreen {
+  + build() : Widget
+}
+
+' ─────────────────────────────────────────
+' KASIR & KURIR SCREENS
+' ─────────────────────────────────────────
+
+class KasirScreen {
+  - products : List
+  - cart : List<Map>
+  - transactions : List
+  --
+  + fetchProducts() : Future<void>
+  + addToCart(product, service, qty) : void
+  + processPayment() : Future<void>
+  + build() : Widget
+}
+
+class KurirScreen {
+  - orders : List
+  --
+  + fetchOrders() : Future<void>
+  + updateStatus(id, status) : Future<void>
+  + openWhatsApp(phone, name, orderId) : Future<void>
+  + build() : Widget
+}
+
+' ─────────────────────────────────────────
+' INHERITANCE
+' ─────────────────────────────────────────
+
+AuthScreen --|> StatelessWidget
+LoginScreen --|> StatefulWidget
+MainScreen --|> StatefulWidget
+HomeScreen --|> StatefulWidget
+CartScreen --|> StatelessWidget
+CheckoutScreen --|> StatefulWidget
+OrderScreen --|> StatefulWidget
+ProfileScreen --|> StatefulWidget
+InvoiceScreen --|> StatefulWidget
+AdminDashboardScreen --|> StatefulWidget
+AdminOrderScreen --|> StatefulWidget
+AdminProductScreen --|> StatefulWidget
+AdminVoucherScreen --|> StatefulWidget
+AdminRoleScreen --|> StatefulWidget
+AdminRentalScreen --|> StatefulWidget
+ReportScreen --|> StatefulWidget
+KasirScreen --|> StatefulWidget
+KurirScreen --|> StatefulWidget
+
+' ─────────────────────────────────────────
+' NAVIGATION RELATIONSHIPS
+' ─────────────────────────────────────────
+
+AuthScreen ..> LoginScreen : navigasi ke
+LoginScreen ..> MainScreen : customer
+LoginScreen ..> KasirScreen : kasir
+LoginScreen ..> KurirScreen : kurir
+LoginScreen ..> AdminDashboardScreen : admin
+
+MainScreen *-- HomeScreen : tab 1
+MainScreen *-- CartScreen : tab 2
+MainScreen *-- OrderScreen : tab 3
+MainScreen *-- ProfileScreen : tab 4
+
+CartScreen ..> CheckoutScreen : navigasi ke
+CheckoutScreen ..> OrderScreen : setelah checkout
+OrderScreen ..> InvoiceScreen : lihat invoice
+
+AdminDashboardScreen ..> AdminOrderScreen : menu
+AdminDashboardScreen ..> AdminProductScreen : menu
+AdminDashboardScreen ..> AdminVoucherScreen : menu
+AdminDashboardScreen ..> AdminRentalScreen : menu
+AdminDashboardScreen ..> AdminRoleScreen : menu
+AdminDashboardScreen ..> ReportScreen : menu
+
+@enduml

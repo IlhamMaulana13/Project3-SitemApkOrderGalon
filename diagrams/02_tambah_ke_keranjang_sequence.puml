@@ -1,31 +1,22 @@
 @startuml Tambah_Ke_Keranjang
 !theme plain
-title Sequence Diagram: Tambah Ke Keranjang (Add to Cart)
+title SD: Tambah ke Keranjang
 actor Customer
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
-database "Database" as DB
+participant "App (Flutter)" as App
+participant "CartProvider\n(Local State)" as Cart
 
-Customer -> App: Pilih Produk & Input Jumlah
-App -> App: Validasi Input (Stok Tersedia)
+note over Cart: Keranjang disimpan lokal\n(tidak ada API — dikirim saat checkout)
 
-alt Input Valid
-    App -> API: POST /api/cart/add
-    note right of App
-        Request Body:
-        - product_id
-        - quantity
-        - customer_id
-    end note
-    API -> DB: Check Stok Produk
-    DB --> API: Stok Available
-    API -> DB: Insert/Update Cart Item
-    DB --> API: Success
-    API --> App: Response 200 (Item ditambah)
-    App -> App: Update Cart Counter
-    App --> Customer: Tampilkan Toast "Produk ditambahkan\nke keranjang"
-else Input Invalid (Stok Kurang)
-    App --> Customer: Tampilkan Error "Stok tidak cukup"
+Customer -> App: Pilih produk, layanan & jumlah
+App -> App: Cek stok (Beli Baru / Sewa)
+
+alt Stok habis
+    App --> Customer: Tombol "Habis" — tidak bisa tambah
+else Stok tersedia / Isi Ulang
+    App -> Cart: addToCart(product, service, qty)
+    Cart --> App: Item tersimpan di state
+    App --> Customer: SnackBar "Produk ditambahkan"
+    App --> Customer: Badge keranjang diperbarui
 end
 
 @enduml

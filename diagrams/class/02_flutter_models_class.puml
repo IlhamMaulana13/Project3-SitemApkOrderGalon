@@ -1,0 +1,105 @@
+@startuml CD_Flutter_Models
+!theme plain
+title Class Diagram: Flutter Models & Provider
+skinparam classBackgroundColor #E8F5E9
+skinparam classBorderColor #388E3C
+skinparam arrowColor #333333
+skinparam classHeaderBackgroundColor #388E3C
+skinparam classHeaderFontColor #FFFFFF
+
+' ─────────────────────────────────────────
+' MODELS
+' ─────────────────────────────────────────
+
+class ProductModel {
+  + id : int
+  + categoryId : int
+  + merk : String
+  + price : int
+  + stock : int
+  + image : String
+  --
+  + fromJson(json: Map) : ProductModel
+}
+
+class CartModel {
+  + product : ProductModel
+  + service : String
+  + quantity : int
+  --
+  + subtotal : int <<get>>
+}
+
+class OrderModel {
+  + id : int
+  + total : int
+  + status : String
+  + createdAt : String
+  + paymentStatus : String
+  --
+  + fromJson(json: Map) : OrderModel
+}
+
+class ReportModel {
+  + id : int
+  + name : String
+  + total : int
+  + status : String
+  + createdAt : String
+  --
+  + fromJson(json: Map) : ReportModel
+}
+
+' ─────────────────────────────────────────
+' PROVIDER
+' ─────────────────────────────────────────
+
+class CartProvider {
+  - _items : List<CartModel>
+  - _currentUserId : String?
+  - _authSub : StreamSubscription
+  --
+  + items : List<CartModel> <<get>>
+  + total : int <<get>>
+  --
+  + addToCart(product, service, qty) : void
+  + removeItem(productId, service) : void
+  + clearCart() : void
+  + dispose() : void
+}
+
+class ChangeNotifier <<abstract>> {
+  + notifyListeners() : void
+  + addListener(listener) : void
+  + removeListener(listener) : void
+  + dispose() : void
+}
+
+' ─────────────────────────────────────────
+' SERVICE
+' ─────────────────────────────────────────
+
+class ApiService {
+  + {static} baseUrl : String
+  --
+  + {static} getProducts() : Future<List<ProductModel>>
+  + {static} getOrders(userId) : Future<List<OrderModel>>
+  + {static} getProfile(uid) : Future<Map>
+  + {static} getUserVouchers(userId) : Future<List<Map>>
+  + {static} getReports() : Future<List<ReportModel>>
+  + {static} checkPaymentStatus(orderId) : Future<Map>
+  + {static} checkout(cartItems, total) : Future<bool>
+}
+
+' ─────────────────────────────────────────
+' RELATIONSHIPS
+' ─────────────────────────────────────────
+
+CartProvider --|> ChangeNotifier
+CartProvider "1" *-- "0..*" CartModel : mengelola
+CartModel "1" --> "1" ProductModel : berisi
+ApiService ..> ProductModel : mengembalikan
+ApiService ..> OrderModel : mengembalikan
+ApiService ..> ReportModel : mengembalikan
+
+@enduml

@@ -1,0 +1,28 @@
+@startuml AD_Kasir_Cari_Produk
+!theme plain
+title Activity Diagram: Kasir — Cari Produk
+skinparam ArrowColor #F57C00
+skinparam ActivityBackgroundColor #FFF3E0
+skinparam ActivityBorderColor #F57C00
+
+start
+:Buka KasirScreen — Tab POS;
+:GET /products — muat semua produk;
+:Tampil daftar produk lengkap;
+
+Kasir -> Ketik nama produk di kolom pencarian;
+
+:Filter produk secara lokal\n(cocokkan merk dengan kata kunci);
+
+if (Produk ditemukan?) then (Ya)
+    :Tampil produk yang cocok secara real-time;
+else (Tidak)
+    :Tampil pesan "Produk tidak ditemukan";
+endif
+
+if (Hapus teks pencarian?) then (Ya)
+    :Reset ke daftar lengkap;
+endif
+
+stop
+@enduml

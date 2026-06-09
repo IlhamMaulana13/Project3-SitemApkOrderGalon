@@ -1,0 +1,54 @@
+@startuml AD_Kasir_Transaksi
+!theme plain
+title Activity Diagram: Transaksi Kasir (Offline/Tunai)
+skinparam ArrowColor #F57C00
+skinparam ActivityBackgroundColor #FFF3E0
+skinparam ActivityBorderColor #F57C00
+
+start
+:Login sebagai Kasir;
+:Tampil KasirScreen — Tab POS;
+:GET /products — muat daftar produk;
+
+:Cari / pilih produk;
+:Pilih jenis layanan\n(Isi Ulang / Beli Baru / Sewa);
+:Atur jumlah (qty);
+
+if (Layanan = Beli Baru / Sewa?) then (Ya)
+    if (Stok cukup?) then (Ya)
+        :Tambah ke keranjang kasir;
+    else (Tidak)
+        :Tampil "Stok tidak cukup";
+        stop
+    endif
+else (Isi Ulang)
+    :Tambah ke keranjang kasir;
+endif
+
+if (Ada produk lain?) then (Ya)
+    :Tambah produk berikutnya;
+endif
+
+:Tampil keranjang + total tagihan;
+:Input nama & HP pelanggan (opsional);
+:Klik "Bayar Tunai";
+
+:POST /kasir/orders\n{kasir_uid, customer, total, items};
+:Backend simpan order (status = Selesai, is_offline = 1);
+:Backend kurangi stok produk\n(kecuali layanan Isi Ulang);
+
+if (Ada item Sewa?) then (Ya)
+    :Backend buat record rental\n(status = active);
+endif
+
+:Bersihkan keranjang kasir;
+:Tampil "Transaksi tunai berhasil";
+
+if (Lihat riwayat?) then (Ya)
+    :Klik Tab Riwayat;
+    :GET /kasir/transactions/{uid};
+    :Tampil ringkasan:\npendapatan + jumlah transaksi hari ini;
+endif
+
+stop
+@enduml

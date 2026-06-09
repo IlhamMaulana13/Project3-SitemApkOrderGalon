@@ -1,0 +1,137 @@
+@startuml Flowchart_Sistem_Semua_Role
+!theme plain
+title Flowchart Sistem Aplikasi Pemesanan Galon\n(Customer · Admin · Kurir · Kasir)
+
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #333333
+skinparam ActivityBackgroundColor #F1F1F1
+skinparam ActivityBorderColor #181818
+skinparam PartitionBackgroundColor #FAFAFA
+skinparam PartitionBorderColor #444444
+skinparam swimlaneBorderThickness 2
+skinparam noteBorderColor #888888
+skinparam noteBackgroundColor #FFFDE7
+
+' ============================================================
+' ALUR 1 — ONLINE (Customer → Admin → Kurir → Customer)
+' ============================================================
+
+|Customer|
+start
+
+:Buka Aplikasi;
+
+if (Guest Mode?) then (Ya)
+    :Lihat Daftar Produk;
+else (Tidak)
+    :Login / Register;
+endif
+
+:Pilih Produk;
+:Pilih Merek Air\n(Aqua / Le Minerale / 2Tang);
+:Pilih Jenis Layanan\n- Isi Ulang  = Rp 7.000\n- Beli Baru  = Rp 45.000\n- Sewa Galon = Rp 2.000;
+:Tambah ke Keranjang;
+
+if (Lanjut Checkout?) then (Ya)
+    if (Sudah Login?) then (Ya)
+    else (Tidak)
+        :Login / Register;
+    endif
+
+    note right
+        Jika voucher tersedia,
+        sistem otomatis menerapkan
+        potongan harga
+    end note
+
+    :Input / Cek Alamat Pengiriman;
+    :Pilih Metode Pembayaran\n(QRIS / BCA VA / GoPay / ShopeePay / COD);
+    :Tulis Catatan untuk Admin (Opsional);
+    :Konfirmasi Pesanan;
+else (Tidak)
+    :Kembali ke Menu Utama;
+    stop
+endif
+
+|Admin|
+
+:Terima Notifikasi Pesanan Baru;
+:Buka Kelola Pesanan;
+:Verifikasi & Cek Catatan Customer;
+:Ubah Status → "Dikirim";
+:Siapkan Produk untuk Pengiriman;
+
+|Kurir|
+
+:Terima Tugas di Dashboard Kurir;
+:Lihat Nama, Alamat & No HP Customer;
+:Kirim Pesan WhatsApp ke Customer;
+:Antar Pesanan ke Lokasi;
+:Ubah Status → "Selesai";
+
+|Customer|
+
+:Terima Notifikasi Status Berubah;
+:Lihat Status Pesanan di Aplikasi;
+:Pesanan Diterima;
+
+note right
+    Sistem otomatis hitung
+    reward voucher setiap
+    kelipatan transaksi selesai
+end note
+
+stop
+
+' ============================================================
+' ALUR 2 — OFFLINE / TUNAI (Kasir)
+' ============================================================
+
+|#LightCyan|Kasir|
+
+start
+
+:Login ke Dashboard Kasir;
+
+:Cari / Pilih Produk dari Daftar POS;
+
+:Pilih Jenis Layanan\n(Isi Ulang / Beli Baru / Sewa);
+
+:Masukkan Jumlah (Qty);
+
+note right
+    Stok dicek real-time.
+    Isi Ulang tidak kurangi stok.
+    Beli Baru & Sewa kurangi stok.
+end note
+
+:Tambah ke Keranjang Kasir;
+
+if (Ada Produk Lain?) then (Ya)
+    :Tambah Produk Berikutnya;
+else (Tidak)
+endif
+
+:Input Nama & No HP Pelanggan\n(Opsional);
+
+:Lihat Total Tagihan;
+
+:Proses Bayar Tunai;
+
+if (Ada Item Sewa?) then (Ya)
+    :Sistem Otomatis Catat\nke Pencatatan Sewa Galon;
+    note right
+        Record rental dibuat.
+        Status: Aktif Disewa.
+        Kasir bisa tandai
+        "Sudah Kembali" nanti.
+    end note
+else (Tidak)
+endif
+
+:Transaksi Tunai Berhasil;
+:Lihat di Riwayat Transaksi Kasir;
+
+stop
+
+@enduml

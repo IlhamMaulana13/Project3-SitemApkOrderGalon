@@ -1,0 +1,40 @@
+@startuml AD_Kode_Voucher
+!theme plain
+title Activity Diagram: Voucher & Reward Otomatis
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Buka halaman Checkout;
+:GET /user-vouchers/{uid};
+:Ambil daftar voucher aktif customer;
+
+if (Voucher tersedia?) then (Ya)
+    :Auto-apply voucher pertama;
+    :Tampil kode & nominal potongan;
+else (Tidak)
+    :Field voucher kosong;
+    if (Customer input kode manual?) then (Ya)
+        :Cocokkan kode dengan daftar voucher;
+        if (Kode valid?) then (Ya)
+            :Terapkan potongan;
+        else (Tidak)
+            :Abaikan — tidak ada potongan;
+        endif
+    endif
+endif
+
+:Hitung total akhir\n(subtotal - diskon voucher);
+:Tampil ringkasan pesanan dengan potongan;
+
+note right
+  Reward Otomatis:
+  Setiap N transaksi selesai,
+  sistem buat voucher baru
+  di tabel user_vouchers.
+  N & nominal dari reward_settings.
+end note
+
+stop
+@enduml

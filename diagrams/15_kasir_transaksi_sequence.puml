@@ -1,0 +1,41 @@
+@startuml Kasir_Transaksi
+!theme plain
+title SD: Transaksi Kasir (Offline/Tunai)
+actor Kasir
+participant "App (Flutter)" as App
+participant "Backend" as API
+database "Database" as DB
+
+Kasir -> App: Buka KasirScreen (POS)
+App -> API: GET /products
+API -> DB: SELECT products
+DB --> API: List produk + stok
+API --> App: JSON produk
+App --> Kasir: Tampil daftar produk
+
+Kasir -> App: Cari produk → pilih layanan & qty
+App --> Kasir: Item masuk keranjang kasir
+
+Kasir -> App: (Opsional) Input nama & HP pelanggan
+Kasir -> App: Klik "Bayar Tunai"
+App -> API: POST /kasir/orders\n{kasir_uid, customer_name, customer_phone, total, items[]}
+API -> DB: INSERT orders (status='Selesai',\npayment_status='paid', is_offline=1)
+API -> DB: INSERT order_items\nKurangi stok produk (kecuali Isi Ulang)
+DB --> API: order_id
+
+alt Ada item Sewa
+    API -> DB: INSERT rentals\n(status='active')
+end
+
+API --> App: 200 OK
+App --> Kasir: "Transaksi tunai berhasil"
+App -> App: Bersihkan keranjang kasir
+
+Kasir -> App: Tab Riwayat
+App -> API: GET /kasir/transactions/{kasir_uid}
+API -> DB: SELECT orders WHERE is_offline=1\nAND user_id = kasir_uid
+DB --> API: List transaksi hari ini
+API --> App: {today_total, today_count, transactions}
+App --> Kasir: Tampil ringkasan + riwayat\n(pendapatan tunai hari ini)
+
+@enduml

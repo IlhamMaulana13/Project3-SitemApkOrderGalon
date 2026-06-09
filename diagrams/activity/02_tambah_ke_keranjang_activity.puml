@@ -1,0 +1,35 @@
+@startuml AD_Tambah_Ke_Keranjang
+!theme plain
+title Activity Diagram: Tambah ke Keranjang
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Customer pilih produk;
+:Pilih jenis layanan\n(Isi Ulang / Beli Baru / Sewa);
+:Atur jumlah (qty);
+
+if (Layanan = Beli Baru / Sewa?) then (Ya)
+    if (Stok habis?) then (Ya)
+        :Tombol "Habis" — tidak bisa tambah;
+        stop
+    else (Tidak)
+        :Lanjut proses;
+    endif
+else (Isi Ulang)
+    :Stok tidak dicek;
+endif
+
+:Simpan item ke CartProvider\n(local state Flutter);
+:Perbarui badge keranjang;
+:Tampil SnackBar "Produk ditambahkan";
+
+if (Tambah produk lain?) then (Ya)
+    :Kembali ke daftar produk;
+else (Tidak)
+    :Buka keranjang;
+endif
+
+stop
+@enduml

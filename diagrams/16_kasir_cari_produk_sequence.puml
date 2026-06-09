@@ -1,0 +1,30 @@
+@startuml Kasir_Cari_Produk
+!theme plain
+title SD: Kasir — Cari Produk
+actor Kasir
+participant "App (Flutter)\nKasirScreen" as App
+participant "Backend" as API
+database "Database" as DB
+
+Kasir -> App: Buka KasirScreen (Tab POS)
+App -> API: GET /products
+API -> DB: SELECT products WHERE stock >= 0
+DB --> API: List produk
+API --> App: JSON produk\n(merk, harga, stok, gambar)
+App --> Kasir: Tampil seluruh daftar produk
+
+Kasir -> App: Ketik nama produk\ndi kolom pencarian
+App -> App: Filter produk di sisi client\n(merk.toLowerCase().contains(query))
+App --> Kasir: Tampil produk yang cocok\nsecara real-time
+
+alt Produk ditemukan
+    App --> Kasir: Daftar produk tersaring\nbeserta info stok
+else Produk tidak ditemukan
+    App --> Kasir: Tampil pesan\n"Produk tidak ditemukan"
+end
+
+Kasir -> App: Klik X / hapus teks pencarian
+App -> App: Reset filter
+App --> Kasir: Kembali ke daftar lengkap
+
+@enduml

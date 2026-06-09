@@ -1,38 +1,25 @@
 @startuml Lihat_Status_Pesanan
 !theme plain
-title Sequence Diagram: Lihat Status Pesanan (View Order Status)
+title SD: Lihat Status Pesanan
 actor Customer
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
+participant "App (Flutter)" as App
+participant "Backend" as API
 database "Database" as DB
 
-Customer -> App: Klik Menu Pesanan / Order History
-App -> API: GET /api/orders?customer_id={id}
-API -> DB: Query Order List (Customer)
-DB --> API: Return Order List
-API --> App: Response JSON (Order List)
-App -> App: Parse & Display Orders
-App --> Customer: Tampilkan Daftar Pesanan\n(Order ID, Tanggal, Status, Total)
+Customer -> App: Tab Pesanan
+App -> API: GET /orders/{user_id}
+API -> DB: SELECT orders WHERE user_id\nORDER BY id DESC
+DB --> API: List pesanan
+API --> App: JSON pesanan
+App --> Customer: Daftar pesanan\n(ID, total, status, tanggal)
 
-Customer -> App: Klik Detail Pesanan
-App -> API: GET /api/orders/{order_id}
-API -> DB: Query Detail Order
-DB --> API: Return Order Detail
-API --> App: Response Order Detail
+note over App: Refresh otomatis tiap 5 detik\nJika status berubah → tampil notifikasi
 
-alt Order Dengan Tracking
-    App -> API: GET /api/orders/{order_id}/tracking
-    API -> DB: Query Order Tracking Status
-    DB --> API: Return Tracking Data
-    API --> App: Response (Status Timeline, Kurir Info)
-    App --> Customer: Tampilkan Order Details\n(Items, Status, Timeline, Kurir Contact)
-else Order COD/Menunggu
-    App --> Customer: Tampilkan Status\n(Menunggu Konfirmasi Kurir)
-end
-
-alt Order Selesai
-    Customer -> App: View Invoice/Receipt
-    App --> Customer: Download/Share Receipt PDF
-end
+Customer -> App: Klik pesanan → Lihat Invoice
+App -> API: GET /orders/detail/{id}
+API -> DB: SELECT order + items + products
+DB --> API: Detail pesanan
+API --> App: Item, qty, subtotal, total
+App --> Customer: Tampil Invoice lengkap
 
 @enduml

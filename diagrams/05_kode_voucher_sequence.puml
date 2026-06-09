@@ -1,41 +1,28 @@
 @startuml Kode_Voucher
 !theme plain
-title Sequence Diagram: Kode Voucher (Apply Voucher Code)
+title SD: Voucher & Reward Otomatis
 actor Customer
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
+participant "App (Flutter)" as App
+participant "Backend" as API
 database "Database" as DB
 
-Customer -> App: Di Checkout Screen / Cart\nMasukkan Kode Voucher
-App -> App: Validasi Format Code
-App -> API: POST /api/vouchers/validate
-note right of App
-    Request Body:
-    - voucher_code
-    - total_amount
-    - customer_id
-end note
+note over App,API: Voucher diambil otomatis saat Checkout dibuka
 
-API -> DB: Query Voucher by Code
-DB --> API: Return Voucher Data
+App -> API: GET /user-vouchers/{uid}
+API -> DB: SELECT user_vouchers\nWHERE user_id AND is_used = false
+DB --> API: List voucher aktif
+API --> App: [{code, discount}]
 
-alt Voucher Valid
-    API -> API: Check Voucher Conditions:\n- Expiry Date\n- Min Purchase\n- Max Usage\n- Customer Eligibility
-
-    alt All Conditions Met
-        API -> DB: Log Voucher Usage
-        DB --> API: Success
-        API --> App: Response 200\n(Diskon Amount, Discount Type)
-        App -> App: Calculate New Total
-        App --> Customer: Tampilkan Success\n("Voucher Applied: Rp XXX discount")
-        App -> App: Update UI (New Total Amount)
-    else Conditions Failed
-        API --> App: Response 400\n(Error Message)
-        App --> Customer: Tampilkan Error\n("Voucher tidak valid/expired/max usage")
-    end
-else Voucher Not Found
-    API --> App: Response 404
-    App --> Customer: Tampilkan Error\n("Kode voucher tidak ditemukan")
+alt Voucher tersedia
+    App -> App: Auto-apply voucher pertama
+    App --> Customer: Kode terisi otomatis\n+ potongan tampil di ringkasan
+else Tidak ada voucher
+    App --> Customer: Field voucher kosong
+    Customer -> App: Input kode manual
+    App -> App: Cocokkan kode dengan list
+    App --> Customer: Potongan diterapkan
 end
+
+note over API,DB: Reward otomatis:\nSetiap N transaksi selesai → sistem buat\nvoucher baru di user_vouchers\n(N & nominal dari tabel reward_settings)
 
 @enduml

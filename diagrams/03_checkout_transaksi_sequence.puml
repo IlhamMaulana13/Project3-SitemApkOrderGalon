@@ -1,70 +1,40 @@
 @startuml Checkout_Transaksi
 !theme plain
-title Sequence Diagram: Checkout / Transaksi (Checkout Process)
+title SD: Checkout & Pembayaran
 actor Customer
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
+participant "App (Flutter)" as App
+participant "Backend" as API
+participant "Midtrans" as Midtrans
 database "Database" as DB
-participant "Payment\nGateway" as Payment
 
-Customer -> App: Klik Checkout dari Cart
-App -> API: GET /api/cart
-API -> DB: Query Item Cart
-DB --> API: Return Cart Items
-API --> App: Response Cart Data
-App --> Customer: Tampilkan Cart Review\n(Item, Total, Alamat)
+Customer -> App: Buka Checkout
+App -> API: GET /profile/{uid}
+API --> App: Nama, HP, Alamat
+App -> API: GET /user-vouchers/{uid}
+API --> App: Daftar voucher aktif
+App --> Customer: Form checkout\n(profil · metode bayar · catatan · voucher)
 
-Customer -> App: Input/Pilih Alamat Pengiriman
-Customer -> App: Pilih Metode Pembayaran
-Customer -> App: (Optional) Masukkan Kode Voucher
+Customer -> App: Konfirmasi pesanan
 
-alt Ada Voucher
-    App -> API: POST /api/voucher/validate
-    API -> DB: Check Voucher Validity
-    DB --> API: Voucher Valid/Reward
-    API --> App: Return Diskon Amount
-    App -> App: Update Total Harga
-end
+alt COD
+    App -> API: POST /orders\n{user_id, items, total, notes, voucher}
+    API -> DB: INSERT orders + order_items\nReserve stok
+    DB --> API: order_id
+    API --> App: 200 OK
+    App --> Customer: Dialog "Pesanan Berhasil"
 
-App -> App: Calculate Final Total (Harga + Ongkir - Diskon)
-App --> Customer: Tampilkan Final Total
-
-Customer -> App: Klik Lanjutkan Pembayaran
-App -> API: POST /api/orders
-note right of App
-    Request Body:
-    - customer_id
-    - items[]
-    - delivery_address
-    - payment_method
-    - discount (if any)
-    - total_amount
-end note
-
-API -> DB: Create Order Record
-DB --> API: Order ID Generated
-API -> DB: Insert Order Items
-API -> DB: Clear/Archive Cart
-DB --> API: Success
-API --> App: Response (Order ID, Payment Token)
-
-alt Payment Method: Transfer Bank/Card
-    App -> Payment: Initialize Payment
-    Payment --> App: Payment Token/URL
-    App --> Customer: Redirect ke Payment Gateway
-    Customer -> Payment: Input Payment Details
-    Payment -> Payment: Process Payment
-    Payment --> App: Payment Webhook Notification
-    App -> API: PUT /api/orders/{id}/confirm-payment
-    API -> DB: Update Order Status = PAID
+else Online (QRIS / VA / GoPay / ShopeePay)
+    App -> API: POST /payment\n{order_id, total, customer_name, email, phone}
+    API -> Midtrans: Create transaction
+    Midtrans --> API: redirect_url
+    API --> App: redirect_url
+    App -> API: POST /orders\n{user_id, items, midtrans_order_id, notes, voucher}
+    API -> DB: INSERT orders + order_items
     DB --> API: Success
-    API --> App: Response Success
-    App --> Customer: Tampilkan Payment Success Page\n(Order ID, Receipt)
-else Payment Method: COD
-    API -> DB: Set Order Status = PENDING_PAYMENT
-    DB --> API: Success
-    API --> App: Response COD Confirmed
-    App --> Customer: Tampilkan Order Confirmation\n(Tunggu Konfirmasi Kurir)
+    App --> Customer: Buka WebView pembayaran
+    Customer -> Midtrans: Selesaikan pembayaran
+    Midtrans -> API: POST /midtrans/callback (settlement)
+    API -> DB: UPDATE payment_status = 'paid'\nKurangi stok (release reserved)
 end
 
 @enduml

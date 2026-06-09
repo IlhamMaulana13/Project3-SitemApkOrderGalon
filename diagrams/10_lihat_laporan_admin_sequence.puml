@@ -1,106 +1,20 @@
 @startuml Lihat_Laporan_Admin
 !theme plain
-title Sequence Diagram: Lihat Laporan (View Report) - Admin
+title SD: Lihat Laporan (Admin)
 actor Admin
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
+participant "App (Flutter)" as App
+participant "Backend" as API
 database "Database" as DB
 
-Admin -> App: Login sebagai Admin
-App -> App: Set Admin Session
-App --> Admin: Tampilkan Admin Dashboard
+Admin -> App: Buka Menu Laporan
+App -> API: GET /reports
+API -> DB: SELECT orders\nLEFT JOIN users\nORDER BY id DESC
+DB --> API: List transaksi\n(id, nama, total, status, tanggal, online/offline)
+API --> App: JSON laporan
+App --> Admin: Tampil tabel laporan\n(Online & Offline/Kasir)
 
-Admin -> App: Klik Menu Laporan/Report
-App --> Admin: Tampilkan Report Options\n(Sales, Inventory, Customer, Transaction)
-
-alt Sales Report
-    Admin -> App: Pilih Sales Report
-    App --> Admin: Tampilkan Date Range Picker
-
-    Admin -> App: Input Tanggal Awal & Akhir (atau Predefined: Today/This Week/This Month)
-    App -> API: GET /api/admin/reports/sales?date_from={date}&date_to={date}
-    API -> DB: Query Orders dan Items dalam Date Range
-    DB --> API: Return Sales Data
-
-    API -> API: Calculate:\n- Total Revenue\n- Total Orders\n- Avg Order Value\n- Top Products\n- Payment Methods Distribution
-    API --> App: Response Sales Report
-
-    App --> Admin: Tampilkan Sales Report\n(Total Revenue, Total Orders, Avg Order Value, Chart)
-
-    alt Export Report
-        Admin -> App: Klik Export (PDF/Excel)
-        App -> API: POST /api/admin/reports/sales/export
-        API -> DB: Query Report Data (Same as above)
-        DB --> API: Return Data
-        API -> API: Generate PDF/Excel File
-        API --> App: Return File URL
-        App --> Admin: Download Report File
-
-else Inventory Report
-    Admin -> App: Pilih Inventory Report
-    App -> API: GET /api/admin/reports/inventory
-    API -> DB: Query All Products dengan Stock Levels
-    DB --> API: Return Inventory Data
-
-    API -> API: Calculate:\n- Total Products\n- Low Stock Items (<Min Threshold)\n- Out of Stock Items\n- Total Inventory Value
-    API --> App: Response Inventory Report
-
-    App --> Admin: Tampilkan Inventory Report\n(Product Name, Current Stock, Min Stock, Status)
-
-    alt Filter by Status
-        Admin -> App: Filter Low Stock / Out of Stock
-        App -> API: GET /api/admin/reports/inventory?filter={status}
-        API -> DB: Query Filtered Inventory
-        DB --> API: Return Filtered Data
-        API --> App: Response Filtered Inventory
-        App --> Admin: Refresh Report dengan Filter
-
-else Customer Report
-    Admin -> App: Pilih Customer Report
-    App --> Admin: Tampilkan Filter Options (Tanggal, Segment)
-
-    Admin -> App: Input Date Range & Segmentation
-    App -> API: GET /api/admin/reports/customers?date_from={date}&date_to={date}
-    API -> DB: Query Customer Data & Orders
-    DB --> API: Return Customer Data
-
-    API -> API: Calculate:\n- Total Customers (New vs Returning)\n- Customer Lifetime Value\n- Purchase Frequency\n- Top Customers\n- Customer Retention Rate
-    API --> App: Response Customer Report
-
-    App --> Admin: Tampilkan Customer Report\n(Total Customers, New Customers, Repeat Customers, Top Spenders)
-
-else Transaction Report (Detailed)
-    Admin -> App: Pilih Transaction Report
-    App --> Admin: Tampilkan Date Range Picker
-
-    Admin -> App: Input Tanggal & Filter (Status, Payment Method)
-    App -> API: GET /api/admin/reports/transactions?date_from={date}&date_to={date}&status={status}&payment_method={method}
-    API -> DB: Query All Transactions
-    DB --> API: Return Transaction List
-
-    API -> API: Calculate:\n- Total Transactions\n- Failed Transactions\n- Pending Transactions\n- Completed Transactions\n- Total Amount by Payment Method
-    API --> App: Response Transaction Report
-
-    App --> Admin: Tampilkan Transaction Report Detail\n(Transaction ID, Amount, Status, Payment Method, Date)
-
-    alt View Transaction Detail
-        Admin -> App: Klik Salah Satu Transaction
-        App -> API: GET /api/admin/reports/transactions/{transaction_id}
-        API -> DB: Query Transaction Detail
-        DB --> API: Return Detailed Data
-        API --> App: Response Detail
-        App --> Admin: Tampilkan Full Transaction Information\n(Order Details, Customer, Payment Status, Timeline)
-end
-
-alt View Analytics Dashboard
-    Admin -> App: Klik Tab Analytics/Dashboard
-    App -> API: GET /api/admin/analytics/dashboard
-    API -> DB: Query Multiple Data:\n- Today Sales\n- Weekly Trend\n- Top Products\n- Recent Orders\n- Pending Tasks
-    DB --> API: Return All Analytics Data
-
-    API --> App: Response Dashboard Data
-    App --> Admin: Tampilkan Analytics Dashboard\n(KPI Cards, Sales Chart, Top Products Chart, Recent Activity)
-
-end
+Admin -> App: Klik "Cetak PDF"
+App -> App: Generate PDF dari data laporan
+App --> Admin: Share / simpan PDF
 
 @enduml

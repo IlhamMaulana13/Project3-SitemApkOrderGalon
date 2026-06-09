@@ -1,0 +1,35 @@
+@startuml AD_Lihat_Produk
+!theme plain
+title Activity Diagram: Lihat Produk
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Buka Aplikasi / Tab Beranda;
+:Kirim GET /products ke Backend;
+:Backend query database;
+
+if (Data produk berhasil dimuat?) then (Ya)
+    :Tampilkan daftar produk\n(nama, harga, stok, gambar);
+else (Gagal)
+    :Tampil pesan error;
+    stop
+endif
+
+:Pilih filter layanan\n(Isi Ulang / Beli Baru / Sewa);
+:Tampilkan harga sesuai layanan;
+
+if (Layanan = Beli Baru atau Sewa?) then (Ya)
+    :Tampilkan stok tersedia;
+    if (Stok habis?) then (Ya)
+        :Tombol berubah menjadi "Habis";
+    else (Tidak)
+        :Tombol "Tambah" aktif;
+    endif
+else (Isi Ulang)
+    :Stok tidak ditampilkan\nTombol "Tambah" selalu aktif;
+endif
+
+stop
+@enduml

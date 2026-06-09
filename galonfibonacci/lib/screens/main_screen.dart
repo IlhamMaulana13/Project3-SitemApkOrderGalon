@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/cart_screen.dart';
 import 'package:galonfibonacci/screens/profile_screen.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +56,20 @@ class _MainScreenState extends State<MainScreen> {
         ),
 
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return IconButton(
+                icon: Icon(
+                  themeProvider.isDarkMode
+                      ? Icons.light_mode_rounded
+                      : Icons.dark_mode_rounded,
+                  color: Colors.white,
+                ),
+                tooltip: themeProvider.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
+                onPressed: () => themeProvider.toggleTheme(),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
 
@@ -76,11 +91,12 @@ class _MainScreenState extends State<MainScreen> {
 
       bottomNavigationBar: Consumer<CartProvider>(
         builder: (context, cartProvider, child) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           return BottomNavigationBar(
             currentIndex: currentIndex,
-            backgroundColor: Colors.white,
-            selectedItemColor: Colors.blue[700],
-            unselectedItemColor: Colors.grey,
+            backgroundColor: isDark ? const Color(0xFF16213E) : Colors.white,
+            selectedItemColor: Colors.blue[400],
+            unselectedItemColor: isDark ? Colors.grey[500] : Colors.grey,
             type: BottomNavigationBarType.fixed,
             onTap: (index) {
               setState(() {

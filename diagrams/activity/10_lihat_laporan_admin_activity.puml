@@ -1,0 +1,23 @@
+@startuml AD_Lihat_Laporan_Admin
+!theme plain
+title Activity Diagram: Lihat Laporan (Admin)
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Login sebagai Admin;
+:Buka Menu Laporan;
+:GET /reports;
+:Backend query semua transaksi\n(online + offline kasir);
+:Tampil tabel laporan\n(ID, nama, total, status, tanggal, tipe);
+
+if (Admin klik "Cetak PDF"?) then (Ya)
+    :Generate PDF dari data laporan;
+    :Share / simpan PDF ke perangkat;
+else (Tidak)
+    :Lihat laporan di layar;
+endif
+
+stop
+@enduml

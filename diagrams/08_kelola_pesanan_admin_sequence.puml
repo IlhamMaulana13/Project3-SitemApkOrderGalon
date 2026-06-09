@@ -1,90 +1,29 @@
 @startuml Kelola_Pesanan_Admin
 !theme plain
-title Sequence Diagram: Kelola Pesanan/Transaksi (Manage Orders) - Admin
+title SD: Kelola Pesanan (Admin)
 actor Admin
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
+participant "App (Flutter)" as App
+participant "Backend" as API
 database "Database" as DB
 
-Admin -> App: Login sebagai Admin
-App -> App: Set Admin Session
-App --> Admin: Tampilkan Admin Dashboard
+Admin -> App: Buka Kelola Pesanan
+App -> API: GET /orders
+API -> DB: SELECT orders + items + customer_name + notes
+DB --> API: List pesanan
+API --> App: JSON pesanan
+App --> Admin: Tampil daftar pesanan\n(ID, pelanggan, total, status, catatan customer)
 
-Admin -> App: Klik Menu Kelola Pesanan
-App -> API: GET /api/admin/orders
-API -> DB: Query All Orders (dengan Filters)
-DB --> API: Return Order List
-API --> App: Response JSON (Order List)
-App --> Admin: Tampilkan Daftar Pesanan\n(Order ID, Customer, Status, Total, Tanggal)
+Admin -> App: Pilih status baru dari dropdown\n(Diproses → Dikirim → Selesai)
+App -> API: PUT /orders/status/{id}\n{status}
+API -> DB: UPDATE orders SET status
+DB --> API: Success
 
-alt View Order Details
-    Admin -> App: Klik Salah Satu Pesanan
-    App -> API: GET /api/admin/orders/{order_id}
-    API -> DB: Query Order Detail dengan Items
-    DB --> API: Return Order Data (Items, Customer, Payment, Status)
-    API --> App: Response Order Detail
-    App --> Admin: Tampilkan Detail Pesanan\n(Items, Customer Info, Payment Method, Status Timeline)
+note over API: Jika status = "Selesai":
+API -> DB: Catat rental aktif (jika ada item Sewa)
+API -> DB: Hitung & beri voucher reward ke customer
+API -> API: Kirim FCM push notifikasi ke Customer
 
-else Filter/Search Orders
-    Admin -> App: Input Filter (Status, Date Range, Customer)
-    App -> API: GET /api/admin/orders?status={status}&date_from={date}&date_to={date}
-    API -> DB: Query Orders dengan Filter
-    DB --> API: Return Filtered Order List
-    API --> App: Response Filtered List
-    App --> Admin: Refresh Daftar dengan Filter Applied
-
-else Update Order Status
-    Admin -> App: Klik Order untuk Update Status
-    App --> Admin: Tampilkan Status Options (Pending, Confirmed, Shipped, Delivered, Cancelled)
-
-    Admin -> App: Pilih Status Baru
-    App -> API: PUT /api/admin/orders/{order_id}/status
-    note right of App
-        Request Body:
-        - status
-        - notes (optional)
-        - assigned_kurir_id (if shipped)
-    end note
-
-    API -> DB: Update Order Status
-    API -> DB: Create Status History Entry
-    DB --> API: Success
-
-    alt Status = Shipped
-        API -> API: Generate Tracking Number
-        API -> DB: Update with Tracking Info
-        DB --> API: Success
-        API --> App: Response (New Status, Tracking Number)
-    else Other Status
-        API --> App: Response (New Status Updated)
-    end
-
-    App --> Admin: Tampilkan Success "Status pesanan diperbarui"
-
-else Cancel Order
-    Admin -> App: Klik Tombol Cancel Order
-    App --> Admin: Tampilkan Confirmation dengan Reason Field
-
-    Admin -> App: Input Alasan Pembatalan & Confirm
-    App -> API: PUT /api/admin/orders/{order_id}/cancel
-    note right of App
-        Request Body:
-        - reason
-        - refund_amount
-        - admin_id
-    end note
-
-    API -> DB: Check if Already Shipped
-    alt Order Not Yet Shipped
-        API -> DB: Update Order Status = CANCELLED
-        API -> DB: Process Refund (if needed)
-        DB --> API: Success
-        API --> App: Response (Cancelled, Refund Info)
-        App --> Admin: Tampilkan Success "Pesanan dibatalkan\nRefund diproses"
-    else Already Shipped
-        API --> App: Response 409 (Cannot cancel)
-        App --> Admin: Tampilkan Error "Pesanan tidak dapat dibatalkan\n(sudah dikirim)"
-    end
-end
+API --> App: 200 OK
+App --> Admin: "Status berhasil diupdate"
 
 @enduml

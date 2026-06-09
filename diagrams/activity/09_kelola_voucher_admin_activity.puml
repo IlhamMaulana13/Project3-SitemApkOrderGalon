@@ -1,0 +1,62 @@
+@startuml AD_Kelola_Voucher_Admin
+!theme plain
+title Activity Diagram: Kelola Voucher (Admin)
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Login sebagai Admin;
+:Buka Kelola Voucher;
+:GET /vouchers — tampil daftar voucher;
+
+if (Aksi Admin?) then (Buat Voucher)
+    :Isi nama, nominal diskon;
+    :Kode: generate otomatis atau isi manual;
+    :POST /vouchers {name, code, discount};
+    :Voucher aktif dibuat;
+    :Tampil "Voucher dibuat: [kode]";
+
+elseif (Edit Voucher) then
+    :Klik ikon pensil;
+    :Ubah nama / kode / nominal;
+    :PUT /vouchers/{id} {name, code, discount};
+    :Tampil "Voucher berhasil diupdate";
+
+elseif (Toggle Aktif/Nonaktif) then
+    :Pilih dari dropdown status kartu voucher;
+    :PUT /vouchers/{id} {is_active};
+    :Status voucher berubah;
+
+elseif (Bagikan ke Customer) then
+    :Klik "Bagikan ke Pelanggan";
+    if (Tujuan?) then (Semua Customer)
+        :POST /user-vouchers/assign {assign_all: true};
+        :Voucher dikirim ke semua customer;
+    else (Customer Tertentu)
+        :Pilih customer dari dropdown;
+        :POST /user-vouchers/assign {email};
+        :Voucher dikirim ke customer terpilih;
+    endif
+    :Tampil "Voucher berhasil dikirim";
+
+elseif (Lihat Penerima) then
+    :Klik "Lihat Penerima Voucher";
+    :GET /vouchers/{id}/recipients;
+    :Tampil dialog daftar nama + email penerima;
+
+elseif (Hapus Voucher) then
+    :Klik hapus — konfirmasi;
+    :DELETE /vouchers/{id};
+    :Tampil "Voucher berhasil dihapus";
+
+elseif (Atur Reward Otomatis) then
+    :Klik ikon ⚙ pada kartu Reward Otomatis;
+    :GET /reward-settings — muat pengaturan saat ini;
+    :Ubah kelipatan transaksi & nominal potongan;
+    :PUT /reward-settings {multiplier, discount};
+    :Tampil "Pengaturan reward disimpan";
+endif
+
+stop
+@enduml

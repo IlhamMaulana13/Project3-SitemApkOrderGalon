@@ -1,0 +1,47 @@
+@startuml AD_Kasir_Tambah_Item_Keranjang
+!theme plain
+title Activity Diagram: Kasir — Tambah Item ke Keranjang & Bayar Tunai
+skinparam ArrowColor #F57C00
+skinparam ActivityBackgroundColor #FFF3E0
+skinparam ActivityBorderColor #F57C00
+
+start
+:Kasir klik "Tambah" pada produk;
+:Tampil dialog pilih layanan & qty\n(Isi Ulang / Beli Baru / Sewa);
+
+:Pilih jenis layanan;
+:Atur jumlah (qty);
+:Tampil subtotal di dialog;
+:Klik "Tambah" di dialog;
+
+if (Item sudah ada di keranjang\n(product + service sama)?) then (Ya)
+    :Tambahkan qty ke item yang sudah ada;
+else (Tidak)
+    :Tambah item baru ke keranjang;
+endif
+
+:Tampil bar total di bawah layar;
+
+if (Tambah produk lain?) then (Ya)
+    :Ulangi proses dari awal;
+endif
+
+:Klik "Lihat Keranjang";
+:Tampil bottom sheet\n(daftar item, qty, subtotal, total);
+
+:Input nama & HP pelanggan (opsional);
+:Klik "Bayar Tunai";
+
+:POST /kasir/orders {kasir_uid, customer, total, items};
+:Simpan order ke database (is_offline = 1);
+:Kurangi stok produk\n(kecuali layanan Isi Ulang);
+
+if (Ada item Sewa?) then (Ya)
+    :Buat record rental (status = active);
+endif
+
+:Bersihkan keranjang kasir;
+:Tampil "Transaksi tunai berhasil";
+
+stop
+@enduml

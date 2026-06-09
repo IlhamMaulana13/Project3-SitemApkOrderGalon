@@ -1,0 +1,29 @@
+@startuml Kasir_Lihat_Riwayat
+!theme plain
+title SD: Kasir — Lihat Riwayat Transaksi
+actor Kasir
+participant "App (Flutter)\nKasirScreen" as App
+participant "Backend" as API
+database "Database" as DB
+
+Kasir -> App: Klik Tab "Riwayat"
+App -> API: GET /kasir/transactions/{kasir_uid}
+API -> DB: SELECT orders\nWHERE is_offline = 1\nAND user_id = kasir_uid\nORDER BY id DESC LIMIT 50
+DB --> API: List transaksi
+
+API -> DB: SELECT SUM(total), COUNT(*)\nFROM orders\nWHERE is_offline = 1\nAND user_id = kasir_uid\nAND DATE(created_at) = CURDATE()
+DB --> API: today_total, today_count
+
+API --> App: {today_total, today_count, transactions[]}
+App --> Kasir: Tampil kartu ringkasan:\n"Pendapatan Tunai Hari Ini"\n(total Rp & jumlah transaksi)
+
+App --> Kasir: Tampil daftar riwayat transaksi\n(Order #ID, nama pelanggan, total, waktu)
+
+alt Kasir klik Pull-to-Refresh
+    Kasir -> App: Tarik ke bawah (swipe down)
+    App -> API: GET /kasir/transactions/{kasir_uid}
+    API --> App: Data terbaru
+    App --> Kasir: Daftar diperbarui
+end
+
+@enduml

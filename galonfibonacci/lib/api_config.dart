@@ -1,4 +1,3 @@
 class ApiConfig {
-  static const String baseUrl =
-      "http://202.155.95.224/api/galon";
+  static const String baseUrl = "https://galonrizzkifaras.duckdns.org";
 }

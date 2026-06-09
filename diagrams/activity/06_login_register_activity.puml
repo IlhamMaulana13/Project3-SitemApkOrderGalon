@@ -1,0 +1,54 @@
+@startuml AD_Login_Register
+!theme plain
+title Activity Diagram: Login & Register
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Buka Aplikasi;
+:Cek Firebase currentUser;
+
+if (Sudah login?) then (Ya)
+    :Ambil UID;
+    :GET /users/{uid};
+    :Redirect sesuai role;
+    stop
+endif
+
+:Tampil Auth Screen\n(tombol Login & Register);
+
+if (Aksi user?) then (Register)
+    :Input email, password, nama;
+    :Firebase createUserWithEmailAndPassword();
+    if (Berhasil?) then (Ya)
+        :Dapatkan uid dari Firebase;
+        :POST /users\n{firebase_uid, email, name, fcm_token};
+        :Simpan ke tabel users (role = customer);
+        :Redirect ke MainScreen (Customer);
+    else (Gagal)
+        :Tampil pesan error Firebase;
+    endif
+
+else (Login)
+    :Input email & password;
+    :Firebase signInWithEmailAndPassword();
+    if (Berhasil?) then (Ya)
+        :Dapatkan uid;
+        :GET /users/{uid} — ambil role;
+        if (Role?) then (customer)
+            :Redirect ke MainScreen;
+        elseif (kasir) then
+            :Redirect ke KasirScreen;
+        elseif (kurir) then
+            :Redirect ke KurirScreen;
+        else (admin)
+            :Redirect ke AdminDashboardScreen;
+        endif
+    else (Gagal)
+        :Tampil pesan error\n(email/password salah);
+    endif
+endif
+
+stop
+@enduml

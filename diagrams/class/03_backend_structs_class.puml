@@ -1,0 +1,114 @@
+@startuml CD_Backend_Structs
+!theme plain
+title Class Diagram: Backend Go Structs
+skinparam classBackgroundColor #FFF8E1
+skinparam classBorderColor #F57C00
+skinparam arrowColor #333333
+skinparam classHeaderBackgroundColor #F57C00
+skinparam classHeaderFontColor #FFFFFF
+
+' ─────────────────────────────────────────
+' REQUEST / RESPONSE STRUCTS
+' ─────────────────────────────────────────
+
+class User {
+  + FirebaseUID : string
+  + Email : string
+  + Name : string
+  + Phone : string
+  + Address : string
+}
+
+class Product {
+  + ID : int
+  + CategoryID : int
+  + Merk : string
+  + Price : int
+  + Modal : int
+  + Stock : int
+  + Image : string
+  + SupplierID : int
+}
+
+class Supplier {
+  + ID : int
+  + Name : string
+  + Phone : string
+  + Address : string
+}
+
+class Order {
+  + UserID : string
+  + IdempotencyKey : string
+  + PaymentMethodID : int
+  + PaymentChannel : string
+  + MidtransOrderID : string
+  + Total : int
+  + VoucherCode : string
+  + VoucherDiscount : int
+  + Notes : string
+  + Status : string
+  + PaymentStatus : string
+  + Items : []OrderItem
+}
+
+class OrderItem {
+  + ProductID : int
+  + Qty : int
+  + Subtotal : int
+  + Service : string
+}
+
+class OrderResponse {
+  + ID : int
+  + Total : int
+  + Status : string
+  + CreatedAt : string
+}
+
+class Voucher {
+  + ID : int
+  + Name : string
+  + Code : string
+  + Discount : int
+  + IsActive : bool
+}
+
+class UserVoucher {
+  + ID : int
+  + UserID : string
+  + Code : string
+  + Discount : int
+  + IsUsed : bool
+  + CreatedAt : string
+}
+
+class Rental {
+  + ID : int
+  + OrderID : int
+  + ProductID : int
+  + UserID : string
+  + Merk : string
+  + Qty : int
+  + Status : string
+  + RentedAt : string
+  + ReturnedAt : string
+  + CustomerName : string
+  + Notes : string
+}
+
+class RewardSettings {
+  + Multiplier : int
+  + Discount : int
+}
+
+' ─────────────────────────────────────────
+' RELATIONSHIPS
+' ─────────────────────────────────────────
+
+Order "1" *-- "1..*" OrderItem : memiliki
+Rental "0..*" --> "1" Order : berasal dari
+UserVoucher "0..*" --> "1" User : milik
+Product "0..*" --> "1" Supplier : dipasok oleh
+
+@enduml

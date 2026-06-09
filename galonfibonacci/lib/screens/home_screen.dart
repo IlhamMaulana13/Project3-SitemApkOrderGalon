@@ -78,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget buildFilter(String title) {
     final isSelected = selectedService == title;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -88,7 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.white,
+          color: isSelected
+              ? Colors.blue
+              : (isDark ? Colors.grey[800]! : Colors.white),
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             if (isSelected)
@@ -102,7 +105,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
+            color: isSelected
+                ? Colors.white
+                : Theme.of(context).textTheme.bodyMedium?.color,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -113,7 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       body: Column(
         children: [
           // HEADER
@@ -403,18 +407,21 @@ class _ProductItemState extends State<ProductItem> {
                               : Colors.grey[600],
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          widget.selectedService == "Sewa"
-                              ? "Tersedia: ${widget.product.stock} unit"
-                              : "Stok: ${widget.product.stock}",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: widget.product.stock <= 0
-                                ? Colors.red
-                                : Colors.grey[600],
-                            fontWeight: widget.product.stock <= 0
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                        Flexible(
+                          child: Text(
+                            widget.selectedService == "Sewa"
+                                ? "Tersedia: ${widget.product.stock} unit"
+                                : "Stok: ${widget.product.stock}",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: widget.product.stock <= 0
+                                  ? Colors.red
+                                  : Colors.grey[600],
+                              fontWeight: widget.product.stock <= 0
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

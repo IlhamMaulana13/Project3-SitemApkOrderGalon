@@ -1,0 +1,58 @@
+@startuml AD_Kelola_Produk
+!theme plain
+title Activity Diagram: Kelola Produk (Admin)
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Login sebagai Admin;
+:Buka Kelola Produk;
+:GET /products — tampil daftar produk;
+
+if (Aksi Admin?) then (Tambah Produk)
+    :Isi form\n(merk, harga jual, harga modal, stok, supplier);
+    if (Ada gambar baru?) then (Ya)
+        :Upload gambar ke ImgBB;
+        :Dapatkan URL gambar;
+    endif
+    :POST /products;
+    :Produk tersimpan di database;
+    :Tampil "Produk berhasil ditambah";
+
+elseif (Edit Produk) then
+    :Klik ikon edit pada produk;
+    :Form terisi dengan data lama;
+    :Ubah data yang diperlukan;
+    if (Ada gambar baru?) then (Ya)
+        :Upload ke ImgBB;
+    endif
+    :PUT /products/{id};
+    :Tampil "Produk berhasil diupdate";
+
+elseif (Hapus Produk) then
+    :Klik ikon hapus;
+    :Tampil konfirmasi hapus;
+    if (Konfirmasi?) then (Ya)
+        :DELETE /products/{id};
+        :Tampil "Produk berhasil dihapus";
+    else (Batal)
+        :Kembali ke daftar;
+    endif
+
+elseif (Kelola Supplier) then
+    :Klik tombol Supplier di AppBar;
+    :Tampil tabel supplier\n(nama, HP, alamat);
+    if (Aksi?) then (Tambah)
+        :Isi nama, HP, alamat;
+        :POST /suppliers;
+        :Supplier tersimpan;
+    else (Hapus)
+        :DELETE /suppliers/{id};
+        :Supplier dihapus;
+    endif
+endif
+
+:Refresh daftar produk;
+stop
+@enduml

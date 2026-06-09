@@ -1,0 +1,206 @@
+@startuml CD_Full_Database
+!theme plain
+title Class Diagram: Full Database - Galon Rizzki Faras
+skinparam arrowColor #333333
+skinparam classHeaderFontColor #FFFFFF
+skinparam classFontColor #000000
+skinparam classFontSize 11
+skinparam packageFontSize 12
+skinparam packageFontStyle bold
+
+' ═══════════════════════════════════════════
+' LEGEND RELASI
+' ═══════════════════════════════════════════
+legend right
+  <b>Notasi Relasi</b>
+  ──────────────────────────
+  A "1" *── "1..*" B   = Komposisi  (1 ke banyak)
+  A "1" o── "0..*" B   = Agregasi   (1 ke banyak)
+  A "1" ──  "0..*" B   = Asosiasi   (1 ke banyak)
+  A "0..*" ── "0..*" B = Many-to-Many (via junction)
+  <<junction>>           = Tabel pivot M:N
+  <<PK>>  = Primary Key
+  <<FK>>  = Foreign Key
+endlegend
+
+' ─────────────────────────────────────────
+' PACKAGE: AUTH / USER
+' ─────────────────────────────────────────
+
+package "Auth & User" #E3F2FD {
+
+    class User <<entity>> {
+        + firebase_uid : String <<PK>>
+        + email : String
+        + name : String
+        + phone : String
+        + address : String
+        + role : String
+        + fcm_token : String
+    }
+
+}
+
+' ─────────────────────────────────────────
+' PACKAGE: PRODUK & SUPPLIER
+' ─────────────────────────────────────────
+
+package "Produk & Supplier" #E8F5E9 {
+
+    class Supplier <<entity>> {
+        + id : Int <<PK>>
+        + name : String
+        + phone : String
+        + address : String
+    }
+
+    class Product <<entity>> {
+        + id : Int <<PK>>
+        + category_id : Int
+        + merk : String
+        + price : Int
+        + modal : Int
+        + stock : Int
+        + reserved_stock : Int
+        + image : String
+        + supplier_id : Int <<FK>>
+    }
+
+    ' Supplier → Product : 1 supplier memasok banyak produk
+    Supplier "1" o-down- "0..*" Product : memasok\n(1 to many)
+
+}
+
+' ─────────────────────────────────────────
+' PACKAGE: PESANAN
+' ─────────────────────────────────────────
+
+package "Pesanan" #FFF8E1 {
+
+    class Order <<entity>> {
+        + id : Int <<PK>>
+        + user_id : String <<FK>>
+        + payment_method_id : Int
+        + payment_channel : String
+        + midtrans_order_id : String
+        + total : Int
+        + voucher_code : String
+        + voucher_discount : Int
+        + notes : String
+        + status : String
+        + payment_status : String
+        + customer_name : String
+        + customer_phone : String
+        + is_offline : Boolean
+        + idempotency_key : String
+        + created_at : DateTime
+    }
+
+    class OrderItem <<junction>> {
+        + id : Int <<PK>>
+        + order_id : Int <<FK>>
+        + product_id : Int <<FK>>
+        + qty : Int
+        + subtotal : Int
+        + service : String
+        ..
+        ' Pivot: Order (M) <─> Product (N)
+    }
+
+    ' Order → OrderItem : komposisi (1 order punya banyak item)
+    Order "1" *-down- "1..*" OrderItem : berisi\n(1 to many)
+
+}
+
+' ─────────────────────────────────────────
+' PACKAGE: VOUCHER & REWARD
+' ─────────────────────────────────────────
+
+package "Voucher & Reward" #F3E5F5 {
+
+    class Voucher <<entity>> {
+        + id : Int <<PK>>
+        + name : String
+        + code : String <<UNIQUE>>
+        + discount : Int
+        + is_active : Boolean
+    }
+
+    class UserVoucher <<junction>> {
+        + id : Int <<PK>>
+        + user_id : String <<FK>>
+        + code : String <<FK>>
+        + discount : Int
+        + is_used : Boolean
+        + created_at : DateTime
+        ..
+        ' Pivot: User (M) <─> Voucher (N)
+    }
+
+    class RewardSettings <<entity>> {
+        + id : Int <<PK>>
+        + multiplier : Int
+        + discount : Int
+        ..
+        ' Singleton: 1 baris konfigurasi
+    }
+
+    ' Voucher → UserVoucher : 1 voucher bisa dikirim ke banyak user
+    Voucher "1" o-down- "0..*" UserVoucher : dikirim ke\n(1 to many)
+
+}
+
+' ─────────────────────────────────────────
+' PACKAGE: SEWA GALON
+' ─────────────────────────────────────────
+
+package "Sewa Galon" #FCE4EC {
+
+    class Rental <<entity>> {
+        + id : Int <<PK>>
+        + order_id : Int <<FK>>
+        + product_id : Int <<FK>>
+        + user_id : String <<FK>>
+        + merk : String
+        + qty : Int
+        + status : String
+        + rented_at : DateTime
+        + returned_at : DateTime
+        + customer_name : String
+        + customer_phone : String
+        + notes : String
+    }
+
+}
+
+' ═══════════════════════════════════════════
+' RELASI 1-to-Many ANTAR PACKAGE
+' ═══════════════════════════════════════════
+
+' User membuat banyak Order (1:N)
+User "1" --right-- "0..*" Order       : membuat\n(1 to many)
+
+' User memiliki banyak UserVoucher (1:N — sisi User dari M:N)
+User "1" --down-- "0..*" UserVoucher  : memiliki\n(1 to many)
+
+' User menyewa banyak galon (1:N)
+User "1" --down-- "0..*" Rental       : menyewa\n(1 to many)
+
+' Order menghasilkan banyak Rental (1:N)
+Order "1" --down-- "0..*" Rental      : menghasilkan\n(1 to many)
+
+' ═══════════════════════════════════════════
+' RELASI Many-to-Many (via junction table)
+' ═══════════════════════════════════════════
+
+' Order ↔ Product : M:N via OrderItem
+Order "0..*" .. "0..*" Product : <<M:N>>\nvia OrderItem
+OrderItem "0..*" --right-- "1" Product : merujuk produk\n(many to 1)
+
+' User ↔ Voucher : M:N via UserVoucher
+User "0..*" .. "0..*" Voucher : <<M:N>>\nvia UserVoucher
+
+' Product ↔ Order : M:N via Rental (produk bisa disewa di banyak order)
+Product "1" --right-- "0..*" Rental : disewa di\n(1 to many)
+
+@enduml

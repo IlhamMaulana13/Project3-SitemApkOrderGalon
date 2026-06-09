@@ -1,103 +1,32 @@
-@startuml Guest_Mode_Handling
+@startuml Guest_Mode
 !theme plain
-title Guest Mode Handling Flow - Galon Rizzki Faras
-skinparam backgroundColor #f5f5f5
+title Alur Guest Mode
 skinparam ArrowColor #D32F2F
 skinparam ActivityBackgroundColor #FFEBEE
 skinparam ActivityBorderColor #D32F2F
 
 start
-:User in Main Screen;
 
-if (User Taps Navigation?) then (Cart Tab)
-    :Check FirebaseAuth;
-    if (User == null?) then (Ya - Guest)
-        :CartScreen Load;
-        :User can View Cart Items;
-        if (User Taps Lanjut Pembayaran?) then (Ya)
-            :Check User == null;
-            if (Guest?) then (Ya)
-                :Show Dialog;
-                :Title: "Login Diperlukan";
-                :Message: "Silakan login untuk pembayaran";
-                :Button: Batal | Login;
-                if (User Taps?) then (Login)
-                    :Pop Dialog;
-                    :Navigate to LoginScreen;
-                    :Remove all previous routes;
-                else (Batal)
-                    :Close Dialog;
-                    :Stay in CartScreen;
-                endif
-            else (Tidak)
-                :Go to CheckoutScreen;
-            endif
-        endif
-    else (Tidak - Sudah Login)
-        :Show CartScreen Normal;
-    endif
-    
-elseif (Order Tab) then
-    :Check FirebaseAuth;
-    if (User == null?) then (Ya - Guest)
-        :Check in build();
-        :Show Loading spinner;
-        :After build, trigger Dialog:;
-        :Title: "Login Diperlukan";
-        :Message: "Silakan login untuk melihat pesanan";
-        :Button: Login;
-        :barrierDismissible: false;
-        if (User Taps Login) then (Ya)
-            :Pop Dialog;
-            :Navigate to LoginScreen;
-            :Remove all previous routes;
-        endif
-    else (Tidak - Sudah Login)
-        :Show Order List;
-        :Display Voucher Rewards;
-    endif
-    
-elseif (Profile Tab) then
-    :Check FirebaseAuth;
-    if (User == null?) then (Ya - Guest)
-        :Check in build();
-        :Show Loading spinner;
-        :After build, trigger Dialog:;
-        :Title: "Login Diperlukan";
-        :Message: "Silakan login untuk akses profil";
-        :Button: Login;
-        :barrierDismissible: false;
-        if (User Taps Login) then (Ya)
-            :Pop Dialog;
-            :Navigate to LoginScreen;
-            :Remove all previous routes;
-        endif
-    else (Tidak - Sudah Login)
-        :Show Profile Data;
-        :Show Edit Profile Button;
-        :Show Logout Button;
-    endif
-    
-elseif (Checkout Flow) then
-    :In CheckoutScreen;
-    :User trigger checkout() action;
-    :Check FirebaseAuth;
-    if (User == null?) then (Ya - Guest)
-        :Show Dialog;
-        :Title: "Login Diperlukan";
-        :Message: "Silakan login untuk checkout";
-        :Button: Login;
-        :barrierDismissible: false;
-        if (User Taps Login) then (Ya)
-            :Pop Dialog;
-            :Navigate to LoginScreen;
-            :Remove all previous routes;
-        endif
-    else (Tidak - Sudah Login)
-        :Process Checkout;
-        :Create Order;
-        :Proceed to Payment;
-    endif
+:User buka aplikasi tanpa login (Guest);
+
+if (Fitur yang diakses?) then (Beranda)
+    :Tampil produk normal;
+    :Bisa pilih layanan & tambah ke keranjang;
+
+elseif (Keranjang → Lanjut Bayar) then
+    :Cek Firebase.currentUser == null;
+    :Tampil dialog "Login Diperlukan";
+    :Klik Login → redirect ke LoginScreen;
+
+elseif (Tab Pesanan) then
+    :Cek Firebase.currentUser == null;
+    :Tampil dialog "Login Diperlukan"\n(barrierDismissible: false);
+    :Klik Login → redirect ke LoginScreen;
+
+elseif (Tab Profil) then
+    :Cek Firebase.currentUser == null;
+    :Tampil dialog "Login Diperlukan"\n(barrierDismissible: false);
+    :Klik Login → redirect ke LoginScreen;
 endif
 
 stop

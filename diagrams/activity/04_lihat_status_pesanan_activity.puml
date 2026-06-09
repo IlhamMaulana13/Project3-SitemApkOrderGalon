@@ -1,0 +1,35 @@
+@startuml AD_Lihat_Status_Pesanan
+!theme plain
+title Activity Diagram: Lihat Status Pesanan
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Buka Tab Pesanan;
+
+if (User sudah login?) then (Ya)
+    :GET /orders/{user_id};
+    :Tampil daftar pesanan\n(ID, total, status, tanggal);
+
+    :Timer refresh otomatis setiap 5 detik;
+
+    repeat
+        :GET /orders/{user_id};
+        if (Status pesanan berubah?) then (Ya)
+            :Tampil SnackBar notifikasi\n"Status #X berubah menjadi [status]";
+        endif
+    repeat while (Halaman masih dibuka?)
+
+    if (Klik salah satu pesanan?) then (Ya)
+        :GET /orders/detail/{id};
+        :Tampil Invoice\n(item, qty, subtotal, total);
+    endif
+
+else (Tidak / Guest)
+    :Tampil dialog "Login Diperlukan";
+    :Arahkan ke Login Screen;
+endif
+
+stop
+@enduml

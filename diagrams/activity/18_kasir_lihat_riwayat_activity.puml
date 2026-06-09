@@ -1,0 +1,28 @@
+@startuml AD_Kasir_Lihat_Riwayat
+!theme plain
+title Activity Diagram: Kasir — Lihat Riwayat Transaksi
+skinparam ArrowColor #F57C00
+skinparam ActivityBackgroundColor #FFF3E0
+skinparam ActivityBorderColor #F57C00
+
+start
+:Kasir klik Tab "Riwayat";
+:GET /kasir/transactions/{kasir_uid};
+:Backend query transaksi offline\nmilik kasir ini (maks 50);
+:Backend hitung ringkasan hari ini\n(total pendapatan & jumlah transaksi);
+
+:Tampil kartu ringkasan:\n"Pendapatan Tunai Hari Ini"\n(Rp total & N transaksi);
+
+if (Ada transaksi?) then (Ya)
+    :Tampil daftar riwayat\n(Order #ID, nama pelanggan, total, waktu);
+else (Tidak)
+    :Tampil pesan "Belum ada transaksi";
+endif
+
+if (Kasir pull-to-refresh?) then (Ya)
+    :GET /kasir/transactions/{kasir_uid};
+    :Perbarui ringkasan & daftar;
+endif
+
+stop
+@enduml

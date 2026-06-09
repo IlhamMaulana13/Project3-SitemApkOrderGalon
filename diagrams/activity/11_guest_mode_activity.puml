@@ -1,0 +1,52 @@
+@startuml AD_Guest_Mode
+!theme plain
+title Activity Diagram: Guest Mode
+skinparam ArrowColor #D32F2F
+skinparam ActivityBackgroundColor #FFEBEE
+skinparam ActivityBorderColor #D32F2F
+
+start
+:Buka aplikasi tanpa login (Guest);
+:MainScreen tampil dengan BottomNavBar;
+
+if (Tab yang dibuka?) then (Beranda)
+    :Tampil daftar produk;
+    :Bisa pilih layanan & tambah ke keranjang;
+
+elseif (Keranjang) then
+    :Tampil isi keranjang;
+    if (Klik "Lanjut Pembayaran"?) then (Ya)
+        :Cek Firebase.currentUser;
+        if (User = null?) then (Ya)
+            :Tampil dialog "Login Diperlukan";
+            if (Klik Login?) then (Ya)
+                :Redirect ke LoginScreen\n(remove all routes);
+            else (Batal)
+                :Tetap di Keranjang;
+            endif
+        else (Tidak)
+            :Lanjut ke Checkout;
+        endif
+    endif
+
+elseif (Tab Pesanan) then
+    :Cek Firebase.currentUser;
+    if (User = null?) then (Ya)
+        :Tampil dialog "Login Diperlukan"\n(barrierDismissible: false);
+        :Klik Login → redirect ke LoginScreen;
+    else (Tidak)
+        :Tampil daftar pesanan;
+    endif
+
+elseif (Tab Profil) then
+    :Cek Firebase.currentUser;
+    if (User = null?) then (Ya)
+        :Tampil dialog "Login Diperlukan"\n(barrierDismissible: false);
+        :Klik Login → redirect ke LoginScreen;
+    else (Tidak)
+        :Tampil data profil;
+    endif
+endif
+
+stop
+@enduml

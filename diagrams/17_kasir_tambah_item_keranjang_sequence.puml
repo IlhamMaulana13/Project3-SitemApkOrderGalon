@@ -1,0 +1,50 @@
+@startuml Kasir_Tambah_Item_Keranjang
+!theme plain
+title SD: Kasir — Tambah Item ke Keranjang & Bayar Tunai
+actor Kasir
+participant "App (Flutter)\nKasirScreen" as App
+participant "Backend" as API
+database "Database" as DB
+
+Kasir -> App: Klik tombol "Tambah" pada produk
+App --> Kasir: Tampil dialog pilih layanan & qty\n(Isi Ulang / Beli Baru / Sewa)
+
+Kasir -> App: Pilih layanan & atur jumlah
+App --> Kasir: Tampil subtotal di dialog
+
+Kasir -> App: Klik "Tambah" di dialog
+App -> App: Cek apakah item sudah ada\ndi keranjang (product_id + service)
+
+alt Item sudah ada
+    App -> App: Tambahkan qty ke item yang ada
+else Item baru
+    App -> App: Tambah item baru ke list cart
+end
+
+App --> Kasir: Item masuk keranjang\nTampil bar total di bawah layar
+
+note over App: Keranjang disimpan lokal (state)\nTidak ada API call saat tambah item
+
+Kasir -> App: Klik "Lihat Keranjang"
+App --> Kasir: Bottom sheet keranjang\n(daftar item, nama & HP pelanggan, total)
+
+Kasir -> App: (Opsional) Input nama & HP pelanggan
+Kasir -> App: Klik "Bayar Tunai"
+
+App -> API: POST /kasir/orders\n{kasir_uid, customer_name,\ncustomer_phone, total, items[]}
+API -> DB: BEGIN TRANSACTION
+API -> DB: INSERT orders\n(status='Selesai', is_offline=1, payment_status='paid')
+API -> DB: INSERT order_items (per item)
+API -> DB: UPDATE products SET stock = stock - qty\n(kecuali Isi Ulang)
+
+alt Ada item dengan service = Sewa
+    API -> DB: INSERT rentals\n(status='active', order_id, product_id)
+end
+
+API -> DB: COMMIT
+DB --> API: order_id
+API --> App: 200 OK
+App -> App: Bersihkan keranjang kasir
+App --> Kasir: "Transaksi tunai berhasil"
+
+@enduml

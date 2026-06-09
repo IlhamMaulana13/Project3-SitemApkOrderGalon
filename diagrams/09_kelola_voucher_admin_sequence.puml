@@ -1,124 +1,61 @@
 @startuml Kelola_Voucher_Admin
 !theme plain
-title Sequence Diagram: Kelola Voucher (Manage Vouchers) - Admin
+title SD: Kelola Voucher (Admin)
 actor Admin
-participant "Mobile App\n(Flutter)" as App
-participant "Backend\nAPI" as API
+participant "App (Flutter)" as App
+participant "Backend" as API
 database "Database" as DB
 
-Admin -> App: Login sebagai Admin
-App -> App: Set Admin Session
-App --> Admin: Tampilkan Admin Dashboard
+Admin -> App: Buka Kelola Voucher
+App -> API: GET /vouchers
+API -> DB: SELECT vouchers ORDER BY id DESC
+DB --> API: List voucher
+API --> App: JSON voucher
+App --> Admin: Tampil daftar voucher\n(kode, nama, diskon, status aktif/nonaktif)
 
-Admin -> App: Klik Menu Kelola Voucher
-App -> API: GET /api/admin/vouchers
-API -> DB: Query All Vouchers
-DB --> API: Return Voucher List
-API --> App: Response JSON (Voucher List)
-App --> Admin: Tampilkan Daftar Voucher\n(Code, Diskon, Expired Date, Usage Count, Status)
-
-alt Buat Voucher Baru
-    Admin -> App: Klik Tombol Buat Voucher
-    App --> Admin: Tampilkan Form Create Voucher
-
-    Admin -> App: Input Kode, Tipe Diskon (%), Nominal, Masa Berlaku, Min Purchase, Max Usage
-    App -> App: Validasi Input (Kode Unik, Format Valid)
-
-    alt Input Valid
-        App -> API: POST /api/admin/vouchers
-        note right of App
-            Request Body:
-            - code
-            - discount_type (percentage/fixed)
-            - discount_value
-            - start_date
-            - expiry_date
-            - min_purchase
-            - max_usage
-            - max_usage_per_user
-            - description
-            - admin_id
-        end note
-
-        API -> DB: Check Voucher Code Uniqueness
-        alt Code Not Exists
-            API -> DB: Create New Voucher
-            DB --> API: Success (Voucher ID Generated)
-            API --> App: Response 201 (Voucher Created)
-            App --> Admin: Tampilkan Success "Voucher berhasil dibuat"
-            App -> API: GET /api/admin/vouchers
-            API -> DB: Query Updated Voucher List
-            DB --> API: Return List
-            API --> App: Response Updated List
-            App --> Admin: Refresh Daftar Voucher
-        else Code Already Exists
-            API --> App: Response 409
-            App --> Admin: Tampilkan Error "Kode voucher sudah ada"
-        end
-    else Input Invalid
-        App --> Admin: Tampilkan Error "Lengkapi semua field dengan benar"
-    end
+alt Buat Voucher
+    Admin -> App: Isi nama, nominal\n(kode manual / auto-generate)
+    App -> API: POST /vouchers\n{name, code, discount}
+    API -> DB: INSERT vouchers (is_active = true)
+    App --> Admin: "Voucher dibuat: [kode]"
 
 else Edit Voucher
-    Admin -> App: Klik Salah Satu Voucher untuk Edit
-    App -> API: GET /api/admin/vouchers/{voucher_id}
-    API -> DB: Query Voucher Detail
-    DB --> API: Return Voucher Data
-    API --> App: Response Voucher Detail
-    App --> Admin: Tampilkan Form Edit dengan Data Existing
+    Admin -> App: Klik pensil → ubah nama/kode/diskon
+    App -> API: PUT /vouchers/{id}\n{name, code, discount}
+    API -> DB: UPDATE vouchers
+    App --> Admin: "Voucher berhasil diupdate"
 
-    Admin -> App: Update Fields (Diskon, Masa Berlaku, Max Usage, dll)
-    App -> App: Validasi Input
+else Toggle Aktif / Nonaktif
+    Admin -> App: Pilih dari dropdown status
+    App -> API: PUT /vouchers/{id}\n{is_active: true/false}
+    API -> DB: UPDATE vouchers SET is_active
+    App --> Admin: "Voucher diaktifkan / dinonaktifkan"
 
-    alt Input Valid
-        App -> API: PUT /api/admin/vouchers/{voucher_id}
-        API -> DB: Update Voucher Record
-        DB --> API: Success
-        API --> App: Response 200 (Voucher Updated)
-        App --> Admin: Tampilkan Success "Voucher berhasil diubah"
-    else Input Invalid
-        App --> Admin: Tampilkan Error "Data tidak valid"
-    end
+else Bagikan ke Customer
+    Admin -> App: Klik "Bagikan ke Pelanggan"\nPilih semua / dropdown customer
+    App -> API: POST /user-vouchers/assign\n{assign_all, email, voucher_codes}
+    API -> DB: INSERT user_vouchers per customer
+    App --> Admin: "Voucher berhasil dikirim"
 
-else Deactivate/Delete Voucher
-    Admin -> App: Klik Tombol Deactivate/Delete
-    App --> Admin: Tampilkan Confirmation Dialog
+else Lihat Penerima
+    Admin -> App: Klik "Lihat Penerima Voucher"
+    App -> API: GET /vouchers/{id}/recipients
+    API -> DB: SELECT users JOIN user_vouchers
+    DB --> API: List nama + email penerima
+    App --> Admin: Dialog daftar penerima
 
-    Admin -> App: Confirm Delete
-    App -> API: DELETE /api/admin/vouchers/{voucher_id}
-
-    API -> DB: Check if Voucher Already Used
-    alt Voucher Not Used Yet
-        API -> DB: Delete Voucher Record
-        DB --> API: Success
-        API --> App: Response 200
-        App --> Admin: Tampilkan Success "Voucher berhasil dihapus"
-    else Voucher Already Used
-        API -> DB: Mark Voucher as Inactive
-        DB --> API: Success
-        API --> App: Response 200 (Marked Inactive)
-        App --> Admin: Tampilkan Success "Voucher dinonaktifkan\n(data riwayat tetap tersimpan)"
-    end
-
-    App -> API: GET /api/admin/vouchers
-    API -> DB: Query Updated List
-    DB --> API: Return List
-    API --> App: Response Updated List
-    App --> Admin: Refresh Daftar Voucher
-
-else View Voucher Statistics
-    Admin -> App: Klik Tab Statistik/Analytics
-    App -> API: GET /api/admin/vouchers/{voucher_id}/stats
-    note right of App
-        Query Params:
-        - date_range
-        - status
-    end note
-
-    API -> DB: Query Voucher Usage Statistics
-    DB --> API: Return (Times Used, Total Discount, Avg Discount Per Use)
-    API --> App: Response Statistics
-    App --> Admin: Tampilkan Statistik\n(Usage Count, Total Discount Given, Popular Vouchers)
+else Hapus Voucher
+    Admin -> App: Klik hapus → konfirmasi
+    App -> API: DELETE /vouchers/{id}
+    API -> DB: DELETE vouchers
+    App --> Admin: "Voucher berhasil dihapus"
 end
+
+Admin -> App: Klik ikon ⚙ pada Reward Otomatis
+App -> API: GET /reward-settings
+API --> App: {multiplier, discount}
+Admin -> App: Ubah kelipatan & nominal
+App -> API: PUT /reward-settings\n{multiplier, discount}
+App --> Admin: "Pengaturan reward disimpan"
 
 @enduml

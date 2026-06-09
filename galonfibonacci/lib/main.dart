@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
+import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/auth_screen.dart';
 import 'package:galonfibonacci/services/notification_service.dart';
 import 'package:provider/provider.dart';
@@ -32,16 +33,7 @@ void main() async {
   // BACKGROUND NOTIF
   FirebaseMessaging.onBackgroundMessage(backgroundHandler);
 
-  // FOREGROUND NOTIF
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("NOTIF MASUK");
-    print(message.notification?.title);
-
-    NotificationService.showNotification(
-      message.notification?.title ?? "Notifikasi",
-      message.notification?.body ?? "",
-    );
-  });
+  // foreground notification sudah ditangani di NotificationService.init()
 
   runApp(const MyApp());
 }
@@ -51,13 +43,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CartProvider(),
-
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        home: const AuthScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            theme: ThemeProvider.lightTheme,
+            darkTheme: ThemeProvider.darkTheme,
+            home: const AuthScreen(),
+          );
+        },
       ),
     );
   }

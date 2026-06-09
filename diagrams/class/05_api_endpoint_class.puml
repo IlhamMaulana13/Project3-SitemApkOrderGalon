@@ -1,0 +1,118 @@
+@startuml CD_API_Endpoint
+!theme plain
+title Class Diagram: API Endpoint & Backend Handler
+skinparam classBackgroundColor #E8EAF6
+skinparam classBorderColor #3949AB
+skinparam arrowColor #333333
+skinparam classHeaderBackgroundColor #3949AB
+skinparam classHeaderFontColor #FFFFFF
+
+' ─────────────────────────────────────────
+' API CONFIG
+' ─────────────────────────────────────────
+
+class ApiConfig {
+  + {static} baseUrl : String
+}
+
+' ─────────────────────────────────────────
+' ENDPOINT GROUPS
+' ─────────────────────────────────────────
+
+class ProductEndpoint <<API>> {
+  + GET  /products
+  + POST /products
+  + PUT  /products/{id}
+  + DELETE /products/{id}
+}
+
+class SupplierEndpoint <<API>> {
+  + GET    /suppliers
+  + POST   /suppliers
+  + DELETE /suppliers/{id}
+}
+
+class OrderEndpoint <<API>> {
+  + POST /orders
+  + GET  /orders
+  + GET  /orders/{user_id}
+  + GET  /orders/detail/{id}
+  + PUT  /orders/status/{id}
+}
+
+class PaymentEndpoint <<API>> {
+  + POST /payment
+  + GET  /payment-status/{orderId}
+  + POST /midtrans/callback
+  + GET  /payment/retry/{user_id}
+}
+
+class UserEndpoint <<API>> {
+  + POST /users
+  + GET  /users
+  + GET  /users/{uid}
+  + PUT  /users/{uid}/role
+  + GET  /profile/{uid}
+  + POST /profile
+}
+
+class VoucherEndpoint <<API>> {
+  + GET    /vouchers
+  + POST   /vouchers
+  + PUT    /vouchers/{id}
+  + DELETE /vouchers/{id}
+  + GET    /vouchers/{id}/recipients
+}
+
+class UserVoucherEndpoint <<API>> {
+  + GET  /user-vouchers/{user_id}
+  + POST /user-vouchers/assign
+}
+
+class RewardEndpoint <<API>> {
+  + GET /reward-settings
+  + PUT /reward-settings
+}
+
+class RentalEndpoint <<API>> {
+  + GET  /rentals
+  + POST /rentals/{id}/return
+  + POST /rentals/{id}/convert-damage
+}
+
+class KasirEndpoint <<API>> {
+  + POST /kasir/orders
+  + GET  /kasir/transactions/{uid}
+}
+
+class KurirEndpoint <<API>> {
+  + GET /kurir/orders
+}
+
+class DashboardEndpoint <<API>> {
+  + GET /dashboard
+}
+
+class ReportEndpoint <<API>> {
+  + GET /reports
+}
+
+' ─────────────────────────────────────────
+' RELATIONSHIPS — Flutter → Endpoint
+' ─────────────────────────────────────────
+
+ApiConfig ..> ProductEndpoint     : baseUrl
+ApiConfig ..> SupplierEndpoint    : baseUrl
+ApiConfig ..> OrderEndpoint       : baseUrl
+ApiConfig ..> PaymentEndpoint     : baseUrl
+ApiConfig ..> UserEndpoint        : baseUrl
+ApiConfig ..> VoucherEndpoint     : baseUrl
+ApiConfig ..> UserVoucherEndpoint : baseUrl
+ApiConfig ..> RewardEndpoint      : baseUrl
+ApiConfig ..> RentalEndpoint      : baseUrl
+ApiConfig ..> KasirEndpoint       : baseUrl
+ApiConfig ..> KurirEndpoint       : baseUrl
+ApiConfig ..> DashboardEndpoint   : baseUrl
+ApiConfig ..> ReportEndpoint      : baseUrl
+
+@enduml

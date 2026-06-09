@@ -1,0 +1,127 @@
+@startuml CD_Entity
+!theme plain
+title Class Diagram: Database Entities - Galon Rizzki Faras
+skinparam classBackgroundColor #F1F8FF
+skinparam classBorderColor #1976D2
+skinparam arrowColor #333333
+skinparam classHeaderBackgroundColor #1976D2
+skinparam classHeaderFontColor #FFFFFF
+skinparam classFontColor #000000
+
+' ─────────────────────────────────────────
+' ENTITIES
+' ─────────────────────────────────────────
+
+class User {
+  + firebase_uid : String <<PK>>
+  + email : String
+  + name : String
+  + phone : String
+  + address : String
+  + role : String
+  + fcm_token : String
+}
+
+class Product {
+  + id : Int <<PK>>
+  + category_id : Int
+  + merk : String
+  + price : Int
+  + modal : Int
+  + stock : Int
+  + reserved_stock : Int
+  + image : String
+  + supplier_id : Int <<FK>>
+}
+
+class Supplier {
+  + id : Int <<PK>>
+  + name : String
+  + phone : String
+  + address : String
+}
+
+class Order {
+  + id : Int <<PK>>
+  + user_id : String <<FK>>
+  + payment_method_id : Int
+  + payment_channel : String
+  + midtrans_order_id : String
+  + total : Int
+  + voucher_code : String
+  + voucher_discount : Int
+  + notes : String
+  + status : String
+  + payment_status : String
+  + customer_name : String
+  + customer_phone : String
+  + is_offline : Boolean
+  + idempotency_key : String
+  + created_at : DateTime
+}
+
+class OrderItem {
+  + id : Int <<PK>>
+  + order_id : Int <<FK>>
+  + product_id : Int <<FK>>
+  + qty : Int
+  + subtotal : Int
+  + service : String
+}
+
+class Voucher {
+  + id : Int <<PK>>
+  + name : String
+  + code : String <<UNIQUE>>
+  + discount : Int
+  + is_active : Boolean
+}
+
+class UserVoucher {
+  + id : Int <<PK>>
+  + user_id : String <<FK>>
+  + code : String
+  + discount : Int
+  + is_used : Boolean
+  + created_at : DateTime
+}
+
+class Rental {
+  + id : Int <<PK>>
+  + order_id : Int <<FK>>
+  + product_id : Int <<FK>>
+  + user_id : String <<FK>>
+  + merk : String
+  + qty : Int
+  + status : String
+  + rented_at : DateTime
+  + returned_at : DateTime
+  + customer_name : String
+  + customer_phone : String
+  + notes : String
+}
+
+class RewardSettings {
+  + id : Int <<PK>>
+  + multiplier : Int
+  + discount : Int
+}
+
+' ─────────────────────────────────────────
+' RELATIONSHIPS
+' ─────────────────────────────────────────
+
+User "1" --> "0..*" Order : membuat
+User "1" --> "0..*" UserVoucher : memiliki
+User "1" --> "0..*" Rental : menyewa
+
+Supplier "1" --> "0..*" Product : memasok
+
+Order "1" *-- "1..*" OrderItem : berisi
+Order "1" --> "0..*" Rental : memiliki
+
+OrderItem "0..*" --> "1" Product : mereferensi
+
+Voucher "1" --> "0..*" UserVoucher : dikirim ke
+
+@enduml

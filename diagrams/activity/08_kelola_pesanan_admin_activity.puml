@@ -1,0 +1,40 @@
+@startuml AD_Kelola_Pesanan_Admin
+!theme plain
+title Activity Diagram: Kelola Pesanan (Admin)
+skinparam ArrowColor #1976D2
+skinparam ActivityBackgroundColor #E8F4F8
+skinparam ActivityBorderColor #1976D2
+
+start
+:Login sebagai Admin;
+:Buka Kelola Pesanan;
+:GET /orders — tampil semua pesanan;
+:Tampil: ID, pelanggan, total,\nstatus, catatan customer;
+
+:Admin baca catatan customer\n(permintaan khusus, jam kirim, dll);
+
+:Pilih status baru dari dropdown\n(status saat ini tidak muncul di pilihan);
+
+if (Status dipilih?) then (Ya)
+    :PUT /orders/status/{id} {status};
+    :Update status di database;
+
+    if (Status = "Selesai"?) then (Ya)
+        :Cek apakah ada item Sewa;
+        if (Ada Sewa?) then (Ya)
+            :Catat rental aktif ke tabel rentals;
+        endif
+        :Hitung jumlah transaksi selesai customer;
+        :Beri voucher reward jika memenuhi kelipatan;
+        :Kirim FCM notifikasi ke customer;
+    else (Diproses / Dikirim)
+        :Kirim FCM notifikasi ke customer;
+    endif
+
+    :Tampil "Status berhasil diupdate";
+else (Pesanan sudah Selesai)
+    :Tampil label hijau "Pesanan sudah selesai"\n(dropdown disembunyikan);
+endif
+
+stop
+@enduml

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/screens/invoice_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
+import 'package:galonfibonacci/services/notification_service.dart';
 
 import '../models/order_model.dart';
 import '../services/api_service.dart';
@@ -90,26 +91,29 @@ class _OrderScreenState extends State<OrderScreen> {
 
     // cek perubahan status
     for (var order in result) {
-      // kalau order sudah pernah ada
-      if (oldStatus.containsKey(order.id)) {
-        // status berubah
-        if (oldStatus[order.id] != order.status) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: Colors.blue[700],
+      if (oldStatus.containsKey(order.id) &&
+          oldStatus[order.id] != order.status) {
+        // Tampilkan local notification (muncul di system tray)
+        NotificationService.showNotification(
+          'Status Pesanan #${order.id} Berubah',
+          'Pesanan kamu sekarang: ${order.status}',
+        );
 
-                content: Text(
-                  "Status pesanan #${order.id} berubah menjadi ${order.status}",
-                  style: const TextStyle(color: Colors.white),
-                ),
+        // Tampilkan juga SnackBar jika app sedang terbuka
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.blue[700],
+              content: Text(
+                'Status pesanan #${order.id} berubah menjadi ${order.status}',
+                style: const TextStyle(color: Colors.white),
               ),
-            );
-          }
+            ),
+          );
         }
       }
 
-      // update status lama
+      // simpan status terbaru
       oldStatus[order.id] = order.status;
     }
 
