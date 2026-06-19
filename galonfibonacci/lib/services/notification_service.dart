@@ -38,18 +38,22 @@ class NotificationService {
     );
 
     // WAJIB untuk Android 8+: buat notification channel terlebih dahulu
-    await flutterLocalNotificationsPlugin
+    final androidPlugin = flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            _channelId,
-            _channelName,
-            description: _channelDesc,
-            importance: Importance.max,
-            playSound: true,
-          ),
-        );
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _channelId,
+        _channelName,
+        description: _channelDesc,
+        importance: Importance.max,
+        playSound: true,
+      ),
+    );
+
+    // Android 13+ (API 33+) butuh runtime permission untuk local notification
+    await androidPlugin?.requestNotificationsPermission();
 
     // Foreground FCM: tampilkan sebagai local notification
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {

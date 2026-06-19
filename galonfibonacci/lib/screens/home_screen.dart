@@ -342,10 +342,10 @@ class _ProductItemState extends State<ProductItem> {
                 errorBuilder: (_, __, ___) => Container(
                   width: 80,
                   height: 80,
-                  color: Colors.blue[50],
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   child: Icon(
                     Icons.local_drink_rounded,
-                    color: Colors.blue[300],
+                    color: Theme.of(context).colorScheme.primary,
                     size: 36,
                   ),
                 ),

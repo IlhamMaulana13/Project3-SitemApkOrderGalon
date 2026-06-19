@@ -1,36 +1,39 @@
 @startuml AD_Role_Based_Navigation
 !theme plain
-title Activity Diagram: Role-Based Navigation
+title Activity Diagram: Navigasi Berbasis Role
 skinparam ArrowColor #1976D2
 skinparam ActivityBackgroundColor #E8F4F8
 skinparam ActivityBorderColor #1976D2
+skinparam SwimlaneBorderColor #1976D2
 
+|User|
 start
-:Login berhasil (Firebase Auth);
+:Login berhasil\n(Firebase Auth);
+
+|System|
 :GET /users/{uid};
 :Ambil field role dari database;
 
-switch (Role)
-case (customer)
-    :Tampilkan MainScreen;
-    :BottomNavBar\nBeranda · Keranjang · Pesanan · Profil;
-    :Akses: lihat produk, beli,\nlihat pesanan, gunakan voucher;
+if (Role?) then (customer)
+    |User|
+    :Tampil MainScreen;
+    :Akses: Beranda, Keranjang,\nPesanan, Profil, Voucher;
 
-case (kasir)
-    :Tampilkan KasirScreen;
-    :TabBar: Kasir (POS) · Riwayat;
-    :Akses: input transaksi tunai,\ncatat sewa, lihat riwayat hari ini;
+elseif (kasir) then
+    |User|
+    :Tampil KasirScreen;
+    :Akses: Transaksi Tunai,\nRiwayat Transaksi Hari Ini;
 
-case (kurir)
-    :Tampilkan KurirScreen;
-    :Daftar pesanan (status ≠ Selesai);
-    :Akses: update status pengiriman,\nhubungi customer via WhatsApp;
+elseif (kurir) then
+    |User|
+    :Tampil KurirScreen;
+    :Akses: Daftar Pesanan Aktif,\nHubungi Customer;
 
-case (admin)
-    :Tampilkan AdminDashboardScreen;
-    :Drawer Menu:\nPesanan · Produk · Voucher\n· Laporan · Sewa · Role;
-    :Akses: kelola semua data;
-endswitch
+else (admin)
+    |User|
+    :Tampil AdminDashboardScreen;
+    :Akses: Pesanan, Produk,\nVoucher, Laporan, Sewa, Role;
+endif
 
 stop
 @enduml

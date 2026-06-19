@@ -4,49 +4,58 @@ title Activity Diagram: Login & Register
 skinparam ArrowColor #1976D2
 skinparam ActivityBackgroundColor #E8F4F8
 skinparam ActivityBorderColor #1976D2
+skinparam SwimlaneBorderColor #1976D2
 
+|User|
 start
 :Buka Aplikasi;
-:Cek Firebase currentUser;
+
+|System|
+:Cek status login Firebase;
 
 if (Sudah login?) then (Ya)
-    :Ambil UID;
-    :GET /users/{uid};
-    :Redirect sesuai role;
+    :Ambil UID dari Firebase;
+    :GET /users/{uid} — ambil role;
+    :Redirect ke tampilan sesuai role;
     stop
-endif
+else (Belum)
+    |User|
+    :Tampil halaman Auth\n(Login / Register);
 
-:Tampil Auth Screen\n(tombol Login & Register);
-
-if (Aksi user?) then (Register)
-    :Input email, password, nama;
-    :Firebase createUserWithEmailAndPassword();
-    if (Berhasil?) then (Ya)
-        :Dapatkan uid dari Firebase;
-        :POST /users\n{firebase_uid, email, name, fcm_token};
-        :Simpan ke tabel users (role = customer);
-        :Redirect ke MainScreen (Customer);
-    else (Gagal)
-        :Tampil pesan error Firebase;
-    endif
-
-else (Login)
-    :Input email & password;
-    :Firebase signInWithEmailAndPassword();
-    if (Berhasil?) then (Ya)
-        :Dapatkan uid;
-        :GET /users/{uid} — ambil role;
-        if (Role?) then (customer)
+    if (Pilih aksi?) then (Register)
+        :Input email, password, nama;
+        |System|
+        :Firebase createUserWithEmailAndPassword();
+        if (Berhasil?) then (Ya)
+            :POST /users\n{firebase_uid, email, name, fcm_token};
+            :Simpan ke tabel users\n(role = customer);
             :Redirect ke MainScreen;
-        elseif (kasir) then
-            :Redirect ke KasirScreen;
-        elseif (kurir) then
-            :Redirect ke KurirScreen;
-        else (admin)
-            :Redirect ke AdminDashboardScreen;
+            stop
+        else (Gagal)
+            |User|
+            :Tampil pesan error Firebase;
         endif
-    else (Gagal)
-        :Tampil pesan error\n(email/password salah);
+
+    else (Login)
+        :Input email & password;
+        |System|
+        :Firebase signInWithEmailAndPassword();
+        if (Berhasil?) then (Ya)
+            :GET /users/{uid} — ambil role;
+            if (Role?) then (customer)
+                :Redirect ke MainScreen;
+            elseif (kasir) then
+                :Redirect ke KasirScreen;
+            elseif (kurir) then
+                :Redirect ke KurirScreen;
+            else (admin)
+                :Redirect ke AdminDashboardScreen;
+            endif
+            stop
+        else (Gagal)
+            |User|
+            :Tampil pesan error\n(email/password salah);
+        endif
     endif
 endif
 

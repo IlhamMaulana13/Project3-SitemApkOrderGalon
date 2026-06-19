@@ -4,37 +4,41 @@ title Activity Diagram: Kelola Pesanan (Admin)
 skinparam ArrowColor #1976D2
 skinparam ActivityBackgroundColor #E8F4F8
 skinparam ActivityBorderColor #1976D2
+skinparam SwimlaneBorderColor #1976D2
 
+|Admin|
 start
 :Login sebagai Admin;
-:Buka Kelola Pesanan;
+:Buka menu Kelola Pesanan;
+
+|System|
 :GET /orders — tampil semua pesanan;
-:Tampil: ID, pelanggan, total,\nstatus, catatan customer;
 
-:Admin baca catatan customer\n(permintaan khusus, jam kirim, dll);
+|Admin|
+:Baca detail pesanan\n(pelanggan, total, catatan, status);
+:Pilih status baru dari dropdown\n(Diproses / Dikirim / Selesai);
 
-:Pilih status baru dari dropdown\n(status saat ini tidak muncul di pilihan);
+|System|
+:PUT /orders/status/{id} {status};
+:Update status di database;
 
-if (Status dipilih?) then (Ya)
-    :PUT /orders/status/{id} {status};
-    :Update status di database;
-
-    if (Status = "Selesai"?) then (Ya)
-        :Cek apakah ada item Sewa;
-        if (Ada Sewa?) then (Ya)
-            :Catat rental aktif ke tabel rentals;
-        endif
-        :Hitung jumlah transaksi selesai customer;
-        :Beri voucher reward jika memenuhi kelipatan;
-        :Kirim FCM notifikasi ke customer;
-    else (Diproses / Dikirim)
-        :Kirim FCM notifikasi ke customer;
+if (Status = "Selesai"?) then (Ya)
+    if (Ada item Sewa?) then (Ya)
+        :Catat rental aktif\nke tabel rentals;
     endif
+    :Hitung total transaksi selesai customer;
+    if (Memenuhi kelipatan reward?) then (Ya)
+        :Generate voucher reward;
+        :Simpan ke tabel user_vouchers;
+    endif
+    :Kirim FCM notifikasi\n"Pesanan anda telah selesai";
 
-    :Tampil "Status berhasil diupdate";
-else (Pesanan sudah Selesai)
-    :Tampil label hijau "Pesanan sudah selesai"\n(dropdown disembunyikan);
+else (Diproses / Dikirim)
+    :Kirim FCM notifikasi\nstatus terbaru ke customer;
 endif
+
+|Admin|
+:Tampil "Status berhasil diupdate";
 
 stop
 @enduml

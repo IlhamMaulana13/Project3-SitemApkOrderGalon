@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/api_config.dart';
+import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -60,18 +62,26 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-
       appBar: AppBar(
-        backgroundColor: Colors.blue[700],
-
         title: const Text(
           "Dashboard Admin",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
 
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) => IconButton(
+              icon: Icon(
+                themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: Colors.white,
+              ),
+              tooltip: themeProvider.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
+              onPressed: () => themeProvider.toggleTheme(),
+            ),
+          ),
           IconButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
@@ -101,9 +111,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.blue[100],
+                  backgroundColor: isDark ? Colors.blue[900] : Colors.blue[100],
 
-                  child: Icon(Icons.inventory_2, color: Colors.blue[700]),
+                  child: Icon(Icons.inventory_2, color: isDark ? Colors.blue[300] : Colors.blue[700]),
                 ),
 
                 title: const Text(
@@ -136,9 +146,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.orange[100],
+                  backgroundColor: isDark ? Colors.orange[900] : Colors.orange[100],
 
-                  child: Icon(Icons.receipt_long, color: Colors.orange[700]),
+                  child: Icon(Icons.receipt_long, color: isDark ? Colors.orange[300] : Colors.orange[700]),
                 ),
 
                 title: const Text(

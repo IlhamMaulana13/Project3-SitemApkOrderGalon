@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:galonfibonacci/api_config.dart';
 
@@ -16,6 +18,7 @@ class KurirScreen extends StatefulWidget {
 
 class _KurirScreenState extends State<KurirScreen> {
   List orders = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -25,6 +28,7 @@ class _KurirScreenState extends State<KurirScreen> {
   }
 
   Future<void> fetchOrders() async {
+    setState(() => _isLoading = true);
     try {
       final response = await http.get(
         Uri.parse("${ApiConfig.baseUrl}/kurir/orders"),
@@ -38,15 +42,18 @@ class _KurirScreenState extends State<KurirScreen> {
         if (data is List) {
           setState(() {
             orders = data;
+            _isLoading = false;
           });
         } else {
           setState(() {
             orders = [];
+            _isLoading = false;
           });
         }
       } else {
         setState(() {
           orders = [];
+          _isLoading = false;
         });
 
         print(response.body);
@@ -56,6 +63,7 @@ class _KurirScreenState extends State<KurirScreen> {
 
       setState(() {
         orders = [];
+        _isLoading = false;
       });
     }
   }
@@ -104,6 +112,16 @@ class _KurirScreenState extends State<KurirScreen> {
         backgroundColor: Colors.orange,
 
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) => IconButton(
+              icon: Icon(
+                themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: Colors.white,
+              ),
+              tooltip: themeProvider.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
+              onPressed: () => themeProvider.toggleTheme(),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
 
@@ -124,12 +142,99 @@ class _KurirScreenState extends State<KurirScreen> {
         ],
       ),
 
-      body: RefreshIndicator(
-        onRefresh: fetchOrders,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: orders.length,
-          itemBuilder: (context, index) {
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.orange),
+                  SizedBox(height: 16),
+                  Text(
+                    "Memuat pesanan...",
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: fetchOrders,
+              child: orders.isEmpty
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
+                        return ListView(
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.75,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 120,
+                                    height: 120,
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.orange.withValues(alpha: 0.15)
+                                          : Colors.orange.shade50,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.delivery_dining_rounded,
+                                      size: 64,
+                                      color: isDark
+                                          ? Colors.orange.shade300
+                                          : Colors.orange.shade300,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Text(
+                                    "Belum Ada Pesanan",
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    "Pesanan baru akan muncul di sini.\nTarik ke bawah untuk memperbarui.",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 28),
+                                  OutlinedButton.icon(
+                                    onPressed: fetchOrders,
+                                    icon: const Icon(Icons.refresh_rounded, color: Colors.orange),
+                                    label: const Text(
+                                      "Perbarui",
+                                      style: TextStyle(color: Colors.orange),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Colors.orange),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: orders.length,
+                      itemBuilder: (context, index) {
             final order = orders[index] as Map<String, dynamic>;
 
             return Card(
@@ -169,19 +274,23 @@ class _KurirScreenState extends State<KurirScreen> {
 
                     const SizedBox(height: 10),
 
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-
-                      child: Text(order["status"] ?? "-"),
-                    ),
+                    Builder(builder: (ctx) {
+                      final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.orange.withValues(alpha: 0.25) : Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          order["status"] ?? "-",
+                          style: TextStyle(
+                            color: isDark ? Colors.orange[300] : Colors.orange[900],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }),
 
                     const SizedBox(height: 15),
 
@@ -192,25 +301,28 @@ class _KurirScreenState extends State<KurirScreen> {
                           .toList();
 
                       if (nextStatuses.isEmpty) {
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
                         return Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green[50],
+                            color: isDark ? Colors.green.withValues(alpha: 0.15) : Colors.green[50],
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.green.shade200),
+                            border: Border.all(
+                              color: isDark ? Colors.green.withValues(alpha: 0.4) : Colors.green.shade200,
+                            ),
                           ),
                           child: Row(
                             children: [
                               Icon(Icons.check_circle_rounded,
-                                  color: Colors.green[700], size: 18),
+                                  color: isDark ? Colors.green[400] : Colors.green[700], size: 18),
                               const SizedBox(width: 8),
                               Text(
                                 "Pesanan sudah selesai",
                                 style: TextStyle(
-                                    color: Colors.green[700],
+                                    color: isDark ? Colors.green[400] : Colors.green[700],
                                     fontWeight: FontWeight.w600),
                               ),
                             ],
@@ -222,7 +334,9 @@ class _KurirScreenState extends State<KurirScreen> {
                         value: null,
                         hint: Text(
                           "Ubah status...",
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                          ),
                         ),
                         isExpanded: true,
                         items: nextStatuses

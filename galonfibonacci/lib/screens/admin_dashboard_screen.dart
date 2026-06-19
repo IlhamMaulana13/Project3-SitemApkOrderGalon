@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:galonfibonacci/api_config.dart';
+import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/admin_order_screen.dart';
 import 'package:galonfibonacci/screens/admin_product_screen.dart';
 import 'package:galonfibonacci/screens/admin_rental_screen.dart';
@@ -12,6 +13,7 @@ import 'package:galonfibonacci/screens/admin_voucher_screen.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:galonfibonacci/screens/report_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -136,26 +138,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const Spacer(),
           const Divider(height: 1),
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(10),
+          Builder(builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            return ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red[50],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.logout_rounded, color: Colors.red[isDark ? 300 : 600], size: 20),
               ),
-              child: Icon(
-                Icons.logout_rounded,
-                color: Colors.red[600],
-                size: 20,
+              title: Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.red[isDark ? 300 : 600],
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            title: Text(
-              'Logout',
-              style: TextStyle(
-                color: Colors.red[600],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
             onTap: () async {
               Navigator.pop(context);
               await FirebaseAuth.instance.signOut();
@@ -166,7 +166,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 (route) => false,
               );
             },
-          ),
+          );
+          }),
           const SizedBox(height: 16),
         ],
       ),
@@ -181,10 +182,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Widget? screen,
     bool isActive = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeBg = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue[50]!;
+    final textColor = isActive
+        ? Colors.blue[isDark ? 300 : 700]!
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.blue[50] : Colors.transparent,
+        color: isActive ? activeBg : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
@@ -192,7 +199,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -201,7 +208,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title,
           style: GoogleFonts.inter(
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? Colors.blue[700] : Colors.grey[800],
+            color: textColor,
             fontSize: 14,
           ),
         ),
@@ -210,7 +217,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: Colors.blue[700],
+                  color: Colors.blue[isDark ? 300 : 700],
                   shape: BoxShape.circle,
                 ),
               )
@@ -234,14 +241,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final cardBg = Theme.of(context).cardColor;
+    final subtitleColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.07),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -253,13 +262,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(height: 12),
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          Text(title, style: TextStyle(color: subtitleColor, fontSize: 12)),
           const SizedBox(height: 4),
           Text(
             value,
@@ -289,6 +298,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               .map((item) => item['value'] as int)
               .reduce((a, b) => a > b ? a : b);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = Theme.of(context).colorScheme.onSurface;
+    final subtitleColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55);
+    final barBgColor = isDark ? const Color(0xFF3A3A3C) : Colors.grey[200]!;
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       elevation: 2,
@@ -303,13 +317,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[900],
+                color: titleColor,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'Perbandingan penjualan 3 merk terbaik.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: subtitleColor, fontSize: 13),
             ),
             const SizedBox(height: 18),
             ...chartItems.map((item) {
@@ -329,7 +343,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             label,
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
+                              color: subtitleColor,
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -351,7 +365,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: Container(
                         height: 22,
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: barBgColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: FractionallySizedBox(
@@ -371,7 +385,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       '$value',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey[800],
+                        color: titleColor,
                       ),
                     ),
                   ],
@@ -396,11 +410,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withValues(alpha: 0.07),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -436,7 +450,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       drawer: _buildDrawer(context),
       appBar: AppBar(
         title: Text(
@@ -446,9 +459,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        backgroundColor: Colors.blue[700],
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) => IconButton(
+              icon: Icon(
+                themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: Colors.white,
+              ),
+              tooltip: themeProvider.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
+              onPressed: () => themeProvider.toggleTheme(),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: fetchDashboard,
@@ -544,7 +566,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -589,71 +611,68 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     // =====================
                     // TOTAL PENDAPATAN
                     // =====================
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Total Pendapatan',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Rp ${dashboard!["total_revenue"]}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue[800],
-                                  ),
-                                ),
-                              ],
+                    Builder(builder: (context) {
+                      final subtitleColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55);
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.07),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Total Order',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 13,
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total Pendapatan',
+                                    style: TextStyle(color: subtitleColor, fontSize: 13),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '${dashboard!["total_orders"]} order',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.orange,
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Rp ${dashboard!["total_revenue"]}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[700],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total Order',
+                                    style: TextStyle(color: subtitleColor, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '${dashboard!["total_orders"]} order',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
 
                     const SizedBox(height: 20),
 
@@ -665,7 +684,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),

@@ -4,51 +4,44 @@ title Activity Diagram: Checkout & Pembayaran
 skinparam ArrowColor #1976D2
 skinparam ActivityBackgroundColor #E8F4F8
 skinparam ActivityBorderColor #1976D2
+skinparam SwimlaneBorderColor #1976D2
 
+|Customer|
 start
 :Buka halaman Checkout;
-:Muat profil customer (nama, HP, alamat);
-:Muat voucher aktif milik customer;
-
-if (Voucher tersedia?) then (Ya)
-    :Auto-apply voucher pertama;
-else (Tidak)
-    :Field voucher kosong;
-endif
-
-:Isi / cek form\n(alamat, metode bayar, catatan admin, voucher);
-:Hitung total (subtotal - diskon);
-
-if (Total = 0 & bukan COD?) then (Ya)
-    :Tampil pesan "Gunakan COD untuk total Rp 0";
-    stop
-endif
-
+:Cek & isi form\n(alamat, metode bayar, catatan, voucher);
+:Hitung total\n(subtotal - diskon voucher);
 :Klik "Bayar Sekarang";
 
 if (Metode Pembayaran?) then (COD)
-    :POST /orders (payment_channel = COD);
+    |System|
+    :POST /orders\n(payment_channel = COD);
     :Simpan order + item ke database;
     :Tandai stok reserved;
+    |Customer|
     :Tampil dialog "Pesanan Berhasil";
 
-else (Online — QRIS / VA / GoPay / ShopeePay)
+else (Online — QRIS/VA/e-Wallet)
+    |System|
     :POST /payment ke Backend;
     :Backend buat transaksi ke Midtrans;
     :Dapatkan redirect_url;
     :POST /orders ke database;
-    :Buka WebView URL Midtrans;
-    :Customer selesaikan pembayaran;
+    |Customer|
+    :Buka WebView Midtrans;
+    :Selesaikan pembayaran;
+    |System|
     :Midtrans kirim callback ke Backend;
-    :Backend update status = paid;
-    :Kurangi stok produk;
+    :Backend update payment_status = paid;
+    :Backend kurangi stok produk;
+    |Customer|
     :Tampil halaman Payment Success;
 endif
 
+|System|
 :Bersihkan keranjang;
-
 if (Ada item Sewa?) then (Ya)
-    :Buat record rental di backend;
+    :Buat record rental\n(status = active);
 endif
 
 stop

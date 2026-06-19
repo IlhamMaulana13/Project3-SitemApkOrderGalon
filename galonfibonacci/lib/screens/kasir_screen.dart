@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/api_config.dart';
+import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 class KasirScreen extends StatefulWidget {
   const KasirScreen({super.key});
@@ -181,7 +183,7 @@ class _KasirScreenState extends State<KasirScreen> {
                     value: selectedService,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -601,10 +603,10 @@ class _KasirScreenState extends State<KasirScreen> {
                                 errorBuilder: (_, __, ___) => Container(
                                   width: 55,
                                   height: 55,
-                                  color: Colors.blue[50],
+                                  color: Theme.of(context).colorScheme.primaryContainer,
                                   child: Icon(
                                     Icons.local_drink,
-                                    color: Colors.blue[300],
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                               ),
@@ -639,10 +641,10 @@ class _KasirScreenState extends State<KasirScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.10),
                         blurRadius: 12,
                         offset: const Offset(0, -4),
                       ),
@@ -767,10 +769,13 @@ class _KasirScreenState extends State<KasirScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green[100],
-                    child: Icon(Icons.receipt_long, color: Colors.green[700]),
-                  ),
+                  leading: Builder(builder: (ctx) {
+                    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                    return CircleAvatar(
+                      backgroundColor: isDark ? Colors.green[900] : Colors.green[100],
+                      child: Icon(Icons.receipt_long, color: isDark ? Colors.green[300] : Colors.green[700]),
+                    );
+                  }),
                   title: Text(
                     "Order #${trx["id"]}",
                     style: const TextStyle(fontWeight: FontWeight.bold),
@@ -781,7 +786,10 @@ class _KasirScreenState extends State<KasirScreen> {
                       Text(name.isEmpty ? "Pelanggan umum" : name),
                       Text(
                         (trx["created_at"] ?? "").toString(),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -805,15 +813,23 @@ class _KasirScreenState extends State<KasirScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: Colors.grey[100],
         appBar: AppBar(
-          backgroundColor: Colors.blue[700],
           title: const Text(
             "Kasir Toko",
             style: TextStyle(color: Colors.white),
           ),
           iconTheme: const IconThemeData(color: Colors.white),
           actions: [
+            Consumer<ThemeProvider>(
+              builder: (context, themeProvider, _) => IconButton(
+                icon: Icon(
+                  themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  color: Colors.white,
+                ),
+                tooltip: themeProvider.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
+                onPressed: () => themeProvider.toggleTheme(),
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.white),
               onPressed: () async {
