@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/api_config.dart';
 import 'package:galonfibonacci/screens/admin_dashboard_screen.dart';
@@ -50,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    _waveController.stop();
     _waveController.dispose();
     emailController.dispose();
     passwordController.dispose();
@@ -82,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen>
   // =========================
   Future<void> submit() async {
     try {
-      String? token = await FirebaseMessaging.instance.getToken();
+      String? token = kIsWeb ? null : await FirebaseMessaging.instance.getToken();
 
       // =========================
       // LOGIN
@@ -96,19 +98,26 @@ class _LoginScreenState extends State<LoginScreen>
 
         final user = userCredential.user;
 
-        // UPDATE TOKEN
-        await http.post(
-          Uri.parse("${ApiConfig.baseUrl}/users"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({
-            "firebase_uid": user!.uid,
-            "email": user.email,
-            "fcm_token": token,
-          }),
-        );
+        // UPDATE TOKEN (skip on web karena CORS)
+        if (!kIsWeb) {
+          await http.post(
+            Uri.parse("${ApiConfig.baseUrl}/users"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "firebase_uid": user!.uid,
+              "email": user.email,
+              "fcm_token": token,
+            }),
+          );
+        }
 
         // AMBIL ROLE
-        String role = await getRole(user.uid);
+        String role;
+        try {
+          role = await getRole(user!.uid);
+        } catch (_) {
+          role = "customer";
+        }
 
         Widget nextScreen;
 
@@ -124,11 +133,15 @@ class _LoginScreenState extends State<LoginScreen>
 
         if (!mounted) return;
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          _createPageRoute(nextScreen),
-          (route) => false,
-        );
+        _waveController.stop();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.pushAndRemoveUntil(
+            context,
+            _createPageRoute(nextScreen),
+            (route) => false,
+          );
+        });
       }
       // =========================
       // REGISTER
@@ -158,33 +171,33 @@ class _LoginScreenState extends State<LoginScreen>
 
         final user = userCredential.user;
 
-        // SIMPAN PROFILE
-        await http.post(
-          Uri.parse("${ApiConfig.baseUrl}/profile"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({
-            "firebase_uid": user!.uid,
-            "email": user.email,
-            "name": nameController.text,
-            "phone": phoneController.text,
-            "address": addressController.text,
-          }),
-        );
+        // SIMPAN PROFILE & USER (skip on web karena CORS)
+        if (!kIsWeb) {
+          await http.post(
+            Uri.parse("${ApiConfig.baseUrl}/profile"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "firebase_uid": user!.uid,
+              "email": user.email,
+              "name": nameController.text,
+              "phone": phoneController.text,
+              "address": addressController.text,
+            }),
+          );
 
-        await http.post(
-          Uri.parse("${ApiConfig.baseUrl}/users"),
-
-          headers: {"Content-Type": "application/json"},
-
-          body: jsonEncode({
-            "firebase_uid": user.uid,
-            "email": user.email,
-            "name": nameController.text,
-            "phone": phoneController.text,
-            "address": addressController.text,
-            "fcm_token": token,
-          }),
-        );
+          await http.post(
+            Uri.parse("${ApiConfig.baseUrl}/users"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "firebase_uid": user.uid,
+              "email": user.email,
+              "name": nameController.text,
+              "phone": phoneController.text,
+              "address": addressController.text,
+              "fcm_token": token,
+            }),
+          );
+        }
 
         await FirebaseAuth.instance.signOut();
 

@@ -2,9 +2,24 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:galonfibonacci/api_config.dart';
+
+// Formatter untuk memaksa input menjadi huruf besar semua.
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
 
 class AdminProductScreen extends StatefulWidget {
   const AdminProductScreen({super.key});
@@ -109,9 +124,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
             children: [
               TextField(
                 controller: nameController,
-                textCapitalization: TextCapitalization.words,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [UpperCaseTextFormatter()],
                 decoration: InputDecoration(
                   labelText: "Nama Supplier",
+                  hintText: "Otomatis huruf besar, mis. SUMBER AIR JAYA",
                   prefixIcon: const Icon(Icons.business),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -191,6 +208,21 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     backgroundColor: Colors.green,
                   ),
                 );
+              } else {
+                // Tampilkan notifikasi error (mis. nama supplier duplikat)
+                String msg = "Gagal menambahkan supplier";
+                try {
+                  final err = jsonDecode(response.body);
+                  if (err is Map && err["error"] != null) {
+                    msg = err["error"].toString();
+                  }
+                } catch (_) {}
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(msg),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             child: const Text("Simpan"),
@@ -223,6 +255,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                   itemCount: suppliers.length,
                   itemBuilder: (ctx, i) {
                     final s = suppliers[i];
+                    final id = (s["id"] ?? "-").toString();
                     final phone = (s["phone"] ?? "").toString();
                     final address = (s["address"] ?? "").toString();
                     return Card(
@@ -249,12 +282,38 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    (s["name"] ?? "-").toString(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[700],
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          id,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          (s["name"] ?? "-").toString(),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   if (phone.isNotEmpty) ...[
                                     const SizedBox(height: 3),
@@ -383,10 +442,18 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
       text: product?["stock"]?.toString() ?? "",
     );
 
-    int? selectedSupplierId = (product?["supplier_id"] != null &&
-            product!["supplier_id"] != 0)
-        ? product["supplier_id"] as int
+    String? selectedSupplierId =
+        (product?["supplier_id"] != null &&
+            product!["supplier_id"].toString().isNotEmpty &&
+            product["supplier_id"].toString() != "0")
+        ? product["supplier_id"].toString()
         : null;
+
+    // Pastikan supplier terpilih masih ada di daftar (mis. supplier dihapus)
+    if (selectedSupplierId != null &&
+        !suppliers.any((s) => s["id"].toString() == selectedSupplierId)) {
+      selectedSupplierId = null;
+    }
 
     showDialog(
       context: context,
@@ -587,7 +654,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     const SizedBox(height: 14),
 
                     // DROPDOWN SUPPLIER
-                    DropdownButtonFormField<int>(
+                    DropdownButtonFormField<String>(
                       initialValue: selectedSupplierId,
                       isExpanded: true,
                       decoration: InputDecoration(
@@ -600,10 +667,10 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                         ),
                       ),
                       items: suppliers.map((s) {
-                        return DropdownMenuItem<int>(
-                          value: s["id"] as int,
+                        return DropdownMenuItem<String>(
+                          value: s["id"].toString(),
                           child: Text(
-                            s["name"].toString(),
+                            "${s["id"]} • ${s["name"]}",
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -736,7 +803,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                       "modal": int.tryParse(hargaModalController.text) ?? 0,
                       "stock": int.tryParse(stockController.text) ?? 0,
                       "image": imageUrl,
-                      "supplier_id": selectedSupplierId ?? 0,
+                      "supplier_id": selectedSupplierId ?? "",
                     };
 
                     http.Response response;

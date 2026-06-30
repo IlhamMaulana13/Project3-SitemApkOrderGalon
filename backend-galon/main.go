@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 
@@ -26,11 +27,11 @@ type Product struct {
 	Modal      int    `json:"modal"`
 	Stock      int    `json:"stock"`
 	Image      string `json:"image"`
-	SupplierID int    `json:"supplier_id"`
+	SupplierID string `json:"supplier_id"`
 }
 
 type Supplier struct {
-	ID      int    `json:"id"`
+	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Phone   string `json:"phone"`
 	Address string `json:"address"`
@@ -135,6 +136,18 @@ func generateVoucherCode() string {
 	return fmt.Sprintf("VOUCHER-%s", hex.EncodeToString(buf))
 }
 
+// generateSupplierID membuat ID supplier unik berformat SP-01, SP-02, dst.
+// Diambil dari angka terbesar yang sudah ada lalu ditambah 1.
+func generateSupplierID() string {
+	var maxNum int
+	database.DB.QueryRow(`
+		SELECT IFNULL(MAX(CAST(SUBSTRING(id, 4) AS UNSIGNED)), 0)
+		FROM suppliers
+		WHERE id LIKE 'SP-%'
+	`).Scan(&maxNum)
+	return fmt.Sprintf("SP-%02d", maxNum+1)
+}
+
 func main() {
 
 	godotenv.Load()
@@ -191,10 +204,11 @@ func main() {
 
 	// =========================
 	// MIGRASI TABEL SUPPLIERS
+	// (ID supplier berupa kode unik VARCHAR seperti SP-01, bukan auto-increment)
 	// =========================
 	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS suppliers (
-			id      INT AUTO_INCREMENT PRIMARY KEY,
+			id      VARCHAR(20) PRIMARY KEY,
 			name    VARCHAR(255) NOT NULL,
 			phone   VARCHAR(50)  NOT NULL DEFAULT '',
 			address TEXT
@@ -217,6 +231,68 @@ func main() {
 	}
 	ensureSupplierColumn("phone", "VARCHAR(50) NOT NULL DEFAULT ''")
 	ensureSupplierColumn("address", "TEXT")
+
+	// =========================
+	// MIGRASI ID SUPPLIER LAMA (INT AUTO_INCREMENT -> VARCHAR "SP-XX")
+	// Hanya dijalankan jika kolom id masih bertipe int (instalasi lama).
+	// Kolom products.supplier_id ikut dikonversi agar relasi tetap utuh.
+	// =========================
+	var supplierIDType string
+	database.DB.QueryRow(`
+		SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'suppliers' AND COLUMN_NAME = 'id'
+	`).Scan(&supplierIDType)
+
+	if supplierIDType == "int" {
+		log.Println("MIGRASI: konversi suppliers.id INT -> VARCHAR (SP-XX)")
+
+		runMig := func(query string) {
+			if _, e := database.DB.Exec(query); e != nil {
+				log.Fatalf("Gagal migrasi id supplier (%s): %v", query, e)
+			}
+		}
+
+		// 1. Buat kode SP-XX berdasarkan urutan id lama.
+		//    Penomoran dilakukan di sisi Go agar tidak bergantung pada
+		//    variabel sesi MySQL (koneksi pool bisa berbeda antar query).
+		runMig(`ALTER TABLE suppliers ADD COLUMN code VARCHAR(20)`)
+
+		oldRows, e := database.DB.Query(`SELECT id FROM suppliers ORDER BY id`)
+		if e != nil {
+			log.Fatalf("Gagal membaca supplier lama: %v", e)
+		}
+		var oldIDs []int
+		for oldRows.Next() {
+			var oid int
+			oldRows.Scan(&oid)
+			oldIDs = append(oldIDs, oid)
+		}
+		oldRows.Close()
+
+		for i, oid := range oldIDs {
+			code := fmt.Sprintf("SP-%02d", i+1)
+			if _, e := database.DB.Exec(`UPDATE suppliers SET code = ? WHERE id = ?`, code, oid); e != nil {
+				log.Fatalf("Gagal memberi kode supplier: %v", e)
+			}
+		}
+
+		// 2. Petakan kode baru ke kolom produk yang lama
+		runMig(`ALTER TABLE products ADD COLUMN supplier_code VARCHAR(20) NOT NULL DEFAULT ''`)
+		runMig(`UPDATE products p JOIN suppliers s ON s.id = p.supplier_id SET p.supplier_code = s.code`)
+
+		// 3. Ganti primary key suppliers.id menjadi VARCHAR
+		runMig(`ALTER TABLE suppliers MODIFY id INT NOT NULL`) // buang AUTO_INCREMENT
+		runMig(`ALTER TABLE suppliers DROP PRIMARY KEY`)
+		runMig(`ALTER TABLE suppliers DROP COLUMN id`)
+		runMig(`ALTER TABLE suppliers CHANGE code id VARCHAR(20) NOT NULL`)
+		runMig(`ALTER TABLE suppliers ADD PRIMARY KEY (id)`)
+
+		// 4. Ganti products.supplier_id menjadi VARCHAR
+		runMig(`ALTER TABLE products DROP COLUMN supplier_id`)
+		runMig(`ALTER TABLE products CHANGE supplier_code supplier_id VARCHAR(20) NOT NULL DEFAULT ''`)
+
+		log.Println("MIGRASI: konversi id supplier selesai")
+	}
 
 	// =========================
 	// MIGRASI TABEL REWARD_SETTINGS
@@ -255,7 +331,7 @@ func main() {
 		}
 	}
 	ensureProductColumn("modal", "INT NOT NULL DEFAULT 0")
-	ensureProductColumn("supplier_id", "INT NOT NULL DEFAULT 0")
+	ensureProductColumn("supplier_id", "VARCHAR(20) NOT NULL DEFAULT ''")
 
 	// =========================
 	// MIGRASI TABEL RENTALS (PENCATATAN GALON SEWA)
@@ -350,8 +426,8 @@ func main() {
 		var products []gin.H
 
 		for rows.Next() {
-			var id, categoryID, price, modal, stock, supplierID int
-			var merk, image, supplierName string
+			var id, categoryID, price, modal, stock int
+			var merk, image, supplierID, supplierName string
 
 			rows.Scan(&id, &categoryID, &merk, &price, &modal, &stock, &image, &supplierID, &supplierName)
 
@@ -2007,44 +2083,46 @@ func main() {
 		// =====================================
 		if req.AssignAll {
 
-			rows, err := database.DB.Query(`
-			SELECT firebase_uid
-			FROM users
-			WHERE role='customer'
-		`)
+			// Hanya berikan ke customer yang BELUM punya voucher ini
+			// (hindari duplikat voucher pada user yang sama)
+			result, err := database.DB.Exec(`
+				INSERT INTO user_vouchers (user_id, code, discount, is_used)
+				SELECT u.firebase_uid, ?, ?, false
+				FROM users u
+				WHERE u.role = 'customer'
+				AND NOT EXISTS (
+					SELECT 1 FROM user_vouchers uv
+					WHERE uv.user_id = u.firebase_uid AND uv.code = ?
+				)
+			`, voucher.Code, voucher.Discount, voucher.Code)
 
 			if err != nil {
-				c.JSON(500, gin.H{
-					"error": err.Error(),
-				})
+				c.JSON(500, gin.H{"error": err.Error()})
 				return
 			}
 
-			defer rows.Close()
+			assigned, _ := result.RowsAffected()
 
-			for rows.Next() {
+			var totalCustomer int
+			database.DB.QueryRow(`SELECT COUNT(*) FROM users WHERE role='customer'`).Scan(&totalCustomer)
+			skipped := totalCustomer - int(assigned)
+			if skipped < 0 {
+				skipped = 0
+			}
 
-				var uid string
-
-				rows.Scan(&uid)
-
-				_, err := database.DB.Exec(`
-				INSERT INTO user_vouchers
-				(user_id, code, discount, is_used)
-				VALUES (?, ?, ?, false)
-			`,
-					uid,
-					voucher.Code,
-					voucher.Discount,
-				)
-
-				if err != nil {
-					log.Println("ASSIGN ALL ERROR:", err)
-				}
+			var message string
+			if assigned == 0 {
+				message = "Semua pelanggan sudah pernah menerima voucher ini"
+			} else if skipped > 0 {
+				message = fmt.Sprintf("Voucher diberikan ke %d pelanggan baru (%d sudah punya sebelumnya)", assigned, skipped)
+			} else {
+				message = fmt.Sprintf("Voucher berhasil diberikan ke %d pelanggan", assigned)
 			}
 
 			c.JSON(200, gin.H{
-				"message": "Voucher berhasil diberikan ke semua customer",
+				"message":  message,
+				"assigned": assigned,
+				"skipped":  skipped,
 			})
 
 			return
@@ -2077,6 +2155,21 @@ func main() {
 				"error": "Customer tidak ditemukan",
 			})
 
+			return
+		}
+
+		// Cek apakah voucher ini sudah pernah diberikan ke customer tersebut
+		// (hindari duplikat voucher pada user yang sama)
+		var dupCount int
+		database.DB.QueryRow(`
+			SELECT COUNT(*) FROM user_vouchers
+			WHERE user_id = ? AND code = ?
+		`, userID, voucher.Code).Scan(&dupCount)
+
+		if dupCount > 0 {
+			c.JSON(409, gin.H{
+				"error": "Voucher ini sudah pernah diberikan ke pelanggan tersebut",
+			})
 			return
 		}
 
@@ -2934,22 +3027,37 @@ func main() {
 			Phone   string `json:"phone"`
 			Address string `json:"address"`
 		}
-		if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
+		if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.Name) == "" {
 			c.JSON(400, gin.H{"error": "Nama supplier wajib diisi"})
 			return
 		}
 
-		result, err := database.DB.Exec(
-			`INSERT INTO suppliers (name, phone, address) VALUES (?, ?, ?)`,
-			body.Name, body.Phone, body.Address,
+		// Nama supplier disimpan dalam huruf besar semua
+		name := strings.ToUpper(strings.TrimSpace(body.Name))
+
+		// Cek duplikat nama supplier (case-insensitive)
+		var dupCount int
+		database.DB.QueryRow(
+			`SELECT COUNT(*) FROM suppliers WHERE UPPER(name) = ?`, name,
+		).Scan(&dupCount)
+		if dupCount > 0 {
+			c.JSON(409, gin.H{"error": fmt.Sprintf("Supplier \"%s\" sudah terdaftar", name)})
+			return
+		}
+
+		// Generate ID supplier unik SP-XX
+		id := generateSupplierID()
+
+		_, err := database.DB.Exec(
+			`INSERT INTO suppliers (id, name, phone, address) VALUES (?, ?, ?, ?)`,
+			id, name, body.Phone, body.Address,
 		)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
-		id, _ := result.LastInsertId()
-		c.JSON(200, gin.H{"id": id, "name": body.Name, "phone": body.Phone, "address": body.Address})
+		c.JSON(200, gin.H{"id": id, "name": name, "phone": body.Phone, "address": body.Address})
 	})
 
 	// =========================

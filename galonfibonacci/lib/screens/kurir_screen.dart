@@ -88,6 +88,18 @@ class _KurirScreenState extends State<KurirScreen> {
     await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
+  // Urutan status pesanan. Status hanya boleh maju satu arah dan
+  // tidak dapat dikembalikan ke status sebelumnya (bersifat tetap).
+  static const List<String> statusFlow = ["Diproses", "Dikirim", "Selesai"];
+
+  // Status berikutnya dari [current], atau null jika sudah "Selesai".
+  String? nextStatusOf(String current) {
+    final idx = statusFlow.indexOf(current);
+    if (idx == -1) return statusFlow.first;
+    if (idx >= statusFlow.length - 1) return null;
+    return statusFlow[idx + 1];
+  }
+
   Future<void> updateStatus(int id, String status) async {
     await http.put(
       Uri.parse("${ApiConfig.baseUrl}/orders/status/$id"),
@@ -98,6 +110,38 @@ class _KurirScreenState extends State<KurirScreen> {
     );
 
     fetchOrders();
+  }
+
+  // Konfirmasi sebelum mengubah status karena perubahan bersifat permanen.
+  Future<void> confirmUpdateStatus(int orderId, String nextStatus) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Ubah Status Pesanan"),
+        content: Text(
+          "Ubah status pesanan menjadi \"$nextStatus\"?\n\n"
+          "Perubahan status bersifat tetap dan tidak dapat dikembalikan.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: Text("Ubah ke $nextStatus"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await updateStatus(orderId, nextStatus);
+    }
   }
 
   @override
@@ -296,11 +340,9 @@ class _KurirScreenState extends State<KurirScreen> {
 
                     Builder(builder: (context) {
                       final currentStatus = (order["status"] ?? "").toString();
-                      final nextStatuses = ["Diproses", "Dikirim", "Selesai"]
-                          .where((s) => s != currentStatus)
-                          .toList();
+                      final nextStatus = nextStatusOf(currentStatus);
 
-                      if (nextStatuses.isEmpty) {
+                      if (nextStatus == null) {
                         final isDark = Theme.of(context).brightness == Brightness.dark;
                         return Container(
                           padding: const EdgeInsets.symmetric(
@@ -330,24 +372,22 @@ class _KurirScreenState extends State<KurirScreen> {
                         );
                       }
 
-                      return DropdownButton<String>(
-                        value: null,
-                        hint: Text(
-                          "Ubah status...",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () =>
+                              confirmUpdateStatus(order["id"], nextStatus),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
+                          icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                          label: Text("Ubah status ke \"$nextStatus\""),
                         ),
-                        isExpanded: true,
-                        items: nextStatuses
-                            .map((s) =>
-                                DropdownMenuItem(value: s, child: Text(s)))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            updateStatus(order["id"], value);
-                          }
-                        },
                       );
                     }),
 

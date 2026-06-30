@@ -16,8 +16,50 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
 
   final String baseUrl = ApiConfig.baseUrl;
 
-  // Pilihan status yang valid untuk dropdown
-  static const List<String> statusOptions = ["Diproses", "Dikirim", "Selesai"];
+  // Urutan status pesanan. Status hanya boleh maju satu arah dan
+  // tidak dapat dikembalikan ke status sebelumnya (bersifat tetap).
+  static const List<String> statusFlow = ["Diproses", "Dikirim", "Selesai"];
+
+  // Mengembalikan status berikutnya dari [current], atau null jika sudah
+  // di status terakhir (Selesai) sehingga tidak bisa diubah lagi.
+  String? nextStatusOf(String current) {
+    final idx = statusFlow.indexOf(current);
+    if (idx == -1) return statusFlow.first; // belum diproses -> mulai "Diproses"
+    if (idx >= statusFlow.length - 1) return null; // sudah "Selesai" -> terkunci
+    return statusFlow[idx + 1];
+  }
+
+  // Konfirmasi sebelum mengubah status karena perubahan bersifat permanen.
+  Future<void> confirmUpdateStatus(int orderId, String nextStatus) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Ubah Status Pesanan"),
+        content: Text(
+          "Ubah status pesanan menjadi \"$nextStatus\"?\n\n"
+          "Perubahan status bersifat tetap dan tidak dapat dikembalikan.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: getStatusColor(nextStatus),
+              foregroundColor: Colors.white,
+            ),
+            child: Text("Ubah ke $nextStatus"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await updateStatus(orderId, nextStatus);
+    }
+  }
 
   @override
   void initState() {
@@ -102,10 +144,8 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
           // Status mentah dari server, bisa null / nilai di luar daftar
           final String status = (order["status"] ?? "").toString();
 
-          // Hanya tampilkan status yang belum dipilih (exclude current status)
-          final List<String> dropdownItems = statusOptions
-              .where((s) => s != status)
-              .toList();
+          // Status berikutnya (maju satu arah). null = sudah Selesai/terkunci.
+          final String? nextStatus = nextStatusOf(status);
 
           return Card(
             margin: const EdgeInsets.only(bottom: 15),
@@ -278,30 +318,22 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                     const SizedBox(height: 15),
                   ],
 
-                  if (dropdownItems.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: DropdownButton<String>(
-                        value: null,
-                        hint: Text(
-                          "Ubah status (saat ini: $status)",
-                          style: TextStyle(
-                              color: Colors.grey[600], fontSize: 13),
+                  if (nextStatus != null)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () =>
+                            confirmUpdateStatus(order["id"], nextStatus),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: getStatusColor(nextStatus),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        isExpanded: true,
-                        underline: const SizedBox(),
-                        items: dropdownItems
-                            .map((s) =>
-                                DropdownMenuItem(value: s, child: Text(s)))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) updateStatus(order["id"], value);
-                        },
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                        label: Text("Ubah status ke \"$nextStatus\""),
                       ),
                     )
                   else

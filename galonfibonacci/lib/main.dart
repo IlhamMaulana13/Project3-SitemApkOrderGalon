@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/cart_provider.dart';
 import 'package:galonfibonacci/provider/theme_provider.dart';
@@ -23,17 +24,17 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // REQUEST IZIN NOTIFIKASI
-  await FirebaseMessaging.instance.requestPermission();
+  if (!kIsWeb) {
+    // REQUEST IZIN NOTIFIKASI
+    await FirebaseMessaging.instance.requestPermission();
 
-  // INIT LOCAL NOTIFICATION
-  await NotificationService.init();
-  await DeepLinkService.init();
+    // INIT LOCAL NOTIFICATION
+    await NotificationService.init();
+    await DeepLinkService.init();
 
-  // BACKGROUND NOTIF
-  FirebaseMessaging.onBackgroundMessage(backgroundHandler);
-
-  // foreground notification sudah ditangani di NotificationService.init()
+    // BACKGROUND NOTIF
+    FirebaseMessaging.onBackgroundMessage(backgroundHandler);
+  }
 
   runApp(const MyApp());
 }

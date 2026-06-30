@@ -847,22 +847,32 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                   nav.pop();
 
                   if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    // Pakai pesan dari server (berisi info jumlah penerima /
+                    // berapa yang sudah punya sebelumnya)
+                    final msg = (data is Map && data["message"] != null)
+                        ? data["message"].toString()
+                        : (toAll
+                            ? "Voucher berhasil dikirim ke semua pelanggan"
+                            : "Voucher berhasil dikirim ke $selectedUserEmail");
+                    // Jika tidak ada penerima baru, tampilkan warna oranye
+                    final bool noNew =
+                        data is Map && (data["assigned"] == 0);
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text(
-                          toAll
-                              ? "Voucher berhasil dikirim ke semua pelanggan"
-                              : "Voucher berhasil dikirim ke $selectedUserEmail",
-                        ),
-                        backgroundColor: Colors.green,
+                        content: Text(msg),
+                        backgroundColor:
+                            noNew ? Colors.orange[800] : Colors.green,
                       ),
                     );
                   } else {
+                    // Notifikasi bila voucher sudah pernah diberikan (duplikat)
                     final err = jsonDecode(response.body);
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(
                             err["error"] ?? "Gagal mengirim voucher"),
+                        backgroundColor: Colors.orange[800],
                       ),
                     );
                   }
