@@ -343,6 +343,24 @@ func main() {
 	ensureVoucherColumn("active_from", "DATE NOT NULL DEFAULT CURRENT_DATE")
 	ensureVoucherColumn("active_until", "DATE NOT NULL DEFAULT CURRENT_DATE")
 
+	_, err = database.DB.Exec(`
+		UPDATE vouchers
+		SET active_from = COALESCE(NULLIF(active_from, ''), DATE(CURDATE()))
+		WHERE active_from IS NULL OR active_from = ''
+	`)
+	if err != nil {
+		log.Printf("Gagal mengisi default active_from untuk voucher lama: %v", err)
+	}
+
+	_, err = database.DB.Exec(`
+		UPDATE vouchers
+		SET active_until = COALESCE(NULLIF(active_until, ''), DATE('2099-12-31'))
+		WHERE active_until IS NULL OR active_until = ''
+	`)
+	if err != nil {
+		log.Printf("Gagal mengisi default active_until untuk voucher lama: %v", err)
+	}
+
 	// =========================
 	// MIGRASI KOLOM PRODUCTS (MODAL & SUPPLIER_ID)
 	// =========================
