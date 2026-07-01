@@ -20,14 +20,17 @@ import (
 )
 
 type Product struct {
-	ID         int    `json:"id"`
-	CategoryID int    `json:"category_id"`
-	Merk       string `json:"merk"`
-	Price      int    `json:"price"`
-	Modal      int    `json:"modal"`
-	Stock      int    `json:"stock"`
-	Image      string `json:"image"`
-	SupplierID string `json:"supplier_id"`
+	ID                  int    `json:"id"`
+	CategoryID          int    `json:"category_id"`
+	Merk                string `json:"merk"`
+	Price               int    `json:"price"`
+	Modal               int    `json:"modal"`
+	StockNew            int    `json:"stock_new"`
+	StockRental         int    `json:"stock_rental"`
+	ReservedStockNew    int    `json:"reserved_stock_new"`
+	ReservedStockRental int    `json:"reserved_stock_rental"`
+	Image               string `json:"image"`
+	SupplierID          string `json:"supplier_id"`
 }
 
 type Supplier struct {
@@ -111,11 +114,13 @@ type User struct {
 }
 
 type Voucher struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Code     string `json:"code"`
-	Discount int    `json:"discount"`
-	IsActive bool   `json:"is_active"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Discount    int    `json:"discount"`
+	IsActive    bool   `json:"is_active"`
+	ActiveFrom  string `json:"active_from"`
+	ActiveUntil string `json:"active_until"`
 }
 
 type UserVoucher struct {
@@ -310,6 +315,32 @@ func main() {
 	database.DB.Exec(`INSERT IGNORE INTO reward_settings (id, multiplier, discount) VALUES (1, 5, 2000)`)
 
 	// =========================
+	// MIGRASI KOLOM VOUCHERS (active_from / active_until)
+	// =========================
+	ensureVoucherColumn := func(column string, definition string) {
+		var existing string
+		errCol := database.DB.QueryRow(`
+			SELECT COLUMN_NAME
+			FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+			AND TABLE_NAME = 'vouchers'
+			AND COLUMN_NAME = ?
+		`, column).Scan(&existing)
+
+		if errCol == sql.ErrNoRows {
+			_, errCol = database.DB.Exec(fmt.Sprintf("ALTER TABLE vouchers ADD COLUMN %s %s", column, definition))
+			if errCol != nil {
+				log.Fatalf("Gagal menambahkan kolom %s ke vouchers: %v", column, errCol)
+			}
+		} else if errCol != nil {
+			log.Fatalf("Gagal memeriksa kolom %s pada vouchers: %v", column, errCol)
+		}
+	}
+
+	ensureVoucherColumn("active_from", "DATE NOT NULL DEFAULT CURRENT_DATE")
+	ensureVoucherColumn("active_until", "DATE NOT NULL DEFAULT CURRENT_DATE")
+
+	// =========================
 	// MIGRASI KOLOM PRODUCTS (MODAL & SUPPLIER_ID)
 	// =========================
 	ensureProductColumn := func(column string, definition string) {
@@ -332,9 +363,13 @@ func main() {
 	}
 	ensureProductColumn("modal", "INT NOT NULL DEFAULT 0")
 	ensureProductColumn("supplier_id", "VARCHAR(20) NOT NULL DEFAULT ''")
+	ensureProductColumn("stock_new", "INT NOT NULL DEFAULT 0")
+	ensureProductColumn("stock_rental", "INT NOT NULL DEFAULT 0")
+	ensureProductColumn("reserved_stock_new", "INT NOT NULL DEFAULT 0")
+	ensureProductColumn("reserved_stock_rental", "INT NOT NULL DEFAULT 0")
 
 	// =========================
-	// MIGRASI TABEL RENTALS (PENCATATAN GALON SEWA)
+	// MIGRASI KOLOM ORDERS UNTUK TRANSAKSI KASIR (OFFLINE)
 	// =========================
 	_, err = database.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS rentals (
@@ -410,7 +445,8 @@ func main() {
 	r.GET("/products", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-			SELECT p.id, p.category_id, p.merk, p.price, p.modal, p.stock, p.image,
+			SELECT p.id, p.category_id, p.merk, p.price, p.modal, p.stock_new, p.stock_rental,
+			       p.reserved_stock_new, p.reserved_stock_rental, p.image,
 			       p.supplier_id, IFNULL(s.name, '') AS supplier_name
 			FROM products p
 			LEFT JOIN suppliers s ON s.id = p.supplier_id
@@ -426,21 +462,24 @@ func main() {
 		var products []gin.H
 
 		for rows.Next() {
-			var id, categoryID, price, modal, stock int
+			var id, categoryID, price, modal, stockNew, stockRental, reservedNew, reservedRental int
 			var merk, image, supplierID, supplierName string
 
-			rows.Scan(&id, &categoryID, &merk, &price, &modal, &stock, &image, &supplierID, &supplierName)
+			rows.Scan(&id, &categoryID, &merk, &price, &modal, &stockNew, &stockRental, &reservedNew, &reservedRental, &image, &supplierID, &supplierName)
 
 			products = append(products, gin.H{
-				"id":            id,
-				"category_id":   categoryID,
-				"merk":          merk,
-				"price":         price,
-				"modal":         modal,
-				"stock":         stock,
-				"image":         image,
-				"supplier_id":   supplierID,
-				"supplier_name": supplierName,
+				"id":                    id,
+				"category_id":           categoryID,
+				"merk":                  merk,
+				"price":                 price,
+				"modal":                 modal,
+				"stock_new":             stockNew,
+				"stock_rental":          stockRental,
+				"reserved_stock_new":    reservedNew,
+				"reserved_stock_rental": reservedRental,
+				"image":                 image,
+				"supplier_id":           supplierID,
+				"supplier_name":         supplierName,
 			})
 		}
 
@@ -1707,14 +1746,17 @@ func main() {
 
 		_, err := database.DB.Exec(`
 		INSERT INTO products
-		(category_id, merk, price, modal, stock, image, supplier_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		(category_id, merk, price, modal, stock_new, stock_rental, reserved_stock_new, reserved_stock_rental, image, supplier_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 			product.CategoryID,
 			product.Merk,
 			product.Price,
 			product.Modal,
-			product.Stock,
+			product.StockNew,
+			product.StockRental,
+			product.ReservedStockNew,
+			product.ReservedStockRental,
 			product.Image,
 			product.SupplierID,
 		)
@@ -1746,7 +1788,10 @@ func main() {
 			merk = ?,
 			price = ?,
 			modal = ?,
-			stock = ?,
+			stock_new = ?,
+			stock_rental = ?,
+			reserved_stock_new = ?,
+			reserved_stock_rental = ?,
 			image = ?,
 			supplier_id = ?
 		WHERE id = ?
@@ -1755,7 +1800,10 @@ func main() {
 			product.Merk,
 			product.Price,
 			product.Modal,
-			product.Stock,
+			product.StockNew,
+			product.StockRental,
+			product.ReservedStockNew,
+			product.ReservedStockRental,
 			product.Image,
 			product.SupplierID,
 			id,
@@ -1963,7 +2011,7 @@ func main() {
 	r.GET("/vouchers", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-			SELECT id, IFNULL(name,''), code, discount, is_active
+			SELECT id, IFNULL(name,''), code, discount, is_active, IFNULL(active_from, ''), IFNULL(active_until, '')
 			FROM vouchers
 			ORDER BY id DESC
 		`)
@@ -2985,11 +3033,11 @@ func main() {
 		}
 
 		c.JSON(200, gin.H{
-			"message":        "Galon rusak dicatat, pesanan Beli Baru dibuat",
-			"new_order_id":   newOrderID,
-			"total_tagihan":  total,
-			"merk":           rentalMerk,
-			"customer":       oriCustomerName,
+			"message":       "Galon rusak dicatat, pesanan Beli Baru dibuat",
+			"new_order_id":  newOrderID,
+			"total_tagihan": total,
+			"merk":          rentalMerk,
+			"customer":      oriCustomerName,
 		})
 	})
 
