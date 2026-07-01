@@ -2105,7 +2105,8 @@ func main() {
 	r.GET("/vouchers", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-			SELECT v.id, IFNULL(v.name,''), v.code, v.discount, v.is_active,
+			SELECT v.id, IFNULL(v.name,''), v.code, v.discount,
+			       IF(v.is_active AND (CURDATE() BETWEEN v.active_from AND v.active_until), 1, 0) AS is_active,
 			       IFNULL(v.active_from, ''), IFNULL(v.active_until, ''),
 			       (SELECT COUNT(*) FROM user_vouchers uv WHERE uv.code = v.code) AS total_recipients,
 			       (SELECT COUNT(*) FROM user_vouchers uv WHERE uv.code = v.code AND uv.is_used = 1) AS used_count
@@ -2381,9 +2382,13 @@ func main() {
 		code := c.Param("code")
 
 		var voucher Voucher
+		var activeFrom, activeUntil string
+		var inRange bool
 
 		err := database.DB.QueryRow(`
-		SELECT id, code, discount, is_active
+		SELECT id, code, discount, is_active,
+		       IFNULL(active_from, ''), IFNULL(active_until, ''),
+		       (CURDATE() BETWEEN active_from AND active_until)
 		FROM vouchers
 		WHERE code = ?
 	`,
@@ -2393,23 +2398,25 @@ func main() {
 			&voucher.Code,
 			&voucher.Discount,
 			&voucher.IsActive,
+			&activeFrom,
+			&activeUntil,
+			&inRange,
 		)
 
 		if err != nil {
-
 			c.JSON(404, gin.H{
 				"error": "Voucher tidak ditemukan",
 			})
-
 			return
 		}
 
-		if !voucher.IsActive {
+		voucher.ActiveFrom = activeFrom
+		voucher.ActiveUntil = activeUntil
 
+		if !voucher.IsActive || !inRange {
 			c.JSON(400, gin.H{
-				"error": "Voucher tidak aktif",
+				"error": "Voucher tidak aktif atau berada di luar periode aktif",
 			})
-
 			return
 		}
 
