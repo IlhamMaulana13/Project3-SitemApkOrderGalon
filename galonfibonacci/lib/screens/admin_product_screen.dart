@@ -186,6 +186,48 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
             ),
             onPressed: () async {
               if (nameController.text.trim().isEmpty) return;
+
+              // Cek duplikat nama supplier sebelum mengirim ke server
+              final newName = nameController.text.trim().toUpperCase();
+              final duplicate = suppliers.any(
+                (s) => (s["name"] ?? "").toString().toUpperCase() == newName,
+              );
+              if (duplicate) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    title: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange[700]),
+                        const SizedBox(width: 8),
+                        const Text("Supplier Sudah Ada"),
+                      ],
+                    ),
+                    content: Text(
+                      'Supplier dengan nama "$newName" sudah terdaftar dalam sistem.\n\nSilakan gunakan nama lain.',
+                    ),
+                    actions: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange[700],
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Mengerti"),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
               final response = await http.post(
@@ -445,14 +487,16 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
       text: product?["stock_rental"]?.toString() ?? "",
     );
 
+    // Ambil supplier_id dari produk, pastikan bukan null/kosong/"0"/angka lama
+    final rawSupplierId = product?["supplier_id"]?.toString() ?? "";
     String? selectedSupplierId =
-        (product?["supplier_id"] != null &&
-            product!["supplier_id"].toString().isNotEmpty &&
-            product["supplier_id"].toString() != "0")
-        ? product["supplier_id"].toString()
+        (rawSupplierId.isNotEmpty &&
+            rawSupplierId != "0" &&
+            RegExp(r'^[A-Za-z]').hasMatch(rawSupplierId))
+        ? rawSupplierId
         : null;
 
-    // Pastikan supplier terpilih masih ada di daftar (mis. supplier dihapus)
+    // Pastikan supplier terpilih masih ada di daftar saat ini
     if (selectedSupplierId != null &&
         !suppliers.any((s) => s["id"].toString() == selectedSupplierId)) {
       selectedSupplierId = null;
@@ -681,34 +725,47 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
 
                     const SizedBox(height: 14),
 
-                    // DROPDOWN SUPPLIER
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedSupplierId,
-                      isExpanded: true,
+                    // DROPDOWN SUPPLIER (InputDecorator + DropdownButton
+                    // agar kompatibel semua versi Flutter)
+                    InputDecorator(
                       decoration: InputDecoration(
                         labelText: "Supplier",
                         prefixIcon: const Icon(Icons.business_rounded),
                         filled: true,
                         fillColor: Colors.grey[50],
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      items: suppliers.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s["id"].toString(),
-                          child: Text(
-                            "${s["id"]} • ${s["name"]}",
-                            overflow: TextOverflow.ellipsis,
+                      child: DropdownButton<String>(
+                        value: suppliers.any((s) =>
+                                s["id"].toString() == selectedSupplierId)
+                            ? selectedSupplierId
+                            : null,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        hint: const Text("Pilih supplier"),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text("-- Tanpa Supplier --"),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setModalState(() => selectedSupplierId = value);
-                      },
-                      hint: suppliers.isEmpty
-                          ? const Text("Belum ada supplier")
-                          : const Text("Pilih supplier"),
+                          ...suppliers.map((s) {
+                            return DropdownMenuItem<String>(
+                              value: s["id"].toString(),
+                              child: Text(
+                                "${s["id"]} • ${s["name"]}",
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setModalState(() => selectedSupplierId = value);
+                        },
+                      ),
                     ),
                     Align(
                       alignment: Alignment.centerRight,
