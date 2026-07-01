@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:galonfibonacci/provider/theme_provider.dart';
 import 'package:galonfibonacci/screens/login_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:galonfibonacci/api_config.dart';
@@ -100,16 +102,152 @@ class _KurirScreenState extends State<KurirScreen> {
     return statusFlow[idx + 1];
   }
 
-  Future<void> updateStatus(int id, String status) async {
-    await http.put(
+  Future<bool> updateStatus(int id, String status) async {
+    final response = await http.put(
       Uri.parse("${ApiConfig.baseUrl}/orders/status/$id"),
-
       headers: {"Content-Type": "application/json"},
-
       body: jsonEncode({"status": status}),
     );
 
-    fetchOrders();
+    if (response.statusCode == 200) {
+      if (mounted) {
+        fetchOrders();
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> uploadProof(int orderId) async {
+    final picker = ImagePicker();
+
+    try {
+      final cameraFile = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (cameraFile != null) {
+        final bytes = await File(cameraFile.path).readAsBytes();
+        final base64Image = base64Encode(bytes);
+
+        final response = await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/orders/$orderId/proof"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "proof_photo": "data:image/jpeg;base64,$base64Image",
+          }),
+        );
+
+        if (!mounted) return;
+
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Bukti foto berhasil dikirim"),
+              backgroundColor: Colors.green,
+            ),
+          );
+          fetchOrders();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Bukti foto gagal dikirim"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+    } catch (_) {
+      // Fallback ke galeri jika kamera tidak tersedia.
+    }
+
+    try {
+      final galleryFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (galleryFile == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Bukti foto dibatalkan")));
+        return;
+      }
+
+      final bytes = await File(galleryFile.path).readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      final response = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/orders/$orderId/proof"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "proof_photo": "data:image/jpeg;base64,$base64Image",
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Bukti foto berhasil dikirim"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        fetchOrders();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Bukti foto gagal dikirim"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal mengakses foto: $e")));
+    }
+  }
+
+  Widget _buildProofPreview(String? proofPhoto) {
+    if (proofPhoto == null || proofPhoto.toString().trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    try {
+      final value = proofPhoto.toString();
+      final base64Data = value.contains(',') ? value.split(',').last : value;
+      final bytes = base64Decode(base64Data);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          const Text(
+            "Bukti lokasi:",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              bytes,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ],
+      );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
   }
 
   // Konfirmasi sebelum mengubah status karena perubahan bersifat permanen.
@@ -140,7 +278,10 @@ class _KurirScreenState extends State<KurirScreen> {
     );
 
     if (confirmed == true) {
-      await updateStatus(orderId, nextStatus);
+      final updated = await updateStatus(orderId, nextStatus);
+      if (updated && nextStatus == "Selesai" && mounted) {
+        await uploadProof(orderId);
+      }
     }
   }
 
@@ -159,7 +300,9 @@ class _KurirScreenState extends State<KurirScreen> {
           Consumer<ThemeProvider>(
             builder: (context, themeProvider, _) => IconButton(
               icon: Icon(
-                themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                themeProvider.isDarkMode
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
                 color: Colors.white,
               ),
               tooltip: themeProvider.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
@@ -205,7 +348,8 @@ class _KurirScreenState extends State<KurirScreen> {
               child: orders.isEmpty
                   ? LayoutBuilder(
                       builder: (context, constraints) {
-                        final isDark = Theme.of(context).brightness == Brightness.dark;
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
                         return ListView(
                           children: [
                             SizedBox(
@@ -218,7 +362,9 @@ class _KurirScreenState extends State<KurirScreen> {
                                     height: 120,
                                     decoration: BoxDecoration(
                                       color: isDark
-                                          ? Colors.orange.withValues(alpha: 0.15)
+                                          ? Colors.orange.withValues(
+                                              alpha: 0.15,
+                                            )
                                           : Colors.orange.shade50,
                                       shape: BoxShape.circle,
                                     ),
@@ -236,7 +382,9 @@ class _KurirScreenState extends State<KurirScreen> {
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black87,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
                                     ),
                                   ),
                                   const SizedBox(height: 10),
@@ -245,20 +393,27 @@ class _KurirScreenState extends State<KurirScreen> {
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      color: isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
                                       height: 1.5,
                                     ),
                                   ),
                                   const SizedBox(height: 28),
                                   OutlinedButton.icon(
                                     onPressed: fetchOrders,
-                                    icon: const Icon(Icons.refresh_rounded, color: Colors.orange),
+                                    icon: const Icon(
+                                      Icons.refresh_rounded,
+                                      color: Colors.orange,
+                                    ),
                                     label: const Text(
                                       "Perbarui",
                                       style: TextStyle(color: Colors.orange),
                                     ),
                                     style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: Colors.orange),
+                                      side: const BorderSide(
+                                        color: Colors.orange,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(30),
                                       ),
@@ -279,149 +434,206 @@ class _KurirScreenState extends State<KurirScreen> {
                       padding: const EdgeInsets.all(16),
                       itemCount: orders.length,
                       itemBuilder: (context, index) {
-            final order = orders[index] as Map<String, dynamic>;
+                        final order = orders[index] as Map<String, dynamic>;
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
 
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    Text(
-                      "Pesanan #${order["id"]}",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    Text("Nama: ${order["name"] ?? "-"}"),
-                    Text("No HP: ${order["phone"] ?? "-"}"),
-                    Text("Alamat: ${order["address"] ?? "-"}"),
-
-                    const SizedBox(height: 10),
-
-                    Text(
-                      "Total: Rp ${order["total"]}",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    Builder(builder: (ctx) {
-                      final isDark = Theme.of(ctx).brightness == Brightness.dark;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.orange.withValues(alpha: 0.25) : Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          order["status"] ?? "-",
-                          style: TextStyle(
-                            color: isDark ? Colors.orange[300] : Colors.orange[900],
-                            fontWeight: FontWeight.w600,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        ),
-                      );
-                    }),
 
-                    const SizedBox(height: 15),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
 
-                    Builder(builder: (context) {
-                      final currentStatus = (order["status"] ?? "").toString();
-                      final nextStatus = nextStatusOf(currentStatus);
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
 
-                      if (nextStatus == null) {
-                        final isDark = Theme.of(context).brightness == Brightness.dark;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.green.withValues(alpha: 0.15) : Colors.green[50],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isDark ? Colors.green.withValues(alpha: 0.4) : Colors.green.shade200,
+                              children: [
+                                Text(
+                                  "Pesanan #${order["id"]}",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                Text("Nama: ${order["name"] ?? "-"}"),
+                                Text("No HP: ${order["phone"] ?? "-"}"),
+                                Text("Alamat: ${order["address"] ?? "-"}"),
+
+                                const SizedBox(height: 10),
+
+                                Text(
+                                  "Total: Rp ${order["total"]}",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                Builder(
+                                  builder: (ctx) {
+                                    final isDark =
+                                        Theme.of(ctx).brightness ==
+                                        Brightness.dark;
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? Colors.orange.withValues(
+                                                alpha: 0.25,
+                                              )
+                                            : Colors.orange.shade100,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        order["status"] ?? "-",
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? Colors.orange[300]
+                                              : Colors.orange[900],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                const SizedBox(height: 15),
+
+                                _buildProofPreview(
+                                  order["proof_photo"]?.toString(),
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                Builder(
+                                  builder: (context) {
+                                    final currentStatus =
+                                        (order["status"] ?? "").toString();
+                                    final nextStatus = nextStatusOf(
+                                      currentStatus,
+                                    );
+
+                                    if (nextStatus == null) {
+                                      final isDark =
+                                          Theme.of(context).brightness ==
+                                          Brightness.dark;
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isDark
+                                              ? Colors.green.withValues(
+                                                  alpha: 0.15,
+                                                )
+                                              : Colors.green[50],
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: isDark
+                                                ? Colors.green.withValues(
+                                                    alpha: 0.4,
+                                                  )
+                                                : Colors.green.shade200,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              color: isDark
+                                                  ? Colors.green[400]
+                                                  : Colors.green[700],
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              "Pesanan sudah selesai",
+                                              style: TextStyle(
+                                                color: isDark
+                                                    ? Colors.green[400]
+                                                    : Colors.green[700],
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+
+                                    return SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => confirmUpdateStatus(
+                                          order["id"],
+                                          nextStatus,
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 18,
+                                        ),
+                                        label: Text(
+                                          "Ubah status ke \"$nextStatus\"",
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                SizedBox(
+                                  width: double.infinity,
+
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      openWhatsApp(
+                                        order["phone"],
+                                        order["name"],
+                                        order["id"],
+                                      );
+                                    },
+
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                    ),
+
+                                    icon: const Icon(Icons.chat),
+
+                                    label: const Text("Hubungi Customer"),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.check_circle_rounded,
-                                  color: isDark ? Colors.green[400] : Colors.green[700], size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Pesanan sudah selesai",
-                                style: TextStyle(
-                                    color: isDark ? Colors.green[400] : Colors.green[700],
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
                           ),
                         );
-                      }
-
-                      return SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () =>
-                              confirmUpdateStatus(order["id"], nextStatus),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                          label: Text("Ubah status ke \"$nextStatus\""),
-                        ),
-                      );
-                    }),
-
-                    const SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          openWhatsApp(
-                            order["phone"],
-                            order["name"],
-                            order["id"],
-                          );
-                        },
-
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-
-                        icon: const Icon(Icons.chat),
-
-                        label: const Text("Hubungi Customer"),
-                      ),
+                      },
                     ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }

@@ -1915,7 +1915,7 @@ func main() {
 			IFNULL(o.proof_photo, '')
 		FROM orders o
 		JOIN users u ON u.firebase_uid = o.user_id
-		WHERE o.status != 'Selesai'
+		WHERE o.status IN ('Diproses', 'Dikirim', 'Selesai')
 		ORDER BY o.id DESC
 	`)
 
@@ -2312,8 +2312,8 @@ func main() {
 		}
 
 		assigned := 0
-		skipped := 0    // sudah pernah punya voucher ini
-		notFound := 0   // email tidak terdaftar
+		skipped := 0  // sudah pernah punya voucher ini
+		notFound := 0 // email tidak terdaftar
 
 		for _, email := range emails {
 			var userID string
