@@ -64,10 +64,8 @@ class _KurirScreenState extends State<KurirScreen> {
                 .where((o) => o['status'] == 'Selesai')
                 .length;
 
-            if (activeCount == 0 && completedCount > 0) {
+            if (_selectedTab == 0 && activeCount == 0 && completedCount > 0) {
               _selectedTab = 1;
-            } else if (activeCount > 0) {
-              _selectedTab = 0;
             }
           });
         } else {
@@ -149,6 +147,8 @@ class _KurirScreenState extends State<KurirScreen> {
     try {
       final cameraFile = await picker.pickImage(
         source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
         imageQuality: 80,
       );
 
@@ -191,6 +191,8 @@ class _KurirScreenState extends State<KurirScreen> {
     try {
       final galleryFile = await picker.pickImage(
         source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
         imageQuality: 80,
       );
 
@@ -435,6 +437,9 @@ class _KurirScreenState extends State<KurirScreen> {
     if (confirmed == true) {
       final updated = await updateStatus(orderId, nextStatus);
       if (updated && nextStatus == "Selesai" && mounted) {
+        setState(() {
+          _selectedTab = 1;
+        });
         await uploadProof(orderId);
       }
     }
@@ -749,134 +754,43 @@ class _KurirScreenState extends State<KurirScreen> {
             )
           : Column(
               children: [
-                if (orders.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[900]
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[900]
-                            : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildTabButton(
-                              "Aktif",
-                              0,
-                              activeOrders.length,
-                            ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildTabButton(
+                            "Aktif",
+                            0,
+                            activeOrders.length,
                           ),
-                          Expanded(
-                            child: _buildTabButton(
-                              "Riwayat",
-                              1,
-                              completedOrders.length,
-                            ),
+                        ),
+                        Expanded(
+                          child: _buildTabButton(
+                            "Riwayat",
+                            1,
+                            completedOrders.length,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: fetchOrders,
-                    child: orders.isEmpty
-                        ? LayoutBuilder(
-                            builder: (context, constraints) {
-                              final isDark =
-                                  Theme.of(context).brightness ==
-                                  Brightness.dark;
-                              return ListView(
-                                children: [
-                                  SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                        0.75,
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          width: 120,
-                                          height: 120,
-                                          decoration: BoxDecoration(
-                                            color: isDark
-                                                ? Colors.orange.withValues(
-                                                    alpha: 0.15,
-                                                  )
-                                                : Colors.orange.shade50,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            Icons.delivery_dining_rounded,
-                                            size: 64,
-                                            color: Colors.orange.shade300,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 24),
-                                        Text(
-                                          "Belum Ada Pesanan",
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          "Pesanan baru akan muncul di sini.\nTarik ke bawah untuk memperbarui.",
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: isDark
-                                                ? Colors.grey[400]
-                                                : Colors.grey[600],
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 28),
-                                        OutlinedButton.icon(
-                                          onPressed: fetchOrders,
-                                          icon: const Icon(
-                                            Icons.refresh_rounded,
-                                            color: Colors.orange,
-                                          ),
-                                          label: const Text(
-                                            "Perbarui",
-                                            style: TextStyle(
-                                              color: Colors.orange,
-                                            ),
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            side: const BorderSide(
-                                              color: Colors.orange,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 24,
-                                              vertical: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          )
-                        : _buildListContent(),
+                    child: _buildListContent(),
                   ),
                 ),
               ],
