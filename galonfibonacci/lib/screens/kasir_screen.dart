@@ -617,7 +617,8 @@ class _KasirScreenState extends State<KasirScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            subtitle: Text("Stok: ${product["stock"] ?? 0}"),
+                            subtitle: Text(
+                                "Stok Baru: ${product["stock_new"] ?? 0}  •  Stok Sewa: ${product["stock_rental"] ?? 0}"),
                             trailing: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue[700],

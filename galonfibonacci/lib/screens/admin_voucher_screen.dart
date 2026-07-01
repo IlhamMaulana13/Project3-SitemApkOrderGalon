@@ -40,6 +40,65 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
     if (mounted) setState(() => isLoading = false);
   }
 
+  // Format DateTime -> "YYYY-MM-DD" untuk dikirim ke backend.
+  String _fmtDate(DateTime d) =>
+      "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+  // Ambil bagian tanggal "YYYY-MM-DD" dari string tanggal apa pun; "" jika kosong.
+  String _dateOnly(dynamic raw) {
+    final s = (raw ?? "").toString();
+    if (s.isEmpty) return "";
+    // Backend bisa mengirim "2026-07-01" atau "2026-07-01T00:00:00Z".
+    return s.length >= 10 ? s.substring(0, 10) : s;
+  }
+
+  // Parse "YYYY-MM-DD" -> DateTime; null jika gagal.
+  DateTime? _parseDate(dynamic raw) {
+    final s = _dateOnly(raw);
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s);
+  }
+
+  // Tampilan ramah tanggal, contoh "01 Jul 2026". Tanpa paket intl.
+  String _displayDate(dynamic raw) {
+    final d = _parseDate(raw);
+    if (d == null) return "-";
+    const bulan = [
+      "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+      "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+    ];
+    return "${d.day.toString().padLeft(2, '0')} ${bulan[d.month - 1]} ${d.year}";
+  }
+
+  // Field pemilih tanggal (dipakai di dialog buat & edit voucher).
+  Widget _dateField({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(Icons.calendar_month_rounded, color: color),
+          filled: true,
+          fillColor: (color ?? Colors.grey).withValues(alpha: 0.08),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          value == null ? "Pilih tanggal" : _displayDate(_fmtDate(value)),
+          style: TextStyle(
+            color: value == null ? Colors.grey[500] : Colors.black87,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
   // =========================
   // HAPUS VOUCHER
   // =========================

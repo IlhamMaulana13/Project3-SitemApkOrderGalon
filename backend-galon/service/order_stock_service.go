@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -56,15 +57,26 @@ func ReduceStockByOrderTx(
 			log.Println("SKIP STOCK REDUCTION FOR ISI ULANG:", item.ProductID, item.Qty)
 			continue
 		}
-		log.Println("REDUCE STOCK:", item.ProductID, item.Qty)
 
-		_, err = tx.Exec(`
+		// Kurangi kolom stok sesuai jenis layanan:
+		// "Sewa" -> stok sewa, selain itu (Beli Baru) -> stok baru.
+		stockCol := "stock_new"
+		reservedCol := "reserved_stock_new"
+		if item.Service == "Sewa" {
+			stockCol = "stock_rental"
+			reservedCol = "reserved_stock_rental"
+		}
+
+		log.Println("REDUCE STOCK:", item.ProductID, item.Qty, item.Service)
+
+		_, err = tx.Exec(fmt.Sprintf(`
 			UPDATE products
 			SET
-				stock = stock - ?,
-				reserved_stock = reserved_stock - ?
+				%s = %s - ?,
+				%s = CASE WHEN %s >= ? THEN %s - ? ELSE 0 END
 			WHERE id=?
-		`,
+		`, stockCol, stockCol, reservedCol, reservedCol, reservedCol),
+			item.Qty,
 			item.Qty,
 			item.Qty,
 			item.ProductID,

@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 )
 
 func ReleaseReservedStockTx(
@@ -55,16 +56,22 @@ func ReleaseReservedStockTx(
 			continue
 		}
 
-		_, err = tx.Exec(`
+		// Lepas reservasi pada kolom stok yang sesuai layanan.
+		reservedCol := "reserved_stock_new"
+		if item.Service == "Sewa" {
+			reservedCol = "reserved_stock_rental"
+		}
+
+		_, err = tx.Exec(fmt.Sprintf(`
 			UPDATE products
-			SET reserved_stock =
+			SET %s =
 			CASE
-				WHEN reserved_stock >= ?
-				THEN reserved_stock - ?
+				WHEN %s >= ?
+				THEN %s - ?
 				ELSE 0
 			END
 			WHERE id=?
-		`,
+		`, reservedCol, reservedCol, reservedCol),
 			item.Qty,
 			item.Qty,
 			item.ProductID,

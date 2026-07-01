@@ -319,7 +319,9 @@ class _ProductItemState extends State<ProductItem> {
   bool get useStock =>
       widget.selectedService == "Beli Baru" ||
       widget.selectedService == "Sewa";
-  bool get isOutOfStock => useStock && widget.product.stock <= 0;
+  // Stok tersedia sesuai layanan (stok baru untuk "Beli Baru", stok sewa untuk "Sewa").
+  int get availableStock => widget.product.availableFor(widget.selectedService);
+  bool get isOutOfStock => useStock && availableStock <= 0;
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +404,7 @@ class _ProductItemState extends State<ProductItem> {
                               ? Icons.swap_horiz_rounded
                               : Icons.inventory_2_outlined,
                           size: 13,
-                          color: widget.product.stock <= 0
+                          color: availableStock <= 0
                               ? Colors.red
                               : Colors.grey[600],
                         ),
@@ -410,14 +412,14 @@ class _ProductItemState extends State<ProductItem> {
                         Flexible(
                           child: Text(
                             widget.selectedService == "Sewa"
-                                ? "Tersedia: ${widget.product.stock} unit"
-                                : "Stok: ${widget.product.stock}",
+                                ? "Stok Sewa: $availableStock unit"
+                                : "Stok Baru: $availableStock",
                             style: TextStyle(
                               fontSize: 12,
-                              color: widget.product.stock <= 0
+                              color: availableStock <= 0
                                   ? Colors.red
                                   : Colors.grey[600],
-                              fontWeight: widget.product.stock <= 0
+                              fontWeight: availableStock <= 0
                                   ? FontWeight.bold
                                   : FontWeight.normal,
                             ),
@@ -481,7 +483,11 @@ class _ProductItemState extends State<ProductItem> {
                             merk:
                                 "${widget.product.merk} (${widget.selectedService})",
                             price: widget.price,
-                            stock: widget.product.stock,
+                            stockNew: widget.product.stockNew,
+                            stockRental: widget.product.stockRental,
+                            reservedStockNew: widget.product.reservedStockNew,
+                            reservedStockRental:
+                                widget.product.reservedStockRental,
                             image: widget.product.image,
                           );
                           cartProvider.addToCart(

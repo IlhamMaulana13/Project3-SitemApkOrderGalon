@@ -438,8 +438,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
     final hargaModalController = TextEditingController(
       text: product?["modal"]?.toString() ?? "",
     );
-    final stockController = TextEditingController(
-      text: product?["stock"]?.toString() ?? "",
+    final stockNewController = TextEditingController(
+      text: product?["stock_new"]?.toString() ?? "",
+    );
+    final stockRentalController = TextEditingController(
+      text: product?["stock_rental"]?.toString() ?? "",
     );
 
     String? selectedSupplierId =
@@ -636,19 +639,44 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
 
                     const SizedBox(height: 14),
 
-                    // STOCK
-                    TextField(
-                      controller: stockController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: "Stok",
-                        prefixIcon: const Icon(Icons.inventory_2_rounded),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    // STOK DIPISAH: STOK BARU & STOK SEWA
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: stockNewController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: "Stok Baru",
+                              helperText: "Untuk Beli Baru",
+                              prefixIcon:
+                                  const Icon(Icons.inventory_2_rounded),
+                              filled: true,
+                              fillColor: Colors.blue[50],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: stockRentalController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: "Stok Sewa",
+                              helperText: "Untuk Sewa",
+                              prefixIcon: const Icon(Icons.swap_horiz_rounded),
+                              filled: true,
+                              fillColor: Colors.orange[50],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 14),
@@ -780,11 +808,10 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                   onPressed: () async {
                     if (merkController.text.trim().isEmpty ||
                         hargaJualController.text.isEmpty ||
-                        hargaModalController.text.isEmpty ||
-                        stockController.text.isEmpty) {
+                        hargaModalController.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text("Semua field wajib diisi"),
+                          content: Text("Nama, harga jual & modal wajib diisi"),
                         ),
                       );
                       return;
@@ -801,7 +828,15 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                       "merk": merkController.text.trim(),
                       "price": int.tryParse(hargaJualController.text) ?? 0,
                       "modal": int.tryParse(hargaModalController.text) ?? 0,
-                      "stock": int.tryParse(stockController.text) ?? 0,
+                      "stock_new": int.tryParse(stockNewController.text) ?? 0,
+                      "stock_rental":
+                          int.tryParse(stockRentalController.text) ?? 0,
+                      // Pertahankan nilai reservasi yang sudah ada saat mengedit
+                      // agar tidak ter-reset ke 0.
+                      "reserved_stock_new":
+                          int.tryParse(product?["reserved_stock_new"]?.toString() ?? "0") ?? 0,
+                      "reserved_stock_rental":
+                          int.tryParse(product?["reserved_stock_rental"]?.toString() ?? "0") ?? 0,
                       "image": imageUrl,
                       "supplier_id": selectedSupplierId ?? "",
                     };
@@ -986,9 +1021,14 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                           : Icons.trending_down_rounded,
                                     ),
                                     _infoChip(
-                                      "Stok: ${product["stock"]}",
+                                      "Stok Baru: ${product["stock_new"] ?? 0}",
                                       Colors.blue[700]!,
                                       Icons.inventory_2_rounded,
+                                    ),
+                                    _infoChip(
+                                      "Stok Sewa: ${product["stock_rental"] ?? 0}",
+                                      Colors.orange[700]!,
+                                      Icons.swap_horiz_rounded,
                                     ),
                                   ],
                                 ),

@@ -206,6 +206,9 @@ func main() {
 	ensureOrderColumn("customer_phone", "VARCHAR(50) NOT NULL DEFAULT ''")
 	ensureOrderColumn("is_offline", "TINYINT NOT NULL DEFAULT 0")
 	ensureOrderColumn("notes", "TEXT")
+	// Foto bukti pengantaran oleh kurir (disimpan sebagai data URL base64).
+	ensureOrderColumn("proof_photo", "LONGTEXT")
+	ensureOrderColumn("proof_uploaded_at", "DATETIME NULL")
 
 	// =========================
 	// MIGRASI TABEL SUPPLIERS
@@ -367,6 +370,23 @@ func main() {
 	ensureProductColumn("stock_rental", "INT NOT NULL DEFAULT 0")
 	ensureProductColumn("reserved_stock_new", "INT NOT NULL DEFAULT 0")
 	ensureProductColumn("reserved_stock_rental", "INT NOT NULL DEFAULT 0")
+
+	// Backfill sekali jalan: pindahkan nilai stok lama (kolom `stock`) ke
+	// `stock_new` bila kolom lama masih ada dan stok baru belum terisi.
+	// Aman dijalankan berulang karena hanya menyentuh baris stock_new = 0.
+	var legacyStockCol string
+	errLegacy := database.DB.QueryRow(`
+		SELECT COLUMN_NAME
+		FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'products'
+		AND COLUMN_NAME = 'stock'
+	`).Scan(&legacyStockCol)
+	if errLegacy == nil {
+		if _, e := database.DB.Exec(`UPDATE products SET stock_new = stock WHERE stock_new = 0 AND stock > 0`); e != nil {
+			log.Println("Peringatan: gagal backfill stock_new dari stock:", e)
+		}
+	}
 
 	// =========================
 	// MIGRASI KOLOM ORDERS UNTUK TRANSAKSI KASIR (OFFLINE)
@@ -615,6 +635,31 @@ func main() {
 				return
 			}
 
+			// Pastikan voucher masih aktif dan dalam rentang masa berlaku
+			var vActive bool
+			var inRange bool
+			errV := database.DB.QueryRow(`
+				SELECT is_active, (CURDATE() BETWEEN active_from AND active_until)
+				FROM vouchers
+				WHERE code = ?
+				LIMIT 1
+			`, order.VoucherCode).Scan(&vActive, &inRange)
+
+			if errV == nil {
+				if !vActive {
+					c.JSON(400, gin.H{
+						"error": "Voucher sedang tidak aktif",
+					})
+					return
+				}
+				if !inRange {
+					c.JSON(400, gin.H{
+						"error": "Voucher belum berlaku atau sudah kadaluarsa",
+					})
+					return
+				}
+			}
+
 			if voucherDiscount != order.VoucherDiscount {
 
 				c.JSON(400, gin.H{
@@ -694,41 +739,46 @@ func main() {
 		// =========================
 		for _, item := range order.Items {
 
-			var stock int
-			var reservedStock int
+			// Tentukan kolom stok sesuai jenis layanan:
+			// "Beli Baru" -> stok baru, "Sewa" -> stok sewa, "Isi Ulang" -> tanpa stok
+			stockCol := "stock_new"
+			reservedCol := "reserved_stock_new"
+			if item.Service == "Sewa" {
+				stockCol = "stock_rental"
+				reservedCol = "reserved_stock_rental"
+			}
 
-			err := tx.QueryRow(`
-			SELECT stock,reserved_stock
+			if item.Service != "Isi Ulang" {
+				var stock, reservedStock int
+				err := tx.QueryRow(fmt.Sprintf(`
+			SELECT %s, %s
 			FROM products
 			WHERE id=?
 			FOR UPDATE
-		`,
-				item.ProductID,
-			).Scan(
-				&stock,
-				&reservedStock,
-			)
+		`, stockCol, reservedCol),
+					item.ProductID,
+				).Scan(
+					&stock,
+					&reservedStock,
+				)
 
-			if err != nil {
+				if err != nil {
 
-				tx.Rollback()
+					tx.Rollback()
 
-				c.JSON(500, gin.H{
-					"error": err.Error(),
-				})
+					c.JSON(500, gin.H{
+						"error": err.Error(),
+					})
 
-				return
-			}
+					return
+				}
 
-			availableStock := stock - reservedStock
-
-			if item.Service != "Isi Ulang" {
-				if availableStock < item.Qty {
+				if stock-reservedStock < item.Qty {
 
 					tx.Rollback()
 
 					c.JSON(400, gin.H{
-						"error": "Stock tidak cukup",
+						"error": "Stok tidak cukup",
 					})
 
 					return
@@ -765,13 +815,13 @@ func main() {
 				return
 			}
 
-			// RESERVE STOCK
+			// RESERVE STOCK (sesuai kolom stok layanan)
 			if item.Service != "Isi Ulang" {
-				_, err = tx.Exec(`
+				_, err = tx.Exec(fmt.Sprintf(`
 			UPDATE products
-			SET reserved_stock = reserved_stock + ?
+			SET %s = %s + ?
 			WHERE id=?
-		`,
+		`, reservedCol, reservedCol),
 					item.Qty,
 					item.ProductID,
 				)
@@ -973,7 +1023,8 @@ func main() {
 				COALESCE(NULLIF(o.customer_name,''), u.name, 'Pelanggan') AS customer_name,
 				COALESCE(NULLIF(o.customer_phone,''), u.phone, '')         AS customer_phone,
 				IFNULL(o.notes, '')                                        AS notes,
-				o.is_offline
+				o.is_offline,
+				IFNULL(o.proof_photo, '')                                  AS proof_photo
 			FROM orders o
 			LEFT JOIN users u ON u.firebase_uid = o.user_id
 			ORDER BY o.id DESC
@@ -990,9 +1041,9 @@ func main() {
 
 		for rows.Next() {
 			var id, total, isOffline int
-			var status, createdAt, customerName, customerPhone, notes string
+			var status, createdAt, customerName, customerPhone, notes, proofPhoto string
 
-			rows.Scan(&id, &total, &status, &createdAt, &customerName, &customerPhone, &notes, &isOffline)
+			rows.Scan(&id, &total, &status, &createdAt, &customerName, &customerPhone, &notes, &isOffline, &proofPhoto)
 
 			// Ambil items untuk order ini
 			itemRows, _ := database.DB.Query(`
@@ -1032,6 +1083,7 @@ func main() {
 				"customer_phone": customerPhone,
 				"notes":          notes,
 				"is_offline":     isOffline,
+				"proof_photo":    proofPhoto,
 				"items":          items,
 			})
 		}
@@ -1616,13 +1668,20 @@ func main() {
 				return
 			}
 
-			// Isi Ulang tidak mengurangi stok galon
+			// Isi Ulang tidak mengurangi stok galon.
+			// Kasir mengurangi stok langsung sesuai jenis layanan:
+			// "Sewa" -> stok sewa, selain itu (Beli Baru) -> stok baru.
 			if item.Service != "Isi Ulang" {
 
+				stockCol := "stock_new"
+				if item.Service == "Sewa" {
+					stockCol = "stock_rental"
+				}
+
 				var stock int
-				err = tx.QueryRow(`
-					SELECT stock FROM products WHERE id = ? FOR UPDATE
-				`, item.ProductID).Scan(&stock)
+				err = tx.QueryRow(fmt.Sprintf(`
+					SELECT %s FROM products WHERE id = ? FOR UPDATE
+				`, stockCol), item.ProductID).Scan(&stock)
 
 				if err != nil {
 					tx.Rollback()
@@ -1636,11 +1695,11 @@ func main() {
 					return
 				}
 
-				_, err = tx.Exec(`
+				_, err = tx.Exec(fmt.Sprintf(`
 					UPDATE products
-					SET stock = stock - ?
+					SET %s = %s - ?
 					WHERE id = ?
-				`, item.Qty, item.ProductID)
+				`, stockCol, stockCol), item.Qty, item.ProductID)
 
 				if err != nil {
 					tx.Rollback()
@@ -1852,7 +1911,8 @@ func main() {
 			o.created_at,
 			u.name,
 			u.phone,
-			u.address
+			u.address,
+			IFNULL(o.proof_photo, '')
 		FROM orders o
 		JOIN users u ON u.firebase_uid = o.user_id
 		WHERE o.status != 'Selesai'
@@ -1881,6 +1941,7 @@ func main() {
 			var name string
 			var phone string
 			var address string
+			var proofPhoto string
 
 			rows.Scan(
 				&id,
@@ -1890,20 +1951,53 @@ func main() {
 				&name,
 				&phone,
 				&address,
+				&proofPhoto,
 			)
 
 			orders = append(orders, gin.H{
-				"id":         id,
-				"total":      total,
-				"status":     status,
-				"created_at": createdAt,
-				"name":       name,
-				"phone":      phone,
-				"address":    address,
+				"id":          id,
+				"total":       total,
+				"status":      status,
+				"created_at":  createdAt,
+				"name":        name,
+				"phone":       phone,
+				"address":     address,
+				"proof_photo": proofPhoto,
 			})
 		}
 
 		c.JSON(200, orders)
+	})
+
+	// =========================
+	// UPLOAD FOTO BUKTI PENGANTARAN (KURIR)
+	// =========================
+	r.POST("/orders/:id/proof", func(c *gin.Context) {
+		id := c.Param("id")
+
+		var body struct {
+			ProofPhoto string `json:"proof_photo"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.TrimSpace(body.ProofPhoto) == "" {
+			c.JSON(400, gin.H{"error": "Foto bukti wajib diisi"})
+			return
+		}
+
+		_, err := database.DB.Exec(`
+			UPDATE orders
+			SET proof_photo = ?, proof_uploaded_at = NOW()
+			WHERE id = ?
+		`, body.ProofPhoto, id)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(200, gin.H{"message": "Foto bukti berhasil diunggah"})
 	})
 
 	// DASHBOARD ANALYTICS
@@ -2011,9 +2105,12 @@ func main() {
 	r.GET("/vouchers", func(c *gin.Context) {
 
 		rows, err := database.DB.Query(`
-			SELECT id, IFNULL(name,''), code, discount, is_active, IFNULL(active_from, ''), IFNULL(active_until, '')
-			FROM vouchers
-			ORDER BY id DESC
+			SELECT v.id, IFNULL(v.name,''), v.code, v.discount, v.is_active,
+			       IFNULL(v.active_from, ''), IFNULL(v.active_until, ''),
+			       (SELECT COUNT(*) FROM user_vouchers uv WHERE uv.code = v.code) AS total_recipients,
+			       (SELECT COUNT(*) FROM user_vouchers uv WHERE uv.code = v.code AND uv.is_used = 1) AS used_count
+			FROM vouchers v
+			ORDER BY v.id DESC
 		`)
 
 		if err != nil {
@@ -2023,16 +2120,25 @@ func main() {
 
 		defer rows.Close()
 
-		var vouchers []Voucher
+		vouchers := []gin.H{}
 		for rows.Next() {
-			var voucher Voucher
-			rows.Scan(&voucher.ID, &voucher.Name, &voucher.Code, &voucher.Discount, &voucher.IsActive)
-			vouchers = append(vouchers, voucher)
+			var v Voucher
+			var totalRecipients, usedCount int
+			rows.Scan(&v.ID, &v.Name, &v.Code, &v.Discount, &v.IsActive,
+				&v.ActiveFrom, &v.ActiveUntil, &totalRecipients, &usedCount)
+			vouchers = append(vouchers, gin.H{
+				"id":               v.ID,
+				"name":             v.Name,
+				"code":             v.Code,
+				"discount":         v.Discount,
+				"is_active":        v.IsActive,
+				"active_from":      v.ActiveFrom,
+				"active_until":     v.ActiveUntil,
+				"total_recipients": totalRecipients,
+				"used_count":       usedCount,
+			})
 		}
 
-		if vouchers == nil {
-			vouchers = []Voucher{}
-		}
 		c.JSON(200, vouchers)
 	})
 
@@ -2056,9 +2162,11 @@ func main() {
 		}
 
 		_, err := database.DB.Exec(`
-			INSERT INTO vouchers (name, code, discount, is_active)
-			VALUES (?, ?, ?, true)
-		`, voucher.Name, voucher.Code, voucher.Discount)
+			INSERT INTO vouchers (name, code, discount, is_active, active_from, active_until)
+			VALUES (?, ?, ?, true,
+				COALESCE(NULLIF(?, ''), CURDATE()),
+				COALESCE(NULLIF(?, ''), '2099-12-31'))
+		`, voucher.Name, voucher.Code, voucher.Discount, voucher.ActiveFrom, voucher.ActiveUntil)
 
 		if err != nil {
 
@@ -2082,6 +2190,7 @@ func main() {
 		type assignRequest struct {
 			UserUID      string   `json:"user_uid"`
 			Email        string   `json:"email"`
+			Emails       []string `json:"emails"`
 			AssignAll    bool     `json:"assign_all"`
 			VoucherCodes []string `json:"voucher_codes"`
 		}
@@ -2177,71 +2286,92 @@ func main() {
 		}
 
 		// =====================================
-		// ASSIGN KE CUSTOMER TERTENTU
+		// ASSIGN KE CUSTOMER TERTENTU (BISA LEBIH DARI SATU)
 		// =====================================
 
-		if req.Email == "" {
+		// Kumpulkan daftar email target. Mendukung field baru `emails` (multi
+		// pilih dengan ceklis) dan tetap kompatibel dengan field lama `email`.
+		emails := []string{}
+		seen := map[string]bool{}
+		for _, e := range req.Emails {
+			e = strings.TrimSpace(e)
+			if e != "" && !seen[e] {
+				seen[e] = true
+				emails = append(emails, e)
+			}
+		}
+		if len(emails) == 0 && strings.TrimSpace(req.Email) != "" {
+			emails = append(emails, strings.TrimSpace(req.Email))
+		}
+
+		if len(emails) == 0 {
 			c.JSON(400, gin.H{
-				"error": "Email customer wajib diisi",
+				"error": "Pilih minimal satu pelanggan",
 			})
 			return
 		}
 
-		var userID string
+		assigned := 0
+		skipped := 0    // sudah pernah punya voucher ini
+		notFound := 0   // email tidak terdaftar
 
-		err = database.DB.QueryRow(`
-		SELECT firebase_uid
-		FROM users
-		WHERE email=?
-	`,
-			req.Email,
-		).Scan(&userID)
+		for _, email := range emails {
+			var userID string
+			errU := database.DB.QueryRow(`
+				SELECT firebase_uid FROM users WHERE email = ?
+			`, email).Scan(&userID)
 
-		if err != nil {
+			if errU != nil {
+				notFound++
+				continue
+			}
 
-			c.JSON(404, gin.H{
-				"error": "Customer tidak ditemukan",
-			})
+			// Lewati bila voucher sudah pernah diberikan ke pelanggan ini
+			var dupCount int
+			database.DB.QueryRow(`
+				SELECT COUNT(*) FROM user_vouchers
+				WHERE user_id = ? AND code = ?
+			`, userID, voucher.Code).Scan(&dupCount)
 
-			return
+			if dupCount > 0 {
+				skipped++
+				continue
+			}
+
+			_, errI := database.DB.Exec(`
+				INSERT INTO user_vouchers (user_id, code, discount, is_used)
+				VALUES (?, ?, ?, false)
+			`, userID, voucher.Code, voucher.Discount)
+
+			if errI != nil {
+				c.JSON(500, gin.H{"error": errI.Error()})
+				return
+			}
+			assigned++
 		}
 
-		// Cek apakah voucher ini sudah pernah diberikan ke customer tersebut
-		// (hindari duplikat voucher pada user yang sama)
-		var dupCount int
-		database.DB.QueryRow(`
-			SELECT COUNT(*) FROM user_vouchers
-			WHERE user_id = ? AND code = ?
-		`, userID, voucher.Code).Scan(&dupCount)
-
-		if dupCount > 0 {
-			c.JSON(409, gin.H{
-				"error": "Voucher ini sudah pernah diberikan ke pelanggan tersebut",
-			})
-			return
-		}
-
-		_, err = database.DB.Exec(`
-		INSERT INTO user_vouchers
-		(user_id, code, discount, is_used)
-		VALUES (?, ?, ?, false)
-	`,
-			userID,
-			voucher.Code,
-			voucher.Discount,
-		)
-
-		if err != nil {
-
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-
-			return
+		var message string
+		if assigned == 0 {
+			if notFound > 0 && skipped == 0 {
+				message = "Pelanggan tidak ditemukan"
+			} else {
+				message = "Semua pelanggan terpilih sudah pernah menerima voucher ini"
+			}
+		} else {
+			message = fmt.Sprintf("Voucher berhasil diberikan ke %d pelanggan", assigned)
+			if skipped > 0 {
+				message += fmt.Sprintf(" (%d sudah punya sebelumnya)", skipped)
+			}
+			if notFound > 0 {
+				message += fmt.Sprintf(" (%d email tidak ditemukan)", notFound)
+			}
 		}
 
 		c.JSON(200, gin.H{
-			"message": "Voucher berhasil diberikan",
+			"message":   message,
+			"assigned":  assigned,
+			"skipped":   skipped,
+			"not_found": notFound,
 		})
 	})
 
@@ -3008,7 +3138,9 @@ func main() {
 			return
 		}
 
-		_, err = tx.Exec(`UPDATE products SET stock = stock - ? WHERE id = ?`, rentalQty, rentalProductID)
+		// Galon sewa yang rusak dikonversi menjadi pembelian baru,
+		// sehingga yang berkurang adalah stok baru.
+		_, err = tx.Exec(`UPDATE products SET stock_new = stock_new - ? WHERE id = ?`, rentalQty, rentalProductID)
 		if err != nil {
 			tx.Rollback()
 			c.JSON(500, gin.H{"error": err.Error()})
@@ -3128,10 +3260,12 @@ func main() {
 		id := c.Param("id")
 
 		var body struct {
-			Name     string `json:"name"`
-			Code     string `json:"code"`
-			Discount int    `json:"discount"`
-			IsActive *bool  `json:"is_active"`
+			Name        string `json:"name"`
+			Code        string `json:"code"`
+			Discount    int    `json:"discount"`
+			IsActive    *bool  `json:"is_active"`
+			ActiveFrom  string `json:"active_from"`
+			ActiveUntil string `json:"active_until"`
 		}
 
 		if err := c.ShouldBindJSON(&body); err != nil {
@@ -3147,14 +3281,17 @@ func main() {
 				return
 			}
 		} else {
-			// Edit detail voucher
+			// Edit detail voucher (termasuk masa aktif; kosong = biarkan nilai lama)
 			if body.Discount <= 0 {
 				c.JSON(400, gin.H{"error": "Nominal diskon harus lebih dari 0"})
 				return
 			}
 			_, err := database.DB.Exec(
-				`UPDATE vouchers SET name = ?, code = ?, discount = ? WHERE id = ?`,
-				body.Name, body.Code, body.Discount, id,
+				`UPDATE vouchers SET name = ?, code = ?, discount = ?,
+					active_from = COALESCE(NULLIF(?, ''), active_from),
+					active_until = COALESCE(NULLIF(?, ''), active_until)
+				WHERE id = ?`,
+				body.Name, body.Code, body.Discount, body.ActiveFrom, body.ActiveUntil, id,
 			)
 			if err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
@@ -3179,11 +3316,11 @@ func main() {
 		}
 
 		rows, err := database.DB.Query(`
-			SELECT IFNULL(u.name,''), u.email
+			SELECT IFNULL(u.name,''), u.email, uv.is_used, IFNULL(uv.created_at, '')
 			FROM user_vouchers uv
 			JOIN users u ON u.firebase_uid = uv.user_id
 			WHERE uv.code = ?
-			ORDER BY uv.created_at DESC
+			ORDER BY uv.is_used ASC, uv.created_at DESC
 		`, voucherCode)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
@@ -3193,9 +3330,15 @@ func main() {
 
 		var recipients []gin.H
 		for rows.Next() {
-			var name, email string
-			rows.Scan(&name, &email)
-			recipients = append(recipients, gin.H{"name": name, "email": email})
+			var name, email, createdAt string
+			var isUsed bool
+			rows.Scan(&name, &email, &isUsed, &createdAt)
+			recipients = append(recipients, gin.H{
+				"name":       name,
+				"email":      email,
+				"is_used":    isUsed,
+				"created_at": createdAt,
+			})
 		}
 		if recipients == nil {
 			recipients = []gin.H{}
