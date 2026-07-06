@@ -406,6 +406,64 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
     return [];
   }
 
+  // =========================
+  // HAPUS RECIPIENT VOUCHER
+  // =========================
+  Future<void> deleteRecipient(int userVoucherId, String userName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text("Hapus Penerima Voucher"),
+        content: Text(
+          'Hapus voucher dari "${userName.isNotEmpty ? userName : "pengguna ini"}"?\n\nVoucher yang sudah digunakan tidak dapat dihapus.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final response = await http.delete(
+        Uri.parse("$baseUrl/user-vouchers/$userVoucherId"),
+      );
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Penerima voucher berhasil dihapus"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        final err = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err["error"] ?? "Gagal menghapus penerima")),
+        );
+      }
+    } catch (e) {
+      debugPrint("deleteRecipient error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
   void showRecipientsDialog(Map<String, dynamic> v) {
     final voucherId = v["id"] as int;
     final label = (v["name"]?.toString().isNotEmpty == true
@@ -448,7 +506,7 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
             }
             return SizedBox(
               width: double.maxFinite,
-              height: 260,
+              height: 300,
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: recipients.length,
@@ -457,27 +515,134 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                   final name = (r["name"] ?? r["user_name"] ?? "-").toString();
                   final email = (r["email"] ?? r["user_email"] ?? "-")
                       .toString();
-                  return ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.blue[50],
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: Colors.blue[700],
-                        size: 18,
+                  final isUsed = r["is_used"] == true || r["is_used"] == 1;
+                  final userVoucherId = r["id"] as int?;
+
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUsed ? Colors.grey[50] : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isUsed ? Colors.grey[300]! : Colors.transparent,
                       ),
                     ),
-                    title: Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                    child: ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: isUsed
+                            ? Colors.grey[300]
+                            : Colors.blue[50],
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: isUsed ? Colors.grey[600] : Colors.blue[700],
+                          size: 18,
+                        ),
                       ),
-                    ),
-                    subtitle: Text(
-                      email,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      title: Row(
+                        children: [
+                          Flexible(
+                            fit: FlexFit.tight,
+                            child: Text(
+                              name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: isUsed
+                                    ? Colors.grey[500]
+                                    : Colors.black87,
+                                decoration: isUsed
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isUsed
+                                  ? Colors.orange[50]
+                                  : Colors.green[50],
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isUsed
+                                    ? Colors.orange[300]!
+                                    : Colors.green[300]!,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isUsed
+                                      ? Icons.check_circle_outline
+                                      : Icons.radio_button_unchecked,
+                                  color: isUsed
+                                      ? Colors.orange[700]
+                                      : Colors.green[700],
+                                  size: 10,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  isUsed ? "Pakai" : "Belum",
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: isUsed
+                                        ? Colors.orange[700]
+                                        : Colors.green[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isUsed ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      trailing: !isUsed
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: Colors.red,
+                                size: 18,
+                              ),
+                              tooltip: "Hapus",
+                              onPressed: userVoucherId != null
+                                  ? () async {
+                                      await deleteRecipient(
+                                        userVoucherId,
+                                        name,
+                                      );
+                                      if (ctx.mounted) {
+                                        Navigator.pop(ctx);
+                                      }
+                                    }
+                                  : null,
+                            )
+                          : Icon(
+                              Icons.lock_outline_rounded,
+                              color: Colors.grey[400],
+                              size: 16,
+                            ),
                     ),
                   );
                 },
@@ -879,6 +1044,8 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
   void showAssignDialog(Map<String, dynamic> v) async {
     // Pre-fetch customer list
     List<Map<String, dynamic>> customerList = [];
+    Set<String> existingRecipientEmails = {};
+
     try {
       final response = await http.get(Uri.parse("$baseUrl/users"));
       if (response.statusCode == 200) {
@@ -892,6 +1059,18 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
       }
     } catch (e) {
       debugPrint("fetchCustomers error: $e");
+    }
+
+    // Fetch existing recipients untuk cek duplikat
+    try {
+      final voucherId = v["id"] as int;
+      final recipients = await _fetchRecipients(voucherId);
+      existingRecipientEmails = recipients
+          .map((r) => (r["email"] ?? r["user_email"] ?? "").toString())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+    } catch (e) {
+      debugPrint("fetch existing recipients error: $e");
     }
 
     if (!mounted) return;
@@ -1007,16 +1186,20 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                                 .toString();
                             final email = (u["email"] ?? "").toString();
                             final isChecked = selectedEmails.contains(email);
+                            final isDuplicate = existingRecipientEmails
+                                .contains(email);
                             return InkWell(
-                              onTap: () {
-                                setModal(() {
-                                  if (isChecked) {
-                                    selectedEmails.remove(email);
-                                  } else {
-                                    selectedEmails.add(email);
-                                  }
-                                });
-                              },
+                              onTap: !isDuplicate
+                                  ? () {
+                                      setModal(() {
+                                        if (isChecked) {
+                                          selectedEmails.remove(email);
+                                        } else {
+                                          selectedEmails.add(email);
+                                        }
+                                      });
+                                    }
+                                  : null,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -1026,15 +1209,17 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                                   children: [
                                     Checkbox(
                                       value: isChecked,
-                                      onChanged: (val) {
-                                        setModal(() {
-                                          if (val == true) {
-                                            selectedEmails.add(email);
-                                          } else {
-                                            selectedEmails.remove(email);
-                                          }
-                                        });
-                                      },
+                                      onChanged: isDuplicate
+                                          ? null
+                                          : (val) {
+                                              setModal(() {
+                                                if (val == true) {
+                                                  selectedEmails.add(email);
+                                                } else {
+                                                  selectedEmails.remove(email);
+                                                }
+                                              });
+                                            },
                                       activeColor: Colors.blue[700],
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(4),
@@ -1046,20 +1231,66 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            name,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  name,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: isDuplicate
+                                                        ? Colors.grey[500]
+                                                        : Colors.black87,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isDuplicate)
+                                                Tooltip(
+                                                  message:
+                                                      "User sudah memiliki voucher ini",
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.orange[50],
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
+                                                      border: Border.all(
+                                                        color:
+                                                            Colors.orange[300]!,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      "Sudah Ada",
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Colors.orange[700],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                           if (email.isNotEmpty)
                                             Text(
                                               email,
                                               style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey[600],
+                                                fontSize: 10,
+                                                color: isDuplicate
+                                                    ? Colors.grey[400]
+                                                    : Colors.grey[600],
                                               ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
                                             ),
                                         ],
                                       ),

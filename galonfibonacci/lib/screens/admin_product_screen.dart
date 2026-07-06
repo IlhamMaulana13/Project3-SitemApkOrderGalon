@@ -60,9 +60,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          suppliers = data is List
-              ? List<Map<String, dynamic>>.from(data)
-              : [];
+          suppliers = data is List ? List<Map<String, dynamic>>.from(data) : [];
         });
       }
     } catch (e) {
@@ -95,9 +93,9 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
     if (response.statusCode == 200) {
       fetchProducts();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Produk berhasil dihapus")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Produk berhasil dihapus")));
     }
   }
 
@@ -201,10 +199,17 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     ),
                     title: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange[700]),
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange[700],
+                        ),
                         const SizedBox(width: 8),
-                        const Text("Supplier Sudah Ada"),
+                        const Expanded(
+                          child: Text(
+                            "Supplier Sudah Ada",
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                     content: Text(
@@ -260,10 +265,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                   }
                 } catch (_) {}
                 messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(msg),
-                    backgroundColor: Colors.red,
-                  ),
+                  SnackBar(content: Text(msg), backgroundColor: Colors.red),
                 );
               }
             },
@@ -316,8 +318,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                 color: Colors.blue[50],
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(Icons.business_rounded,
-                                  color: Colors.blue[700], size: 20),
+                              child: Icon(
+                                Icons.business_rounded,
+                                color: Colors.blue[700],
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -328,11 +333,14 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 2),
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.blue[700],
-                                          borderRadius:
-                                              BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Text(
                                           id,
@@ -361,13 +369,19 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                     const SizedBox(height: 3),
                                     Row(
                                       children: [
-                                        Icon(Icons.phone_rounded,
-                                            size: 12, color: Colors.grey[500]),
+                                        Icon(
+                                          Icons.phone_rounded,
+                                          size: 12,
+                                          color: Colors.grey[500],
+                                        ),
                                         const SizedBox(width: 4),
-                                        Text(phone,
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[600])),
+                                        Text(
+                                          phone,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -377,14 +391,20 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Icon(Icons.location_on_rounded,
-                                            size: 12, color: Colors.grey[500]),
+                                        Icon(
+                                          Icons.location_on_rounded,
+                                          size: 12,
+                                          color: Colors.grey[500],
+                                        ),
                                         const SizedBox(width: 4),
                                         Expanded(
-                                          child: Text(address,
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600])),
+                                          child: Text(
+                                            address,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -393,8 +413,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                               ),
                             ),
                             IconButton(
-                              icon:
-                                  const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
                               onPressed: () async {
                                 final nav = Navigator.of(context);
                                 final confirm = await showDialog<bool>(
@@ -402,16 +425,19 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                   builder: (_) => AlertDialog(
                                     title: const Text("Hapus Supplier"),
                                     content: Text(
-                                        'Hapus supplier "${s["name"]}"?'),
+                                      'Hapus supplier "${s["name"]}"?',
+                                    ),
                                     actions: [
                                       TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text("Batal")),
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text("Batal"),
+                                      ),
                                       ElevatedButton(
                                         style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white),
+                                          backgroundColor: Colors.red,
+                                          foregroundColor: Colors.white,
+                                        ),
                                         onPressed: () =>
                                             Navigator.pop(context, true),
                                         child: const Text("Hapus"),
@@ -421,7 +447,8 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                 );
                                 if (confirm != true) return;
                                 final response = await http.delete(
-                                    Uri.parse("$baseUrl/suppliers/${s["id"]}"));
+                                  Uri.parse("$baseUrl/suppliers/${s["id"]}"),
+                                );
                                 if (!mounted) return;
                                 if (response.statusCode == 200) {
                                   await fetchSuppliers();
@@ -430,9 +457,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                          content:
-                                              Text("Supplier berhasil dihapus"),
-                                          backgroundColor: Colors.red),
+                                        content: Text(
+                                          "Supplier berhasil dihapus",
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
                                     );
                                   }
                                 }
@@ -471,9 +500,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
   void showProductDialog({Map? product}) {
     selectedImage = null;
 
-    final merkController = TextEditingController(
-      text: product?["merk"] ?? "",
-    );
+    final merkController = TextEditingController(text: product?["merk"] ?? "");
     final hargaJualController = TextEditingController(
       text: product?["price"]?.toString() ?? "",
     );
@@ -555,8 +582,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     // ── HARGA JUAL ──────────────────────────────
                     Row(
                       children: [
-                        Icon(Icons.sell_rounded,
-                            size: 16, color: Colors.green[700]),
+                        Icon(
+                          Icons.sell_rounded,
+                          size: 16,
+                          color: Colors.green[700],
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           "Harga Jual",
@@ -584,7 +614,9 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                              color: Colors.green.shade400, width: 1.5),
+                            color: Colors.green.shade400,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -594,8 +626,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     // ── HARGA MODAL ─────────────────────────────
                     Row(
                       children: [
-                        Icon(Icons.price_change_rounded,
-                            size: 16, color: Colors.orange[700]),
+                        Icon(
+                          Icons.price_change_rounded,
+                          size: 16,
+                          color: Colors.orange[700],
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           "Harga Modal",
@@ -623,7 +658,9 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                              color: Colors.orange.shade400, width: 1.5),
+                            color: Colors.orange.shade400,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -631,55 +668,56 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                     const SizedBox(height: 10),
 
                     // PREVIEW KEUNTUNGAN
-                    Builder(builder: (_) {
-                      final k = keuntungan();
-                      if (hargaJualController.text.isEmpty ||
-                          hargaModalController.text.isEmpty) {
-                        return const SizedBox();
-                      }
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              k >= 0 ? Colors.green[50] : Colors.red[50],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: k >= 0
-                                ? Colors.green.shade200
-                                : Colors.red.shade200,
+                    Builder(
+                      builder: (_) {
+                        final k = keuntungan();
+                        if (hargaJualController.text.isEmpty ||
+                            hargaModalController.text.isEmpty) {
+                          return const SizedBox();
+                        }
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              k >= 0
-                                  ? Icons.trending_up_rounded
-                                  : Icons.trending_down_rounded,
+                          decoration: BoxDecoration(
+                            color: k >= 0 ? Colors.green[50] : Colors.red[50],
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
                               color: k >= 0
-                                  ? Colors.green[700]
-                                  : Colors.red[700],
-                              size: 18,
+                                  ? Colors.green.shade200
+                                  : Colors.red.shade200,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              k >= 0
-                                  ? "Keuntungan: Rp $k"
-                                  : "Rugi: Rp ${k.abs()}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                k >= 0
+                                    ? Icons.trending_up_rounded
+                                    : Icons.trending_down_rounded,
                                 color: k >= 0
                                     ? Colors.green[700]
                                     : Colors.red[700],
-                                fontSize: 13,
+                                size: 18,
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
+                              const SizedBox(width: 8),
+                              Text(
+                                k >= 0
+                                    ? "Keuntungan: Rp $k"
+                                    : "Rugi: Rp ${k.abs()}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: k >= 0
+                                      ? Colors.green[700]
+                                      : Colors.red[700],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
 
                     const SizedBox(height: 14),
 
@@ -693,8 +731,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                             decoration: InputDecoration(
                               labelText: "Stok Baru",
                               helperText: "Untuk Beli Baru",
-                              prefixIcon:
-                                  const Icon(Icons.inventory_2_rounded),
+                              prefixIcon: const Icon(Icons.inventory_2_rounded),
                               filled: true,
                               fillColor: Colors.blue[50],
                               border: OutlineInputBorder(
@@ -734,14 +771,18 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                         filled: true,
                         fillColor: Colors.grey[50],
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: DropdownButton<String>(
-                        value: suppliers.any((s) =>
-                                s["id"].toString() == selectedSupplierId)
+                        value:
+                            suppliers.any(
+                              (s) => s["id"].toString() == selectedSupplierId,
+                            )
                             ? selectedSupplierId
                             : null,
                         isExpanded: true,
@@ -778,10 +819,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                             vertical: 4,
                           ),
                         ),
-                        icon: const Icon(
-                          Icons.add_business_rounded,
-                          size: 16,
-                        ),
+                        icon: const Icon(Icons.add_business_rounded, size: 16),
                         label: const Text("Tambah Supplier"),
                         onPressed: () {
                           Navigator.pop(context);
@@ -891,9 +929,16 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                       // Pertahankan nilai reservasi yang sudah ada saat mengedit
                       // agar tidak ter-reset ke 0.
                       "reserved_stock_new":
-                          int.tryParse(product?["reserved_stock_new"]?.toString() ?? "0") ?? 0,
+                          int.tryParse(
+                            product?["reserved_stock_new"]?.toString() ?? "0",
+                          ) ??
+                          0,
                       "reserved_stock_rental":
-                          int.tryParse(product?["reserved_stock_rental"]?.toString() ?? "0") ?? 0,
+                          int.tryParse(
+                            product?["reserved_stock_rental"]?.toString() ??
+                                "0",
+                          ) ??
+                          0,
                       "image": imageUrl,
                       "supplier_id": selectedSupplierId ?? "",
                     };
@@ -983,8 +1028,8 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                   final hargaJual = product["price"] ?? 0;
                   final hargaModal = product["modal"] ?? 0;
                   final keuntungan = hargaJual - hargaModal;
-                  final supplierName =
-                      (product["supplier_name"] ?? "").toString();
+                  final supplierName = (product["supplier_name"] ?? "")
+                      .toString();
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -1034,8 +1079,11 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                 if (supplierName.isNotEmpty)
                                   Row(
                                     children: [
-                                      Icon(Icons.business_rounded,
-                                          size: 13, color: Colors.grey[500]),
+                                      Icon(
+                                        Icons.business_rounded,
+                                        size: 13,
+                                        color: Colors.grey[500],
+                                      ),
                                       const SizedBox(width: 4),
                                       Flexible(
                                         child: Text(
@@ -1105,8 +1153,7 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                 ),
                               ),
                               IconButton(
-                                onPressed: () =>
-                                    deleteProduct(product["id"]),
+                                onPressed: () => deleteProduct(product["id"]),
                                 icon: const Icon(
                                   Icons.delete_rounded,
                                   color: Colors.red,
