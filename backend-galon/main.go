@@ -868,6 +868,26 @@ func main() {
 		}
 
 		// =========================
+		// MARK VOUCHER AS USED
+		// =========================
+		if order.VoucherCode != "" {
+			_, err = tx.Exec(`
+			UPDATE user_vouchers
+			SET is_used = true
+			WHERE user_id = ? AND code = ? AND is_used = false
+			LIMIT 1
+			`, order.UserID, order.VoucherCode)
+
+			if err != nil {
+				tx.Rollback()
+				log.Println("MARK VOUCHER USED ERROR:", err)
+				c.JSON(500, gin.H{"error": "Gagal menandai voucher terpakai"})
+				return
+			}
+			log.Println("VOUCHER MARKED USED AT ORDER:", order.VoucherCode, "USER:", order.UserID)
+		}
+
+		// =========================
 		// COMMIT
 		// =========================
 		err = tx.Commit()
@@ -2465,6 +2485,30 @@ func main() {
 		})
 	})
 
+	// DELETE USER VOUCHER (HAPUS PENERIMA VOUCHER)
+	r.DELETE("/user-vouchers/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		// Hanya boleh hapus yang belum terpakai
+		result, err := database.DB.Exec(`
+			DELETE FROM user_vouchers
+			WHERE id = ? AND is_used = false
+		`, id)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			c.JSON(400, gin.H{"error": "Voucher sudah digunakan atau tidak ditemukan"})
+			return
+		}
+
+		c.JSON(200, gin.H{"message": "Penerima voucher berhasil dihapus"})
+	})
+
 	// GET REPORT
 	r.GET("/reports", func(c *gin.Context) {
 
@@ -2647,11 +2691,17 @@ func main() {
 
 			if voucherCode != "" {
 
+				// Filter by user_id agar hanya voucher milik user pemesan yang ditandai
+				var orderUserID string
+				tx.QueryRow(`SELECT user_id FROM orders WHERE midtrans_order_id = ?`, orderID).Scan(&orderUserID)
+
 				_, err = tx.Exec(`
 	UPDATE user_vouchers
 	SET is_used = true
-	WHERE code = ?
+	WHERE user_id = ? AND code = ? AND is_used = false
+	LIMIT 1
 `,
+					orderUserID,
 					voucherCode,
 				)
 
@@ -3341,7 +3391,7 @@ func main() {
 		}
 
 		rows, err := database.DB.Query(`
-			SELECT IFNULL(u.name,''), u.email, uv.is_used, IFNULL(uv.created_at, '')
+			SELECT uv.id, IFNULL(u.name,''), u.email, uv.is_used, IFNULL(uv.created_at, '')
 			FROM user_vouchers uv
 			JOIN users u ON u.firebase_uid = uv.user_id
 			WHERE uv.code = ?
@@ -3355,10 +3405,12 @@ func main() {
 
 		var recipients []gin.H
 		for rows.Next() {
+			var uvID int
 			var name, email, createdAt string
 			var isUsed bool
-			rows.Scan(&name, &email, &isUsed, &createdAt)
+			rows.Scan(&uvID, &name, &email, &isUsed, &createdAt)
 			recipients = append(recipients, gin.H{
+				"id":         uvID,
 				"name":       name,
 				"email":      email,
 				"is_used":    isUsed,

@@ -1126,12 +1126,12 @@ class _AdminProductScreenState extends State<AdminProductScreen> {
                                           : Icons.trending_down_rounded,
                                     ),
                                     _infoChip(
-                                      "Stok Baru: ${product["stock_new"] ?? 0}",
+                                      "Stok Baru: ${product["stock_new"] ?? 0} (Tersedia: ${((product["stock_new"] ?? 0) as int) - ((product["reserved_stock_new"] ?? 0) as int)})",
                                       Colors.blue[700]!,
                                       Icons.inventory_2_rounded,
                                     ),
                                     _infoChip(
-                                      "Stok Sewa: ${product["stock_rental"] ?? 0}",
+                                      "Stok Sewa: ${product["stock_rental"] ?? 0} (Tersedia: ${((product["stock_rental"] ?? 0) as int) - ((product["reserved_stock_rental"] ?? 0) as int)})",
                                       Colors.orange[700]!,
                                       Icons.swap_horiz_rounded,
                                     ),

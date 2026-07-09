@@ -516,133 +516,150 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                   final email = (r["email"] ?? r["user_email"] ?? "-")
                       .toString();
                   final isUsed = r["is_used"] == true || r["is_used"] == 1;
-                  final userVoucherId = r["id"] as int?;
+                  final userVoucherId = r["id"];
 
                   return Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 4,
-                    ),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isUsed ? Colors.grey[50] : Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isUsed ? Colors.grey[300]! : Colors.transparent,
+                        color: isUsed ? Colors.grey[300]! : Colors.blue[100]!,
                       ),
                     ),
-                    child: ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: isUsed
-                            ? Colors.grey[300]
-                            : Colors.blue[50],
-                        child: Icon(
-                          Icons.person_rounded,
-                          color: isUsed ? Colors.grey[600] : Colors.blue[700],
-                          size: 18,
-                        ),
-                      ),
-                      title: Row(
-                        children: [
-                          Flexible(
-                            fit: FlexFit.tight,
-                            child: Text(
-                              name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: isUsed
-                                    ? Colors.grey[500]
-                                    : Colors.black87,
-                                decoration: isUsed
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Avatar
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: isUsed
+                              ? Colors.grey[300]
+                              : Colors.blue[50],
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: isUsed ? Colors.grey[600] : Colors.blue[700],
+                            size: 18,
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isUsed
-                                  ? Colors.orange[50]
-                                  : Colors.green[50],
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: isUsed
-                                    ? Colors.orange[300]!
-                                    : Colors.green[300]!,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isUsed
-                                      ? Icons.check_circle_outline
-                                      : Icons.radio_button_unchecked,
+                        ),
+                        const SizedBox(width: 10),
+                        // Info: Nama, Email, Status
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Nama
+                              Text(
+                                name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                   color: isUsed
-                                      ? Colors.orange[700]
-                                      : Colors.green[700],
-                                  size: 10,
+                                      ? Colors.grey[500]
+                                      : Colors.black87,
+                                  decoration: isUsed
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  isUsed ? "Pakai" : "Belum",
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 3),
+                              // Email
+                              Text(
+                                email,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isUsed
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 5),
+                              // Badge Status
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isUsed
+                                      ? Colors.orange[50]
+                                      : Colors.green[50],
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
                                     color: isUsed
-                                        ? Colors.orange[700]
-                                        : Colors.green[700],
+                                        ? Colors.orange[300]!
+                                        : Colors.green[300]!,
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isUsed
+                                          ? Icons.check_circle_outline
+                                          : Icons.radio_button_unchecked,
+                                      color: isUsed
+                                          ? Colors.orange[700]
+                                          : Colors.green[700],
+                                      size: 12,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      isUsed
+                                          ? "Sudah Dipakai"
+                                          : "Belum Dipakai",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isUsed
+                                            ? Colors.orange[700]
+                                            : Colors.green[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Tombol hapus / lock
+                        if (!isUsed && userVoucherId != null)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            tooltip: "Hapus",
+                            onPressed: () async {
+                              await deleteRecipient(
+                                userVoucherId as int,
+                                name,
+                              );
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                // Re-open dialog untuk refresh daftar
+                                showRecipientsDialog(v);
+                              }
+                            },
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Icon(
+                              isUsed
+                                  ? Icons.lock_outline_rounded
+                                  : Icons.more_horiz,
+                              color: Colors.grey[400],
+                              size: 18,
                             ),
                           ),
-                        ],
-                      ),
-                      subtitle: Text(
-                        email,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isUsed ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      trailing: !isUsed
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline_rounded,
-                                color: Colors.red,
-                                size: 18,
-                              ),
-                              tooltip: "Hapus",
-                              onPressed: userVoucherId != null
-                                  ? () async {
-                                      await deleteRecipient(
-                                        userVoucherId,
-                                        name,
-                                      );
-                                      if (ctx.mounted) {
-                                        Navigator.pop(ctx);
-                                      }
-                                    }
-                                  : null,
-                            )
-                          : Icon(
-                              Icons.lock_outline_rounded,
-                              color: Colors.grey[400],
-                              size: 16,
-                            ),
+                      ],
                     ),
                   );
                 },
@@ -1665,6 +1682,40 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> {
                   },
                 ),
               ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── Masa aktif voucher ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isActive ? Colors.green[50] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isActive ? Colors.green[200]! : Colors.grey[300]!,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_month_rounded,
+                    size: 14,
+                    color: isActive ? Colors.green[700] : Colors.grey[600],
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "${_displayDate(v["active_from"])} – ${_displayDate(v["active_until"])}",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isActive ? Colors.green[800] : Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 8),

@@ -83,8 +83,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() {
         rewardVouchers = result;
       });
-
-      applyVoucher(Provider.of<CartProvider>(context, listen: false).total);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -92,18 +90,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void applyVoucher(int subtotal) {
     int matchedDiscount = 0;
+    final code = voucherController.text.trim();
 
-    // AUTO ambil voucher reward pertama
-    if (rewardVouchers.isNotEmpty) {
-      matchedDiscount = rewardVouchers.first["discount"] as int;
-
-      voucherController.text = rewardVouchers.first["code"];
-    }
-
-    // fallback voucher manual
-    if (matchedDiscount == 0) {
-      final code = voucherController.text.trim();
-
+    // Cari voucher yang cocok dengan kode yang dimasukkan user
+    if (code.isNotEmpty) {
       for (var voucher in rewardVouchers) {
         if (voucher["code"] == code) {
           matchedDiscount = voucher["discount"] as int;
@@ -111,6 +101,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       }
 
+      // Fallback kode hardcode (legacy)
       if (matchedDiscount == 0 && code == "GALON10") {
         matchedDiscount = 10000;
       }

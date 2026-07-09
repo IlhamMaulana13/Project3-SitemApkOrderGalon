@@ -411,9 +411,13 @@ class _ProductItemState extends State<ProductItem> {
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            widget.selectedService == "Sewa"
-                                ? "Stok Sewa: $availableStock unit"
-                                : "Stok Baru: $availableStock",
+                            availableStock <= 0
+                                ? (widget.selectedService == "Sewa"
+                                    ? "Stok Sewa Habis"
+                                    : "Stok Baru Habis")
+                                : (widget.selectedService == "Sewa"
+                                    ? "Tersedia: $availableStock unit sewa"
+                                    : "Tersedia: $availableStock unit baru"),
                             style: TextStyle(
                               fontSize: 12,
                               color: availableStock <= 0
